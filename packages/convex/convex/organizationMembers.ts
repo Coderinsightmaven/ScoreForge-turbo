@@ -62,7 +62,7 @@ export const listMembers = query({
     // Fetch user details for each member
     const membersWithUsers = await Promise.all(
       members.map(async (member) => {
-        const user = await ctx.db.get(member.userId);
+        const user = await ctx.db.get("users", member.userId);
         return {
           _id: member._id,
           userId: member.userId,
@@ -130,7 +130,7 @@ export const listInvitations = query({
       invitations
         .filter((inv) => inv.expiresAt > now)
         .map(async (inv) => {
-          const inviter = await ctx.db.get(inv.invitedBy);
+          const inviter = await ctx.db.get("users", inv.invitedBy);
           return {
             _id: inv._id,
             email: inv.email,
@@ -253,7 +253,7 @@ export const inviteMember = mutation({
 
     if (existingInvitation && existingInvitation.organizationId === args.organizationId) {
       // Update existing invitation
-      await ctx.db.patch(existingInvitation._id, {
+      await ctx.db.patch("organizationInvitations", existingInvitation._id, {
         role: args.role,
         invitedBy: userId,
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
@@ -290,7 +290,7 @@ export const acceptInvitation = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user || !user.email) {
       throw new Error("User email not found");
     }
@@ -323,7 +323,7 @@ export const acceptInvitation = mutation({
 
     if (existingMembership) {
       // Delete the invitation since they're already a member
-      await ctx.db.delete(invitation._id);
+      await ctx.db.delete("organizationInvitations", invitation._id);
       throw new Error("You are already a member of this organization");
     }
 
@@ -337,7 +337,7 @@ export const acceptInvitation = mutation({
     });
 
     // Delete the invitation
-    await ctx.db.delete(invitation._id);
+    await ctx.db.delete("organizationInvitations", invitation._id);
 
     return membershipId;
   },
@@ -355,7 +355,7 @@ export const cancelInvitation = mutation({
       throw new Error("Not authenticated");
     }
 
-    const invitation = await ctx.db.get(args.invitationId);
+    const invitation = await ctx.db.get("organizationInvitations", args.invitationId);
     if (!invitation) {
       throw new Error("Invitation not found");
     }
@@ -372,7 +372,7 @@ export const cancelInvitation = mutation({
       throw new Error("Not authorized");
     }
 
-    await ctx.db.delete(args.invitationId);
+    await ctx.db.delete("organizationInvitations", args.invitationId);
     return null;
   },
 });
@@ -392,7 +392,7 @@ export const updateMemberRole = mutation({
       throw new Error("Not authenticated");
     }
 
-    const targetMembership = await ctx.db.get(args.memberId);
+    const targetMembership = await ctx.db.get("organizationMembers", args.memberId);
     if (!targetMembership) {
       throw new Error("Member not found");
     }
@@ -428,7 +428,7 @@ export const updateMemberRole = mutation({
       throw new Error("Only owners can promote to owner");
     }
 
-    await ctx.db.patch(args.memberId, { role: args.newRole });
+    await ctx.db.patch("organizationMembers", args.memberId, { role: args.newRole });
     return null;
   },
 });
@@ -445,7 +445,7 @@ export const removeMember = mutation({
       throw new Error("Not authenticated");
     }
 
-    const targetMembership = await ctx.db.get(args.memberId);
+    const targetMembership = await ctx.db.get("organizationMembers", args.memberId);
     if (!targetMembership) {
       throw new Error("Member not found");
     }
@@ -472,7 +472,7 @@ export const removeMember = mutation({
       throw new Error("Cannot remove this member");
     }
 
-    await ctx.db.delete(args.memberId);
+    await ctx.db.delete("organizationMembers", args.memberId);
     return null;
   },
 });
@@ -516,7 +516,7 @@ export const leaveOrganization = mutation({
       }
     }
 
-    await ctx.db.delete(membership._id);
+    await ctx.db.delete("organizationMembers", membership._id);
     return null;
   },
 });
@@ -561,11 +561,11 @@ export const transferOwnership = mutation({
     }
 
     // Update roles
-    await ctx.db.patch(newOwnerMembership._id, { role: "owner" });
-    await ctx.db.patch(myMembership._id, { role: "admin" });
+    await ctx.db.patch("organizationMembers", newOwnerMembership._id, { role: "owner" });
+    await ctx.db.patch("organizationMembers", myMembership._id, { role: "admin" });
 
     // Update organization createdBy
-    await ctx.db.patch(args.organizationId, { createdBy: args.newOwnerId });
+    await ctx.db.patch("organizations", args.organizationId, { createdBy: args.newOwnerId });
 
     return null;
   },

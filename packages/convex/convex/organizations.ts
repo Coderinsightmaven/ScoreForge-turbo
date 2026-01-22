@@ -47,7 +47,7 @@ export const listMyOrganizations = query({
     // Fetch organization details for each membership
     const organizations = await Promise.all(
       memberships.map(async (membership) => {
-        const org = await ctx.db.get(membership.organizationId);
+        const org = await ctx.db.get("organizations", membership.organizationId);
         if (!org) return null;
 
         // Count members
@@ -111,7 +111,7 @@ export const getOrganization = query({
       return null;
     }
 
-    const org = await ctx.db.get(args.organizationId);
+    const org = await ctx.db.get("organizations", args.organizationId);
     if (!org) {
       return null;
     }
@@ -207,7 +207,7 @@ export const createOrganization = mutation({
     }
 
     // Generate unique slug
-    let baseSlug = generateSlug(args.name);
+    const baseSlug = generateSlug(args.name);
     let slug = baseSlug;
     let counter = 1;
 
@@ -275,7 +275,7 @@ export const updateOrganization = mutation({
     if (args.name !== undefined) {
       updates.name = args.name;
       // Update slug if name changes
-      let baseSlug = generateSlug(args.name);
+      const baseSlug = generateSlug(args.name);
       let slug = baseSlug;
       let counter = 1;
 
@@ -295,7 +295,7 @@ export const updateOrganization = mutation({
       updates.description = args.description;
     }
 
-    await ctx.db.patch(args.organizationId, updates);
+    await ctx.db.patch("organizations", args.organizationId, updates);
     return null;
   },
 });
@@ -331,7 +331,7 @@ export const deleteOrganization = mutation({
       .collect();
 
     for (const member of members) {
-      await ctx.db.delete(member._id);
+      await ctx.db.delete("organizationMembers", member._id);
     }
 
     // Delete all invitations
@@ -341,11 +341,11 @@ export const deleteOrganization = mutation({
       .collect();
 
     for (const invitation of invitations) {
-      await ctx.db.delete(invitation._id);
+      await ctx.db.delete("organizationInvitations", invitation._id);
     }
 
     // Delete the organization
-    await ctx.db.delete(args.organizationId);
+    await ctx.db.delete("organizations", args.organizationId);
     return null;
   },
 });

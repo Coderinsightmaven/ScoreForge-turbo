@@ -68,6 +68,57 @@ function getRoleBadgeStyle(role: string) {
   };
 }
 
+const SPORT_ICONS: Record<string, string> = {
+  basketball: 'basketball.fill',
+  soccer: 'soccerball',
+  tennis: 'tennisball.fill',
+  football: 'football.fill',
+  baseball: 'baseball.fill',
+  volleyball: 'volleyball.fill',
+  hockey: 'hockey.puck.fill',
+  golf: 'figure.golf',
+  badminton: 'figure.badminton',
+  table_tennis: 'figure.table.tennis',
+  cricket: 'cricket.ball.fill',
+  rugby: 'figure.rugby',
+};
+
+function getSportIcon(sport: string) {
+  return SPORT_ICONS[sport] || 'sportscourt';
+}
+
+function getFormatName(format: string) {
+  return format
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'draft':
+      return Colors.textMuted;
+    case 'registration':
+      return Colors.info;
+    case 'active':
+      return Colors.success;
+    case 'completed':
+      return Colors.accent;
+    case 'cancelled':
+      return Colors.error;
+    default:
+      return Colors.textMuted;
+  }
+}
+
+function getStatusStyle(status: string) {
+  const color = getStatusColor(status);
+  return {
+    backgroundColor: color + '20',
+    borderColor: color + '40',
+  };
+}
+
 type OrganizationRole = 'owner' | 'admin' | 'scorer';
 
 export default function OrganizationDetailScreen() {
@@ -79,12 +130,13 @@ export default function OrganizationDetailScreen() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<OrganizationRole>('scorer');
   const [isInviting, setIsInviting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'invitations'>('members');
+  const [activeTab, setActiveTab] = useState<'tournaments' | 'members' | 'invitations'>('tournaments');
 
   const organization = useQuery(api.organizations.getOrganization, { organizationId });
   const members = useQuery(api.organizationMembers.listMembers, { organizationId });
   const invitations = useQuery(api.organizationMembers.listInvitations, { organizationId });
   const myMembership = useQuery(api.organizationMembers.getMyMembership, { organizationId });
+  const tournaments = useQuery(api.tournaments.listByOrganization, { organizationId });
 
   const inviteMember = useMutation(api.organizationMembers.inviteMember);
   const cancelInvitation = useMutation(api.organizationMembers.cancelInvitation);
@@ -280,11 +332,19 @@ export default function OrganizationDetailScreen() {
         {/* Tabs */}
         <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.tabContainer}>
           <Pressable
+            style={[styles.tab, activeTab === 'tournaments' && styles.tabActive]}
+            onPress={() => setActiveTab('tournaments')}>
+            <ThemedText
+              style={[styles.tabText, activeTab === 'tournaments' && styles.tabTextActive]}>
+              Tournaments
+            </ThemedText>
+          </Pressable>
+          <Pressable
             style={[styles.tab, activeTab === 'members' && styles.tabActive]}
             onPress={() => setActiveTab('members')}>
             <ThemedText
               style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>
-              Members ({members?.length || 0})
+              Members
             </ThemedText>
           </Pressable>
           {canManageMembers && (
@@ -293,11 +353,70 @@ export default function OrganizationDetailScreen() {
               onPress={() => setActiveTab('invitations')}>
               <ThemedText
                 style={[styles.tabText, activeTab === 'invitations' && styles.tabTextActive]}>
-                Pending ({invitations?.length || 0})
+                Pending
               </ThemedText>
             </Pressable>
           )}
         </Animated.View>
+
+        {/* Tournaments List */}
+        {activeTab === 'tournaments' && (
+          <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.listSection}>
+            {canManageMembers && (
+              <AnimatedPressable
+                style={styles.inviteButton}
+                onPress={() => router.push(`/tournament/create?organizationId=${organizationId}`)}>
+                <IconSymbol name="plus.circle.fill" size={20} color={Colors.accent} />
+                <ThemedText style={styles.inviteButtonText}>Create Tournament</ThemedText>
+              </AnimatedPressable>
+            )}
+            {!tournaments || tournaments.length === 0 ? (
+              <View style={styles.emptyInvitations}>
+                <IconSymbol name="trophy" size={32} color={Colors.textMuted} />
+                <ThemedText type="muted" style={styles.emptyText}>
+                  No tournaments yet
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.membersList}>
+                {tournaments.map((tournament, index) => (
+                  <Animated.View
+                    key={tournament._id}
+                    entering={FadeInRight.duration(400).delay(index * 50)}>
+                    <Pressable
+                      style={styles.tournamentCard}
+                      onPress={() => router.push(`/tournament/${tournament._id}`)}>
+                      <View style={styles.tournamentInfo}>
+                        <View style={[styles.sportIconContainer, getStatusStyle(tournament.status)]}>
+                          <IconSymbol
+                            name={getSportIcon(tournament.sport)}
+                            size={20}
+                            color={getStatusColor(tournament.status)}
+                          />
+                        </View>
+                        <View style={styles.tournamentDetails}>
+                          <ThemedText type="subtitle" style={styles.tournamentName}>
+                            {tournament.name}
+                          </ThemedText>
+                          <ThemedText type="muted" style={styles.tournamentMeta}>
+                            {getFormatName(tournament.format)} • {tournament.participantCount}/
+                            {tournament.maxParticipants}
+                          </ThemedText>
+                        </View>
+                      </View>
+                      <View style={[styles.statusBadge, getStatusStyle(tournament.status)]}>
+                        <ThemedText
+                          style={[styles.statusText, { color: getStatusColor(tournament.status) }]}>
+                          {tournament.status.toUpperCase()}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                ))}
+              </View>
+            )}
+          </Animated.View>
+        )}
 
         {/* Members List */}
         {activeTab === 'members' && (
@@ -877,5 +996,51 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: Colors.bgPrimary,
     fontWeight: '700',
+  },
+  // Tournament styles
+  tournamentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+  },
+  tournamentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  sportIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  tournamentDetails: {
+    flex: 1,
+  },
+  tournamentName: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  tournamentMeta: {
+    fontSize: 12,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

@@ -10,9 +10,14 @@
 
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
+import type * as lib_bracketGenerator from "../lib/bracketGenerator.js";
+import type * as matches from "../matches.js";
 import type * as myFunctions from "../myFunctions.js";
 import type * as organizationMembers from "../organizationMembers.js";
 import type * as organizations from "../organizations.js";
+import type * as teams from "../teams.js";
+import type * as tournamentParticipants from "../tournamentParticipants.js";
+import type * as tournaments from "../tournaments.js";
 import type * as users from "../users.js";
 
 import type {
@@ -24,9 +29,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
+  "lib/bracketGenerator": typeof lib_bracketGenerator;
+  matches: typeof matches;
   myFunctions: typeof myFunctions;
   organizationMembers: typeof organizationMembers;
   organizations: typeof organizations;
+  teams: typeof teams;
+  tournamentParticipants: typeof tournamentParticipants;
+  tournaments: typeof tournaments;
   users: typeof users;
 }>;
 
