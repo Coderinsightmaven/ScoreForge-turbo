@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 export const currentUser = query({
@@ -23,5 +23,33 @@ export const currentUser = query({
     }
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
     return await ctx.db.get(userId);
+  },
+});
+
+export const updateProfile = mutation({
+  args: {
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const updates: { name?: string; image?: string } = {};
+    if (args.name !== undefined) {
+      updates.name = args.name;
+    }
+    if (args.image !== undefined) {
+      updates.image = args.image;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(userId, updates);
+    }
+
+    return null;
   },
 });

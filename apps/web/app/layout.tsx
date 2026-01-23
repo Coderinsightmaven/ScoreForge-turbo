@@ -1,21 +1,12 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-});
 
 export const metadata: Metadata = {
   title: "ScoreForge - Real-Time Tournament Management",
   description:
     "The definitive platform for managing sports tournaments and tracking scores in real-time. From local leagues to major competitions.",
+  keywords: ["tournament", "sports", "scoring", "brackets", "competition", "league"],
 };
 
 export default function RootLayout({
@@ -25,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
