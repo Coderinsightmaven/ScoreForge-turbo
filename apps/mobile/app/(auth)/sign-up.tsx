@@ -59,7 +59,7 @@ export default function SignUpScreen() {
       }
 
       await signIn("password", formData);
-      router.replace("/(tabs)");
+      router.replace("/(main)");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create account");
     } finally {

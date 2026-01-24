@@ -149,6 +149,7 @@ export default function OrganizationDetailPage({
           {activeTab === "members" && (
             <MembersTab
               members={members}
+              slug={slug}
               canInvite={organization.myRole === "owner" || organization.myRole === "admin"}
             />
           )}
@@ -355,6 +356,7 @@ function TeamsTab({
 
 function MembersTab({
   members,
+  slug,
   canInvite,
 }: {
   members?: {
@@ -369,6 +371,7 @@ function MembersTab({
       image?: string;
     };
   }[];
+  slug: string;
   canInvite: boolean;
 }) {
   if (!members) {
@@ -394,9 +397,12 @@ function MembersTab({
           MEMBERS
         </h2>
         {canInvite && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 rounded-lg text-sm text-accent hover:bg-accent/20 transition-all">
-            <span>+</span> Invite Member
-          </button>
+          <Link
+            href={`/organizations/${slug}/settings`}
+            className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 rounded-lg text-sm text-accent hover:bg-accent/20 transition-all"
+          >
+            <span>+</span> Add Member
+          </Link>
         )}
       </div>
 

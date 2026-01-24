@@ -44,7 +44,7 @@ export default function SignInScreen() {
       formData.append("flow", "signIn");
 
       await signIn("password", formData);
-      router.replace("/(tabs)");
+      router.replace("/(main)");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {

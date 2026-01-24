@@ -4,22 +4,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/convex";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-type PendingInvitation = {
-  _id: string;
-  organizationId: string;
-  organizationName: string;
-  organizationSlug: string;
-  role: string;
-  token: string;
-};
 
 export default function OnboardingPage() {
   const router = useRouter();
   const onboardingState = useQuery(api.users.getOnboardingState);
-  const acceptInvitation = useMutation(api.organizationMembers.acceptInvitation);
   const createOrganization = useMutation(api.organizations.createOrganization);
 
-  const [step, setStep] = useState<"loading" | "invitations" | "create-org">("loading");
   const [orgName, setOrgName] = useState("");
   const [orgDescription, setOrgDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +23,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Determine where to redirect or what step to show
+    // Determine where to redirect
     if (onboardingState.organizationCount > 0) {
       // User already has organizations
       if (onboardingState.organizationCount === 1) {
@@ -43,35 +33,8 @@ export default function OnboardingPage() {
         // Multiple orgs - go to dashboard to select
         router.push("/dashboard");
       }
-      return;
-    }
-
-    // No organizations yet
-    if (onboardingState.pendingInvitationCount > 0) {
-      // Has pending invitations - show them
-      setStep("invitations");
-    } else {
-      // No invitations - need to create an org
-      setStep("create-org");
     }
   }, [onboardingState, router]);
-
-  const handleAcceptInvitation = async (token: string, orgSlug: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await acceptInvitation({ token });
-      // Redirect to the organization they just joined
-      router.push(`/organizations/${orgSlug}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to accept invitation");
-      setLoading(false);
-    }
-  };
-
-  const handleSkipInvitations = () => {
-    setStep("create-org");
-  };
 
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,85 +59,12 @@ export default function OnboardingPage() {
     }
   };
 
-  if (step === "loading" || onboardingState === undefined) {
+  if (onboardingState === undefined) {
     return <LoadingScreen />;
   }
 
-  if (step === "invitations" && onboardingState) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6 py-12">
-        {/* Background */}
-        <div className="fixed inset-0 -z-10">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-accent/10 blur-[120px] rounded-full" />
-          <div className="absolute inset-0 grid-bg opacity-50" />
-        </div>
-
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 text-3xl bg-accent/10 border border-accent/30 rounded-2xl mb-4">
-              <span className="animate-pulse">✉</span>
-            </div>
-            <h1 className="font-display text-3xl font-bold tracking-wide text-text-primary mb-2">
-              YOU&apos;VE BEEN INVITED
-            </h1>
-            <p className="text-text-secondary">
-              Accept an invitation to join an organization
-            </p>
-          </div>
-
-          <div className="space-y-4 mb-8">
-            {onboardingState.pendingInvitations.map((invitation: PendingInvitation) => (
-              <div
-                key={invitation._id}
-                className="relative p-6 bg-bg-card border border-border rounded-2xl hover:border-accent/30 transition-all"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-display text-lg font-semibold text-text-primary mb-1">
-                      {invitation.organizationName}
-                    </h3>
-                    <p className="text-sm text-text-secondary mb-3">
-                      You&apos;ve been invited as{" "}
-                      <span className="font-medium text-accent capitalize">
-                        {invitation.role}
-                      </span>
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleAcceptInvitation(invitation.token, invitation.organizationSlug)}
-                    disabled={loading}
-                    className="px-4 py-2 font-semibold text-sm text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50"
-                  >
-                    {loading ? "Joining..." : "Accept"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 p-3 mb-6 text-sm text-red bg-red/10 border border-red/20 rounded-lg">
-              <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red rounded-full flex-shrink-0">
-                !
-              </span>
-              {error}
-            </div>
-          )}
-
-          <div className="text-center">
-            <button
-              onClick={handleSkipInvitations}
-              className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-            >
-              Skip and create my own organization →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === "create-org") {
+  // User has no organizations - show create org form
+  if (onboardingState && onboardingState.organizationCount === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 py-12">
         {/* Background */}
@@ -255,17 +145,6 @@ export default function OnboardingPage() {
               )}
             </button>
           </form>
-
-          {onboardingState && onboardingState.pendingInvitationCount > 0 && (
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => setStep("invitations")}
-                className="text-sm text-text-secondary hover:text-accent transition-colors"
-              >
-                ← Back to invitations
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );

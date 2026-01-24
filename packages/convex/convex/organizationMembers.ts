@@ -62,7 +62,7 @@ export const listMembers = query({
     // Fetch user details for each member
     const membersWithUsers = await Promise.all(
       members.map(async (member) => {
-        const user = await ctx.db.get("users", member.userId);
+        const user = await ctx.db.get(member.userId);
         return {
           _id: member._id,
           userId: member.userId,
@@ -82,67 +82,6 @@ export const listMembers = query({
     return membersWithUsers.sort(
       (a, b) => roleHierarchy[b.role] - roleHierarchy[a.role]
     );
-  },
-});
-
-/**
- * Get pending invitations for an organization (admin/owner only)
- */
-export const listInvitations = query({
-  args: { organizationId: v.id("organizations") },
-  returns: v.array(
-    v.object({
-      _id: v.id("organizationInvitations"),
-      email: v.string(),
-      role: organizationRoles,
-      invitedBy: v.id("users"),
-      expiresAt: v.number(),
-      inviterName: v.optional(v.string()),
-    })
-  ),
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return [];
-    }
-
-    // Check if user is admin or owner
-    const myMembership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_organization_and_user", (q) =>
-        q.eq("organizationId", args.organizationId).eq("userId", userId)
-      )
-      .first();
-
-    if (!myMembership || myMembership.role === "scorer") {
-      return [];
-    }
-
-    // Get all pending invitations
-    const invitations = await ctx.db
-      .query("organizationInvitations")
-      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
-      .collect();
-
-    // Filter expired invitations and add inviter name
-    const now = Date.now();
-    const validInvitations = await Promise.all(
-      invitations
-        .filter((inv) => inv.expiresAt > now)
-        .map(async (inv) => {
-          const inviter = await ctx.db.get("users", inv.invitedBy);
-          return {
-            _id: inv._id,
-            email: inv.email,
-            role: inv.role,
-            invitedBy: inv.invitedBy,
-            expiresAt: inv.expiresAt,
-            inviterName: inviter?.name,
-          };
-        })
-    );
-
-    return validInvitations;
   },
 });
 
@@ -184,27 +123,30 @@ export const getMyMembership = query({
   },
 });
 
-// ============================================
-// Mutations
-// ============================================
-
 /**
- * Invite a user to an organization by email
+ * Search for users to add to an organization
+ * Returns users who are not already members
  */
-export const inviteMember = mutation({
+export const searchUsersToAdd = query({
   args: {
     organizationId: v.id("organizations"),
-    email: v.string(),
-    role: organizationRoles,
+    searchTerm: v.string(),
   },
-  returns: v.id("organizationInvitations"),
+  returns: v.array(
+    v.object({
+      _id: v.id("users"),
+      name: v.optional(v.string()),
+      email: v.optional(v.string()),
+      image: v.optional(v.string()),
+    })
+  ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      return [];
     }
 
-    // Check user's role
+    // Check if user is admin or owner
     const myMembership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_organization_and_user", (q) =>
@@ -212,168 +154,111 @@ export const inviteMember = mutation({
       )
       .first();
 
-    if (!myMembership) {
-      throw new Error("Not a member of this organization");
+    if (!myMembership || myMembership.role === "scorer") {
+      return [];
     }
 
-    // Only owners and admins can invite
-    if (myMembership.role === "scorer") {
-      throw new Error("Scorers cannot invite members");
-    }
+    // Get existing member user IDs
+    const existingMembers = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .collect();
+    const existingUserIds = new Set(existingMembers.map((m) => m.userId));
 
-    // Admins cannot invite owners or other admins
-    if (myMembership.role === "admin" && args.role !== "scorer") {
-      throw new Error("Admins can only invite scorers");
-    }
+    // Search for users by name or email
+    const searchLower = args.searchTerm.toLowerCase();
+    const allUsers = await ctx.db.query("users").collect();
 
-    // Check if user is already a member (by email)
-    const existingUser = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("email"), args.email))
-      .first();
+    const matchingUsers = allUsers
+      .filter((user) => {
+        // Exclude existing members
+        if (existingUserIds.has(user._id)) return false;
+        // Match by name or email
+        const nameMatch = user.name?.toLowerCase().includes(searchLower);
+        const emailMatch = user.email?.toLowerCase().includes(searchLower);
+        return nameMatch || emailMatch;
+      })
+      .slice(0, 10); // Limit results
 
-    if (existingUser) {
-      const existingMembership = await ctx.db
-        .query("organizationMembers")
-        .withIndex("by_organization_and_user", (q) =>
-          q.eq("organizationId", args.organizationId).eq("userId", existingUser._id)
-        )
-        .first();
-
-      if (existingMembership) {
-        throw new Error("User is already a member of this organization");
-      }
-    }
-
-    // Check for existing invitation
-    const existingInvitation = await ctx.db
-      .query("organizationInvitations")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .first();
-
-    if (existingInvitation && existingInvitation.organizationId === args.organizationId) {
-      // Update existing invitation
-      await ctx.db.patch("organizationInvitations", existingInvitation._id, {
-        role: args.role,
-        invitedBy: userId,
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-      return existingInvitation._id;
-    }
-
-    // Generate a simple token (in production, use crypto)
-    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-
-    // Create invitation
-    const invitationId = await ctx.db.insert("organizationInvitations", {
-      organizationId: args.organizationId,
-      email: args.email,
-      role: args.role,
-      invitedBy: userId,
-      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      token,
-    });
-
-    return invitationId;
+    return matchingUsers.map((user) => ({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+    }));
   },
 });
 
+// ============================================
+// Mutations
+// ============================================
+
 /**
- * Accept an invitation (for the current user)
+ * Add a user to an organization (admin/owner only)
  */
-export const acceptInvitation = mutation({
-  args: { token: v.string() },
+export const addMember = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    role: organizationRoles,
+  },
   returns: v.id("organizationMembers"),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const currentUserId = await getAuthUserId(ctx);
+    if (!currentUserId) {
       throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db.get("users", userId);
-    if (!user || !user.email) {
-      throw new Error("User email not found");
-    }
-
-    // Find the invitation
-    const invitation = await ctx.db
-      .query("organizationInvitations")
-      .withIndex("by_token", (q) => q.eq("token", args.token))
-      .first();
-
-    if (!invitation) {
-      throw new Error("Invitation not found");
-    }
-
-    if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
-      throw new Error("This invitation is for a different email address");
-    }
-
-    if (invitation.expiresAt < Date.now()) {
-      throw new Error("Invitation has expired");
-    }
-
-    // Check if already a member
-    const existingMembership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_organization_and_user", (q) =>
-        q.eq("organizationId", invitation.organizationId).eq("userId", userId)
-      )
-      .first();
-
-    if (existingMembership) {
-      // Delete the invitation since they're already a member
-      await ctx.db.delete("organizationInvitations", invitation._id);
-      throw new Error("You are already a member of this organization");
-    }
-
-    // Create membership
-    const membershipId = await ctx.db.insert("organizationMembers", {
-      organizationId: invitation.organizationId,
-      userId,
-      role: invitation.role,
-      invitedBy: invitation.invitedBy,
-      joinedAt: Date.now(),
-    });
-
-    // Delete the invitation
-    await ctx.db.delete("organizationInvitations", invitation._id);
-
-    return membershipId;
-  },
-});
-
-/**
- * Cancel/delete an invitation (admin/owner only)
- */
-export const cancelInvitation = mutation({
-  args: { invitationId: v.id("organizationInvitations") },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
-    const invitation = await ctx.db.get("organizationInvitations", args.invitationId);
-    if (!invitation) {
-      throw new Error("Invitation not found");
     }
 
     // Check user's role
     const myMembership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_organization_and_user", (q) =>
-        q.eq("organizationId", invitation.organizationId).eq("userId", userId)
+        q.eq("organizationId", args.organizationId).eq("userId", currentUserId)
       )
       .first();
 
-    if (!myMembership || myMembership.role === "scorer") {
-      throw new Error("Not authorized");
+    if (!myMembership) {
+      throw new Error("Not a member of this organization");
     }
 
-    await ctx.db.delete("organizationInvitations", args.invitationId);
-    return null;
+    // Only owners and admins can add members
+    if (myMembership.role === "scorer") {
+      throw new Error("Scorers cannot add members");
+    }
+
+    // Admins cannot add owners or other admins
+    if (myMembership.role === "admin" && args.role !== "scorer") {
+      throw new Error("Admins can only add scorers");
+    }
+
+    // Verify the user exists
+    const targetUser = await ctx.db.get(args.userId);
+    if (!targetUser) {
+      throw new Error("User not found");
+    }
+
+    // Check if already a member
+    const existingMembership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_organization_and_user", (q) =>
+        q.eq("organizationId", args.organizationId).eq("userId", args.userId)
+      )
+      .first();
+
+    if (existingMembership) {
+      throw new Error("User is already a member of this organization");
+    }
+
+    // Add the member
+    const membershipId = await ctx.db.insert("organizationMembers", {
+      organizationId: args.organizationId,
+      userId: args.userId,
+      role: args.role,
+      invitedBy: currentUserId,
+      joinedAt: Date.now(),
+    });
+
+    return membershipId;
   },
 });
 
@@ -392,7 +277,7 @@ export const updateMemberRole = mutation({
       throw new Error("Not authenticated");
     }
 
-    const targetMembership = await ctx.db.get("organizationMembers", args.memberId);
+    const targetMembership = await ctx.db.get(args.memberId);
     if (!targetMembership) {
       throw new Error("Member not found");
     }
@@ -428,7 +313,7 @@ export const updateMemberRole = mutation({
       throw new Error("Only owners can promote to owner");
     }
 
-    await ctx.db.patch("organizationMembers", args.memberId, { role: args.newRole });
+    await ctx.db.patch(args.memberId, { role: args.newRole });
     return null;
   },
 });
@@ -445,7 +330,7 @@ export const removeMember = mutation({
       throw new Error("Not authenticated");
     }
 
-    const targetMembership = await ctx.db.get("organizationMembers", args.memberId);
+    const targetMembership = await ctx.db.get(args.memberId);
     if (!targetMembership) {
       throw new Error("Member not found");
     }
@@ -472,7 +357,7 @@ export const removeMember = mutation({
       throw new Error("Cannot remove this member");
     }
 
-    await ctx.db.delete("organizationMembers", args.memberId);
+    await ctx.db.delete(args.memberId);
     return null;
   },
 });
@@ -516,7 +401,7 @@ export const leaveOrganization = mutation({
       }
     }
 
-    await ctx.db.delete("organizationMembers", membership._id);
+    await ctx.db.delete(membership._id);
     return null;
   },
 });
@@ -561,11 +446,11 @@ export const transferOwnership = mutation({
     }
 
     // Update roles
-    await ctx.db.patch("organizationMembers", newOwnerMembership._id, { role: "owner" });
-    await ctx.db.patch("organizationMembers", myMembership._id, { role: "admin" });
+    await ctx.db.patch(newOwnerMembership._id, { role: "owner" });
+    await ctx.db.patch(myMembership._id, { role: "admin" });
 
     // Update organization createdBy
-    await ctx.db.patch("organizations", args.organizationId, { createdBy: args.newOwnerId });
+    await ctx.db.patch(args.organizationId, { createdBy: args.newOwnerId });
 
     return null;
   },

@@ -23,7 +23,7 @@ export default function Index() {
       </AuthLoading>
 
       <Authenticated>
-        <Redirect href="/(tabs)" />
+        <Redirect href="/(main)" />
       </Authenticated>
 
       <Unauthenticated>

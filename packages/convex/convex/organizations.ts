@@ -331,17 +331,7 @@ export const deleteOrganization = mutation({
       .collect();
 
     for (const member of members) {
-      await ctx.db.delete("organizationMembers", member._id);
-    }
-
-    // Delete all invitations
-    const invitations = await ctx.db
-      .query("organizationInvitations")
-      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
-      .collect();
-
-    for (const invitation of invitations) {
-      await ctx.db.delete("organizationInvitations", invitation._id);
+      await ctx.db.delete(member._id);
     }
 
     // Delete the organization

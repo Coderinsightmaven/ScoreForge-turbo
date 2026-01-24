@@ -6,7 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { Skeleton, SkeletonListItem, SkeletonForm } from "@/app/components/Skeleton";
+import { Skeleton, SkeletonForm } from "@/app/components/Skeleton";
 
 export default function OrganizationSettingsPage({
   params,
@@ -16,12 +16,9 @@ export default function OrganizationSettingsPage({
   const { slug } = use(params);
   const router = useRouter();
   const organization = useQuery(api.organizations.getOrganizationBySlug, { slug });
+
   const members = useQuery(
     api.organizationMembers.listMembers,
-    organization ? { organizationId: organization._id } : "skip"
-  );
-  const invitations = useQuery(
-    api.organizationMembers.listInvitations,
     organization ? { organizationId: organization._id } : "skip"
   );
 
@@ -71,16 +68,13 @@ export default function OrganizationSettingsPage({
           members={members || []}
         />
 
-        {/* Invitations Section */}
-        <InvitationsSection
-          organization={organization}
-          invitations={invitations || []}
-        />
+        {/* Add Member Section */}
+        <AddMemberSection organization={organization} />
 
         {/* Danger Zone */}
         <DangerZoneSection
           organization={organization}
-          onDeleted={() => router.push("/organizations")}
+          onDeleted={() => router.push("/dashboard")}
         />
       </main>
     </div>
@@ -302,63 +296,56 @@ function MembersSection({
   );
 }
 
-function InvitationsSection({
+function AddMemberSection({
   organization,
-  invitations,
 }: {
   organization: { _id: string; myRole: string };
-  invitations: {
-    _id: string;
-    email: string;
-    role: string;
-    expiresAt: number;
-  }[];
 }) {
-  const inviteMember = useMutation(api.organizationMembers.inviteMember);
-  const cancelInvitation = useMutation(api.organizationMembers.cancelInvitation);
+  const addMember = useMutation(api.organizationMembers.addMember);
 
-  const [email, setEmail] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [role, setRole] = useState<"admin" | "scorer">("scorer");
-  const [sending, setSending] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{
+    _id: string;
+    name?: string;
+    email?: string;
+  } | null>(null);
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setError("Please enter an email address");
+  // Only search when there's at least 2 characters
+  const searchResults = useQuery(
+    api.organizationMembers.searchUsersToAdd,
+    searchTerm.length >= 2
+      ? { organizationId: organization._id as any, searchTerm }
+      : "skip"
+  );
+
+  const handleAdd = async () => {
+    if (!selectedUser) {
+      setError("Please select a user to add");
       return;
     }
 
-    setSending(true);
+    setAdding(true);
     setError(null);
     setSuccess(false);
 
     try {
-      await inviteMember({
+      await addMember({
         organizationId: organization._id as any,
-        email: email.trim().toLowerCase(),
+        userId: selectedUser._id as any,
         role: role,
       });
-      setEmail("");
+      setSearchTerm("");
+      setSelectedUser(null);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send invitation");
+      setError(err instanceof Error ? err.message : "Failed to add member");
     } finally {
-      setSending(false);
-    }
-  };
-
-  const handleCancel = async (invitationId: string) => {
-    setCancelingId(invitationId);
-    try {
-      await cancelInvitation({ invitationId: invitationId as any });
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to cancel invitation");
-    } finally {
-      setCancelingId(null);
+      setAdding(false);
     }
   };
 
@@ -368,19 +355,87 @@ function InvitationsSection({
     <section className="bg-bg-card border border-border rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-border">
         <h2 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-          INVITE MEMBERS
+          ADD MEMBER
         </h2>
+        <p className="text-sm text-text-muted mt-1">
+          Search for existing users by name or email to add them to your organization
+        </p>
       </div>
 
-      <form onSubmit={handleInvite} className="p-6 border-b border-border">
-        <div className="flex gap-3">
+      <div className="p-6 space-y-4">
+        {/* Search input */}
+        <div className="relative">
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@example.com"
-            className="flex-1 px-4 py-3 text-base text-text-primary bg-bg-elevated border border-border rounded-lg placeholder:text-text-muted focus:outline-none focus:border-accent focus:bg-bg-secondary transition-all"
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setSelectedUser(null);
+            }}
+            placeholder="Search by name or email..."
+            className="w-full px-4 py-3 text-base text-text-primary bg-bg-elevated border border-border rounded-lg placeholder:text-text-muted focus:outline-none focus:border-accent focus:bg-bg-secondary transition-all"
           />
+
+          {/* Search results dropdown */}
+          {searchTerm.length >= 2 && searchResults && searchResults.length > 0 && !selectedUser && (
+            <div className="absolute z-10 w-full mt-2 bg-bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {searchResults.map((user) => (
+                <button
+                  key={user._id}
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setSearchTerm(user.name || user.email || "");
+                  }}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-bg-elevated transition-colors text-left"
+                >
+                  <div className="w-8 h-8 flex items-center justify-center font-display text-xs font-semibold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full flex-shrink-0">
+                    {user.name?.charAt(0).toUpperCase() || "?"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-text-primary truncate">
+                      {user.name || "Unknown"}
+                    </p>
+                    <p className="text-xs text-text-muted truncate">{user.email}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* No results message */}
+          {searchTerm.length >= 2 && searchResults && searchResults.length === 0 && !selectedUser && (
+            <div className="absolute z-10 w-full mt-2 p-4 bg-bg-card border border-border rounded-lg text-center text-text-muted">
+              No users found matching &quot;{searchTerm}&quot;
+            </div>
+          )}
+        </div>
+
+        {/* Selected user display */}
+        {selectedUser && (
+          <div className="flex items-center gap-3 p-3 bg-bg-elevated border border-accent/30 rounded-lg">
+            <div className="w-8 h-8 flex items-center justify-center font-display text-xs font-semibold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full flex-shrink-0">
+              {selectedUser.name?.charAt(0).toUpperCase() || "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-text-primary truncate">
+                {selectedUser.name || "Unknown"}
+              </p>
+              <p className="text-xs text-text-muted truncate">{selectedUser.email}</p>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedUser(null);
+                setSearchTerm("");
+              }}
+              className="p-1 text-text-muted hover:text-text-primary transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Role selector and add button */}
+        <div className="flex gap-3">
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as "admin" | "scorer")}
@@ -391,59 +446,28 @@ function InvitationsSection({
             ))}
           </select>
           <button
-            type="submit"
-            disabled={sending}
-            className="px-6 py-3 font-semibold text-sm text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50"
+            onClick={handleAdd}
+            disabled={adding || !selectedUser}
+            className="flex-1 px-6 py-3 font-semibold text-sm text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sending ? "Sending..." : "Invite"}
+            {adding ? "Adding..." : "Add Member"}
           </button>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 mt-4 p-3 text-sm text-red bg-red/10 border border-red/20 rounded-lg">
+          <div className="flex items-center gap-2 p-3 text-sm text-red bg-red/10 border border-red/20 rounded-lg">
             <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red rounded-full flex-shrink-0">!</span>
             {error}
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 mt-4 p-3 text-sm text-success bg-success/10 border border-success/20 rounded-lg">
+          <div className="flex items-center gap-2 p-3 text-sm text-success bg-success/10 border border-success/20 rounded-lg">
             <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-success rounded-full flex-shrink-0">✓</span>
-            Invitation sent successfully!
+            Member added successfully!
           </div>
         )}
-      </form>
-
-      {invitations.length > 0 && (
-        <div className="p-6">
-          <h3 className="text-sm font-medium text-text-muted mb-4">
-            PENDING INVITATIONS ({invitations.length})
-          </h3>
-          <div className="space-y-3">
-            {invitations.map((invitation) => (
-              <div
-                key={invitation._id}
-                className="flex items-center justify-between p-3 bg-bg-elevated border border-border rounded-lg"
-              >
-                <div>
-                  <p className="font-medium text-text-primary">{invitation.email}</p>
-                  <p className="text-xs text-text-muted">
-                    Role: <span className="capitalize">{invitation.role}</span> •
-                    Expires: {new Date(invitation.expiresAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleCancel(invitation._id)}
-                  disabled={cancelingId === invitation._id}
-                  className="px-3 py-1.5 text-sm text-red hover:bg-red/10 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {cancelingId === invitation._id ? "Canceling..." : "Cancel"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -589,16 +613,17 @@ function LoadingSkeleton() {
           </div>
         </div>
 
-        {/* Invitations Section */}
+        {/* Add Member Section */}
         <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">
           <div className="p-6 border-b border-border">
-            <Skeleton className="h-6 w-36" />
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-64 mt-2" />
           </div>
-          <div className="p-6">
+          <div className="p-6 space-y-4">
+            <Skeleton className="h-12 w-full rounded-lg" />
             <div className="flex gap-3">
-              <Skeleton className="h-12 flex-1 rounded-lg" />
               <Skeleton className="h-12 w-28 rounded-lg" />
-              <Skeleton className="h-12 w-24 rounded-lg" />
+              <Skeleton className="h-12 flex-1 rounded-lg" />
             </div>
           </div>
         </div>
@@ -634,10 +659,10 @@ function NotFound({ slug }: { slug: string }) {
         The organization &quot;{slug}&quot; doesn&apos;t exist or you don&apos;t have access.
       </p>
       <Link
-        href="/organizations"
+        href="/dashboard"
         className="text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Organizations
+        ← Back to Dashboard
       </Link>
     </div>
   );
