@@ -45,6 +45,9 @@ export const listMatches = query({
       scheduledTime: v.optional(v.number()),
       startedAt: v.optional(v.number()),
       completedAt: v.optional(v.number()),
+      sport: v.string(),
+      tennisState: v.optional(tennisState),
+      volleyballState: v.optional(volleyballState),
     })
   ),
   handler: async (ctx, args) => {
@@ -143,6 +146,9 @@ export const listMatches = query({
           scheduledTime: match.scheduledTime,
           startedAt: match.startedAt,
           completedAt: match.completedAt,
+          sport: tournament.sport,
+          tennisState: match.tennisState,
+          volleyballState: match.volleyballState,
         };
       })
     );

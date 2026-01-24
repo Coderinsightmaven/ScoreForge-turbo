@@ -120,10 +120,12 @@ function ScoringZone({
       style={[styles.scoringZone, isTop ? styles.scoringZoneTop : styles.scoringZoneBottom]}>
       <Animated.View style={[styles.scoringZoneInner, animatedStyle]}>
         <View style={styles.scoringZoneContent}>
-          {isServing && <View style={styles.servingIndicatorLarge} />}
-          <ThemedText style={styles.scoringZoneName} numberOfLines={1}>
-            {playerName}
-          </ThemedText>
+          <View style={styles.scoringZoneNameRow}>
+            {isServing && <View style={styles.servingIndicatorLarge} />}
+            <ThemedText style={styles.scoringZoneName} numberOfLines={1}>
+              {playerName}
+            </ThemedText>
+          </View>
           <ThemedText style={styles.scoringZoneHint}>Tap to score</ThemedText>
         </View>
       </Animated.View>
@@ -277,7 +279,7 @@ export default function MatchScoreScreen() {
 
         {/* Center Scoreboard */}
         <View style={[styles.centerScoreboard, { paddingTop: insets.top }]}>
-          {/* Mini Header */}
+          {/* Mini Header - Back left, Live right */}
           <View style={styles.miniHeader}>
             <Pressable onPress={() => router.back()} style={styles.miniBackButton}>
               <IconSymbol name="chevron.left" size={18} color={Colors.textPrimary} />
@@ -286,7 +288,6 @@ export default function MatchScoreScreen() {
               <View style={styles.liveDot} />
               <ThemedText style={styles.liveText}>LIVE</ThemedText>
             </View>
-            <View style={{ width: 36 }} />
           </View>
 
           {/* Tennis Scoreboard */}
@@ -308,10 +309,10 @@ export default function MatchScoreScreen() {
                 {/* Player 1 Row */}
                 <View style={styles.scoreRow}>
                   <View style={styles.playerCell}>
-                    {serving1 && <View style={styles.servingDotSmall} />}
                     <ThemedText style={styles.playerNameFull} numberOfLines={1}>
                       {match.participant1?.displayName || 'P1'}
                     </ThemedText>
+                    {serving1 && <View style={styles.servingDotSmall} />}
                   </View>
                   {match.tennisState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
@@ -340,10 +341,10 @@ export default function MatchScoreScreen() {
                 {/* Player 2 Row */}
                 <View style={[styles.scoreRow, styles.scoreRowLast]}>
                   <View style={styles.playerCell}>
-                    {serving2 && <View style={styles.servingDotSmall} />}
                     <ThemedText style={styles.playerNameFull} numberOfLines={1}>
                       {match.participant2?.displayName || 'P2'}
                     </ThemedText>
+                    {serving2 && <View style={styles.servingDotSmall} />}
                   </View>
                   {match.tennisState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
@@ -381,10 +382,10 @@ export default function MatchScoreScreen() {
                 {/* Team 1 Row */}
                 <View style={styles.scoreRow}>
                   <View style={styles.playerCell}>
-                    {serving1 && <View style={styles.servingDotSmall} />}
                     <ThemedText style={styles.playerNameFull} numberOfLines={1}>
                       {match.participant1?.displayName || 'T1'}
                     </ThemedText>
+                    {serving1 && <View style={styles.servingDotSmall} />}
                   </View>
                   {match.volleyballState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
@@ -403,10 +404,10 @@ export default function MatchScoreScreen() {
                 {/* Team 2 Row */}
                 <View style={[styles.scoreRow, styles.scoreRowLast]}>
                   <View style={styles.playerCell}>
-                    {serving2 && <View style={styles.servingDotSmall} />}
                     <ThemedText style={styles.playerNameFull} numberOfLines={1}>
                       {match.participant2?.displayName || 'T2'}
                     </ThemedText>
+                    {serving2 && <View style={styles.servingDotSmall} />}
                   </View>
                   {match.volleyballState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
@@ -731,11 +732,20 @@ const styles = StyleSheet.create({
   scoringZoneContent: {
     alignItems: 'center',
     gap: Spacing.sm,
+    overflow: 'visible',
+  },
+  scoringZoneNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    overflow: 'visible',
   },
   scoringZoneName: {
-    fontSize: 28,
+    fontSize: 36,
+    lineHeight: 48,
     fontWeight: '700',
     color: Colors.textPrimary,
+    paddingVertical: 4,
   },
   scoringZoneHint: {
     fontSize: 14,
@@ -748,7 +758,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: Colors.success,
-    marginBottom: Spacing.xs,
   },
 
   centerScoreboard: {
@@ -756,7 +765,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: '50%',
-    transform: [{ translateY: -120 }],
+    transform: [{ translateY: -140 }],
     zIndex: 10,
     paddingHorizontal: Spacing.md,
   },
@@ -859,8 +868,8 @@ const styles = StyleSheet.create({
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -874,9 +883,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   playerNameFull: {
-    fontSize: 14,
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 28,
     fontWeight: '600',
     color: Colors.textPrimary,
+    includeFontPadding: false,
   },
   servingDotSmall: {
     width: 6,
