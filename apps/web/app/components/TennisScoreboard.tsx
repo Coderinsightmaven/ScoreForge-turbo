@@ -170,7 +170,7 @@ export function TennisScoreboard({
         <span className="px-3 py-1 text-xs font-semibold text-accent bg-accent/10 rounded-full">
           Best of {tennisState.setsToWin * 2 - 1}
         </span>
-        <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-white/5 rounded-full">
+        <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-bg-elevated rounded-full">
           {tennisState.isAdScoring ? "Ad Scoring" : "No-Ad"}
         </span>
       </div>
@@ -342,14 +342,14 @@ export function TennisScoreboard({
             <button
               onClick={() => handleScorePoint(1)}
               disabled={loading}
-              className="flex-1 py-4 text-lg font-bold text-bg-void bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-50"
+              className="flex-1 py-4 text-lg font-bold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-50"
             >
               {p1Name.split(" ")[0]}
             </button>
             <button
               onClick={() => handleScorePoint(2)}
               disabled={loading}
-              className="flex-1 py-4 text-lg font-bold text-bg-void bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-50"
+              className="flex-1 py-4 text-lg font-bold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-50"
             >
               {p2Name.split(" ")[0]}
             </button>
@@ -450,7 +450,7 @@ export function TennisMatchSetup({
           <span className="px-3 py-1 text-xs font-semibold text-accent bg-accent/10 rounded-full">
             Best of {tennisConfig.setsToWin * 2 - 1}
           </span>
-          <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-white/5 rounded-full">
+          <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-bg-elevated rounded-full">
             {tennisConfig.isAdScoring ? "Ad Scoring" : "No-Ad"}
           </span>
         </div>
@@ -490,7 +490,7 @@ export function TennisMatchSetup({
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-4 font-semibold text-bg-void bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-50"
+        className="w-full py-4 font-semibold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-50"
       >
         {loading ? "Starting..." : "Start Match"}
       </button>

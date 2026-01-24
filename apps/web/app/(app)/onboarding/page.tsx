@@ -75,11 +75,13 @@ export default function OnboardingPage() {
 
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 text-3xl bg-accent/10 border border-accent/30 rounded-2xl mb-4">
-              ⬡
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-accent/10 border border-accent/20 rounded-2xl mb-4">
+              <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+              </svg>
             </div>
-            <h1 className="font-display text-3xl font-bold tracking-wide text-text-primary mb-2">
-              CREATE YOUR ORGANIZATION
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-text-primary mb-2">
+              Create your organization
             </h1>
             <p className="text-text-secondary">
               Set up your first organization to start managing tournaments
@@ -136,7 +138,7 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={loading || !orgName.trim()}
-              className="w-full flex items-center justify-center px-6 py-4 font-display text-sm font-semibold tracking-widest uppercase text-bg-void bg-accent rounded-xl hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-glow transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center px-6 py-3.5 text-sm font-semibold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="w-5 h-5 border-2 border-transparent border-t-current rounded-full animate-spin" />
@@ -155,14 +157,16 @@ export default function OnboardingPage() {
 
 function LoadingScreen() {
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-bg-void z-50">
-      <div className="text-6xl text-accent animate-float drop-shadow-[0_0_30px_var(--accent-glow)]">
-        ⚡
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-bg-primary z-50">
+      <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mb-4">
+        <svg className="w-6 h-6 text-accent animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+        </svg>
       </div>
-      <div className="font-display text-3xl font-bold tracking-widest text-text-primary mt-4">
-        SCOREFORGE
+      <div className="font-display text-xl font-semibold tracking-tight text-text-primary">
+        ScoreForge
       </div>
-      <p className="text-text-secondary mt-2">Setting up your account...</p>
+      <p className="text-sm text-text-secondary mt-2">Setting up your account...</p>
     </div>
   );
 }

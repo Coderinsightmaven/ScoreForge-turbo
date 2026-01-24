@@ -135,11 +135,15 @@ export default function NewTournamentPage({
         <div className="relative bg-bg-card border border-border rounded-2xl overflow-hidden">
           {/* Header */}
           <div className="text-center px-8 pt-10 pb-6">
-            <div className="text-5xl mb-4 animate-float">◎</div>
-            <h1 className="font-display text-3xl tracking-wide text-text-primary mb-2">
-              NEW TOURNAMENT
+            <div className="w-14 h-14 mx-auto flex items-center justify-center bg-accent/10 rounded-2xl mb-4">
+              <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+              </svg>
+            </div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary mb-2">
+              New tournament
             </h1>
-            <p className="text-text-secondary">
+            <p className="text-sm text-text-secondary">
               Create a tournament for {organization.name}
             </p>
           </div>
@@ -539,8 +543,6 @@ export default function NewTournamentPage({
             </div>
           </form>
 
-          {/* Accent bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-accent via-gold to-accent" />
         </div>
       </div>
     </div>
@@ -561,19 +563,22 @@ function LoadingSkeleton() {
 function NotFound({ slug }: { slug: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6">⬡</div>
-      <h1 className="font-display text-3xl text-text-primary mb-3">
-        Organization Not Found
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+        </svg>
+      </div>
+      <h1 className="font-display text-xl font-medium text-text-primary mb-2">
+        Organization not found
       </h1>
-      <p className="text-text-secondary mb-8">
-        The organization &ldquo;{slug}&rdquo; doesn&apos;t exist or you don&apos;t have
-        access.
+      <p className="text-text-secondary mb-6">
+        The organization &ldquo;{slug}&rdquo; doesn&apos;t exist or you don&apos;t have access.
       </p>
       <Link
         href="/organizations"
-        className="inline-flex items-center gap-2 text-accent hover:text-accent-bright transition-colors"
+        className="text-sm text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Organizations
+        ← Back to organizations
       </Link>
     </div>
   );
@@ -582,16 +587,22 @@ function NotFound({ slug }: { slug: string }) {
 function NotAuthorized({ slug }: { slug: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6">⚠</div>
-      <h1 className="font-display text-3xl text-text-primary mb-3">Not Authorized</h1>
-      <p className="text-text-secondary mb-8">
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      </div>
+      <h1 className="font-display text-xl font-medium text-text-primary mb-2">
+        Not authorized
+      </h1>
+      <p className="text-text-secondary mb-6">
         You don&apos;t have permission to create tournaments in this organization.
       </p>
       <Link
         href={`/organizations/${slug}`}
-        className="inline-flex items-center gap-2 text-accent hover:text-accent-bright transition-colors"
+        className="text-sm text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Organization
+        ← Back to organization
       </Link>
     </div>
   );

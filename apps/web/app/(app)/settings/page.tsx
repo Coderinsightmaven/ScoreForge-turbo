@@ -76,8 +76,8 @@ export default function SettingsPage() {
           >
             <span>←</span> Dashboard
           </Link>
-          <h1 className="font-display text-4xl tracking-wide text-text-primary">
-            SETTINGS
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary">
+            Settings
           </h1>
           <p className="text-text-secondary mt-2">
             Manage your profile and account preferences
@@ -92,15 +92,15 @@ export default function SettingsPage() {
           <div className="lg:col-span-2">
             <section className="bg-bg-card border border-border rounded-2xl overflow-hidden">
               <div className="p-6 border-b border-border">
-                <h2 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-                  PROFILE INFORMATION
+                <h2 className="font-display text-lg font-medium text-text-primary">
+                  Profile information
                 </h2>
               </div>
 
               <form onSubmit={handleSave} className="p-6 space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 flex items-center justify-center font-display text-2xl font-bold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full shadow-[0_8px_32px_var(--accent-glow)]">
+                  <div className="w-20 h-20 flex items-center justify-center font-display text-2xl font-semibold text-text-inverse bg-gradient-to-br from-accent to-accent-dim rounded-full">
                     {initials}
                   </div>
                   <div>
@@ -173,7 +173,7 @@ export default function SettingsPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-6 py-3 font-display text-sm font-semibold tracking-widest uppercase text-bg-void bg-accent rounded-lg hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-glow transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
@@ -187,8 +187,8 @@ export default function SettingsPage() {
             {/* Account Info Card */}
             <section className="bg-bg-card border border-border rounded-2xl overflow-hidden">
               <div className="p-6 border-b border-border">
-                <h2 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-                  ACCOUNT
+                <h2 className="font-display text-lg font-medium text-text-primary">
+                  Account
                 </h2>
               </div>
               <div className="p-6 space-y-4">
@@ -220,8 +220,8 @@ export default function SettingsPage() {
             {/* Danger Zone */}
             <section className="bg-bg-card border border-red/20 rounded-2xl overflow-hidden">
               <div className="p-6 border-b border-red/20">
-                <h2 className="font-display text-lg font-semibold tracking-wide text-red">
-                  DANGER ZONE
+                <h2 className="font-display text-lg font-medium text-error">
+                  Danger zone
                 </h2>
               </div>
               <div className="p-6">

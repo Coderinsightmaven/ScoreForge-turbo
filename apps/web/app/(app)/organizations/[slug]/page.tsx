@@ -38,10 +38,10 @@ export default function OrganizationDetailPage({
     return <NotFound />;
   }
 
-  const tabs: { id: Tab; label: string; icon: string; count?: number }[] = [
-    { id: "tournaments", label: "Tournaments", icon: "◎", count: tournaments?.length },
-    { id: "teams", label: "Teams", icon: "◇", count: teams?.length },
-    { id: "members", label: "Members", icon: "👥", count: members?.length },
+  const tabs: { id: Tab; label: string; count?: number }[] = [
+    { id: "tournaments", label: "Tournaments", count: tournaments?.length },
+    { id: "teams", label: "Teams", count: teams?.length },
+    { id: "members", label: "Members", count: members?.length },
   ];
 
   const roleColors: Record<string, string> = {
@@ -78,7 +78,7 @@ export default function OrganizationDetailPage({
               )}
             </div>
             <div className="flex-1">
-              <h1 className="font-display text-4xl tracking-wide text-text-primary">
+              <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary">
                 {organization.name}
               </h1>
               <div className="flex items-center gap-3 mt-2">
@@ -112,14 +112,13 @@ export default function OrganizationDetailPage({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 -mb-px ${
                   activeTab === tab.id
-                    ? "text-accent border-accent"
+                    ? "text-text-primary border-accent"
                     : "text-text-secondary border-transparent hover:text-text-primary"
                 }`}
               >
-                <span>{tab.icon}</span>
                 <span>{tab.label}</span>
                 {tab.count !== undefined && (
-                  <span className="px-2 py-0.5 text-xs bg-bg-card rounded-full">
+                  <span className="px-2 py-0.5 text-xs bg-bg-secondary rounded-full">
                     {tab.count}
                   </span>
                 )}
@@ -208,8 +207,8 @@ function TournamentsTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg tracking-wide text-text-primary">
-          TOURNAMENTS
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Tournaments
         </h2>
         {canCreate && (
           <Link
@@ -223,7 +222,11 @@ function TournamentsTab({
 
       {tournaments.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <span className="text-4xl text-text-muted mb-4">◎</span>
+          <div className="w-12 h-12 flex items-center justify-center bg-bg-card rounded-xl mb-4">
+            <svg className="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+            </svg>
+          </div>
           <p className="text-text-secondary mb-4">No tournaments yet</p>
           {canCreate && (
             <Link
@@ -293,8 +296,8 @@ function TeamsTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg tracking-wide text-text-primary">
-          TEAMS
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Teams
         </h2>
         {canCreate && (
           <Link
@@ -308,7 +311,11 @@ function TeamsTab({
 
       {teams.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <span className="text-4xl text-text-muted mb-4">◇</span>
+          <div className="w-12 h-12 flex items-center justify-center bg-bg-card rounded-xl mb-4">
+            <svg className="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+          </div>
           <p className="text-text-secondary mb-4">No teams yet</p>
           {canCreate && (
             <Link
@@ -393,8 +400,8 @@ function MembersTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg tracking-wide text-text-primary">
-          MEMBERS
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Members
         </h2>
         {canInvite && (
           <Link
@@ -489,18 +496,22 @@ function LoadingSkeleton() {
 function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6">⬡</div>
-      <h1 className="font-display text-3xl text-text-primary mb-3">
-        Organization Not Found
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+        </svg>
+      </div>
+      <h1 className="font-display text-xl font-medium text-text-primary mb-2">
+        Organization not found
       </h1>
-      <p className="text-text-secondary mb-8">
+      <p className="text-text-secondary mb-6">
         This organization doesn&apos;t exist or you don&apos;t have access.
       </p>
       <Link
         href="/organizations"
-        className="inline-flex items-center gap-2 text-accent hover:text-accent-bright transition-colors"
+        className="text-sm text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Organizations
+        ← Back to organizations
       </Link>
     </div>
   );

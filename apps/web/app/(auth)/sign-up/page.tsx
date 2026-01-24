@@ -73,12 +73,20 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="relative w-full max-w-md p-8 bg-bg-card border border-border rounded-2xl overflow-hidden animate-scaleIn">
+    <div className="w-full max-w-sm animate-fadeInUp">
       <div className="text-center mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-wide text-text-primary mb-2">
-          JOIN THE GAME
+        <Link href="/" className="inline-flex items-center gap-2 mb-6">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+            <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+            </svg>
+          </div>
+          <span className="font-display text-lg font-semibold tracking-tight">ScoreForge</span>
+        </Link>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary mb-2">
+          Create your account
         </h1>
-        <p className="text-text-secondary">Create your account to get started</p>
+        <p className="text-sm text-text-secondary">Get started with ScoreForge today</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -172,7 +180,7 @@ export default function SignUpPage() {
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center mt-2 px-6 py-3 font-display text-sm font-semibold tracking-widest uppercase text-bg-void bg-accent rounded-lg min-h-[50px] hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-glow transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center py-3 px-4 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
             <span className="w-5 h-5 border-2 border-transparent border-t-current rounded-full animate-spin" />
@@ -182,21 +190,12 @@ export default function SignUpPage() {
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-border text-center text-sm text-text-secondary">
-        <p>
-          Already have an account?{" "}
-          <Link
-            href="/sign-in"
-            className="text-accent font-medium hover:text-accent-bright hover:underline transition-colors"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
-
-      {/* Decorative elements */}
-      <div className="absolute -top-[100px] left-1/2 -translate-x-1/2 w-[300px] h-[200px] bg-[radial-gradient(ellipse_at_center,var(--accent-glow)_0%,transparent_70%)] opacity-30 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-accent via-gold to-accent" />
+      <p className="mt-8 text-center text-sm text-text-secondary">
+        Already have an account?{" "}
+        <Link href="/sign-in" className="font-medium text-accent hover:text-accent-bright transition-colors">
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }

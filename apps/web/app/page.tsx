@@ -7,63 +7,46 @@ import { useEffect } from "react";
 
 const features = [
   {
-    icon: "◎",
-    title: "Dynamic Brackets",
-    description:
-      "Single elimination, double elimination, and round robin formats with automatic bracket generation and seeding.",
-    accent: "accent",
+    title: "Tournament Brackets",
+    description: "Single elimination, double elimination, and round robin formats with intelligent seeding.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    ),
   },
   {
-    icon: "⚡",
     title: "Real-Time Scoring",
-    description:
-      "Scores sync instantly across all devices. Perfect for live scorekeeping from the sidelines.",
-    accent: "gold",
+    description: "Live score updates across all devices. Perfect for courtside scorekeeping.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+      </svg>
+    ),
   },
   {
-    icon: "◈",
-    title: "Live Leaderboards",
-    description:
-      "Dynamic standings that update in real-time. Track points, wins, and tournament progress.",
-    accent: "red",
-  },
-  {
-    icon: "◇",
     title: "Team Management",
-    description:
-      "Create teams, manage rosters, and track performance across seasons and tournaments.",
-    accent: "accent",
+    description: "Organize players, track performance, and manage rosters across seasons.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+      </svg>
+    ),
   },
   {
-    icon: "⬡",
     title: "Multi-Sport Support",
-    description:
-      "Basketball, soccer, tennis, volleyball, and more. Customized scoring for each sport.",
-    accent: "gold",
+    description: "Tennis, volleyball, basketball, and more with sport-specific scoring rules.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+      </svg>
+    ),
   },
-  {
-    icon: "▣",
-    title: "Organization Tools",
-    description:
-      "Invite admins and scorers. Role-based permissions keep your tournaments secure.",
-    accent: "red",
-  },
-];
-
-const sports = [
-  { name: "Basketball", icon: "🏀" },
-  { name: "Soccer", icon: "⚽" },
-  { name: "Tennis", icon: "🎾" },
-  { name: "Volleyball", icon: "🏐" },
-  { name: "Football", icon: "🏈" },
-  { name: "Baseball", icon: "⚾" },
-  { name: "Hockey", icon: "🏒" },
-  { name: "Golf", icon: "⛳" },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-bg-void text-text-primary">
+    <div className="min-h-screen bg-bg-primary text-text-primary">
       <AuthLoading>
         <LoadingScreen />
       </AuthLoading>
@@ -81,12 +64,14 @@ export default function LandingPage() {
 
 function LoadingScreen() {
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-bg-void z-50">
-      <div className="text-6xl text-accent animate-float drop-shadow-[0_0_30px_var(--accent-glow)]">
-        ⚡
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-bg-primary z-50">
+      <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mb-4">
+        <svg className="w-5 h-5 text-accent animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+        </svg>
       </div>
-      <div className="font-display text-3xl font-bold tracking-widest text-text-primary mt-4">
-        SCOREFORGE
+      <div className="font-display text-xl font-semibold tracking-tight text-text-primary">
+        ScoreForge
       </div>
     </div>
   );
@@ -106,296 +91,150 @@ function LandingContent() {
   return (
     <>
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-bg-void/80 backdrop-blur-lg border-b border-border">
-        <div className="flex items-center justify-between h-16 px-6 max-w-[1400px] mx-auto">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl text-accent drop-shadow-[0_0_8px_var(--accent-glow)]">
-              ⚡
-            </span>
-            <span className="font-display text-xl font-bold tracking-widest">
-              SCOREFORGE
-            </span>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-bg-primary/80 backdrop-blur-xl border-b border-border/50">
+        <div className="flex items-center justify-between h-16 px-6 max-w-[1200px] mx-auto">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+              </svg>
+            </div>
+            <span className="font-display text-lg font-semibold tracking-tight">ScoreForge</span>
           </Link>
-          <div className="flex items-center gap-6">
-            <a
-              href="#features"
-              className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors hidden sm:block"
-            >
-              Features
-            </a>
-            <a
-              href="#sports"
-              className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors hidden sm:block"
-            >
-              Sports
-            </a>
+          <div className="flex items-center gap-4">
             <Link
               href="/sign-in"
-              className="text-sm font-medium text-accent hover:text-accent-bright transition-colors"
+              className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
             >
-              Sign In
+              Sign in
             </Link>
             <Link
               href="/sign-up"
-              className="px-4 py-2 text-sm font-semibold text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all"
+              className="px-4 py-2 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors"
             >
-              Get Started
+              Get started
             </Link>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent to-transparent opacity-30" />
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-16 px-6 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-1/4 w-[600px] h-[600px] bg-accent/20 blur-[150px] rounded-full" />
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-gold/10 blur-[120px] rounded-full" />
-          <div className="absolute inset-0 grid-bg opacity-30" />
+      {/* Hero */}
+      <section className="relative min-h-screen flex items-center justify-center pt-16 px-6">
+        {/* Gradient orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent/8 blur-[120px] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple/5 blur-[100px] rounded-full" />
         </div>
 
-        <div className="relative z-10 text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/30 rounded-full text-sm text-accent mb-8">
-            <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-            <span>Live Tournament Platform</span>
+        <div className="relative z-10 text-center max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-bg-card border border-border rounded-full text-sm text-text-secondary mb-8">
+            <span className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
+            <span>Live tournament platform</span>
           </div>
 
-          <h1 className="font-display text-[clamp(3rem,10vw,7rem)] font-bold tracking-tight leading-none mb-6">
-            <span className="block text-text-primary">FORGE YOUR</span>
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-accent via-gold to-accent">
-              VICTORY
-            </span>
+          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight leading-[1.1] mb-6">
+            <span className="text-text-primary">Organize tournaments</span>
+            <br />
+            <span className="gradient-text">with precision</span>
           </h1>
 
-          <p className="text-lg text-text-secondary max-w-xl mx-auto mb-10">
-            The definitive platform for managing sports tournaments and tracking scores
-            in real-time. From local leagues to championship brackets.
+          <p className="text-lg text-text-secondary max-w-xl mx-auto mb-10 leading-relaxed">
+            The modern platform for managing sports tournaments. Create brackets,
+            track scores in real-time, and keep your competitions running smoothly.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/sign-up"
-              className="inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold text-bg-void bg-accent rounded-xl hover:bg-accent-bright hover:-translate-y-1 hover:shadow-glow transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3.5 text-base font-semibold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all duration-200"
             >
-              <span>Start Free</span>
-              <span>→</span>
+              Start for free
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
             </Link>
             <a
               href="#features"
-              className="px-8 py-4 text-lg font-medium text-text-secondary hover:text-text-primary transition-colors"
+              className="px-6 py-3.5 text-base font-medium text-text-secondary hover:text-text-primary transition-colors"
             >
-              Explore Features
+              Learn more
             </a>
           </div>
-
-          {/* Stats */}
-          <div className="flex items-center justify-center gap-8 sm:gap-12">
-            <div className="text-center">
-              <span className="block font-display text-3xl sm:text-4xl font-bold text-accent">
-                10K+
-              </span>
-              <span className="text-sm text-text-muted">Tournaments</span>
-            </div>
-            <div className="w-px h-10 bg-border" />
-            <div className="text-center">
-              <span className="block font-display text-3xl sm:text-4xl font-bold text-accent">
-                50K+
-              </span>
-              <span className="text-sm text-text-muted">Matches</span>
-            </div>
-            <div className="w-px h-10 bg-border" />
-            <div className="text-center">
-              <span className="block font-display text-3xl sm:text-4xl font-bold text-accent">
-                100K+
-              </span>
-              <span className="text-sm text-text-muted">Users</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Decorative bracket */}
-        <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden xl:block">
-          <BracketDemo />
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features */}
       <section id="features" className="py-24 px-6">
-        <div className="max-w-[1200px] mx-auto">
+        <div className="max-w-[1000px] mx-auto">
           <div className="text-center mb-16">
-            <span className="inline-block px-3 py-1 text-xs font-semibold tracking-widest uppercase text-accent bg-accent/10 rounded-full mb-4">
-              FEATURES
-            </span>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-              EVERYTHING YOU NEED TO
-              <span className="text-accent"> DOMINATE</span>
+            <p className="text-sm font-medium text-accent mb-3">Features</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary mb-4">
+              Everything you need
             </h2>
-            <p className="text-text-secondary max-w-xl mx-auto">
-              Powerful tools designed for tournament organizers, coaches, and sports
-              enthusiasts.
+            <p className="text-text-secondary max-w-md mx-auto">
+              Powerful tools for tournament organizers, coaches, and sports enthusiasts.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="relative p-6 bg-bg-card border border-border rounded-2xl hover:border-accent/30 hover:-translate-y-1 transition-all group animate-fadeInUp"
+                className="group p-6 bg-bg-card border border-border rounded-2xl hover:border-border-accent transition-all duration-300 animate-fadeInUp"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div
-                  className={`w-12 h-12 flex items-center justify-center text-2xl rounded-xl mb-4 ${
-                    feature.accent === "gold"
-                      ? "text-gold bg-gold/10"
-                      : feature.accent === "red"
-                        ? "text-red bg-red/10"
-                        : "text-accent bg-accent/10"
-                  }`}
-                >
+                <div className="w-10 h-10 flex items-center justify-center text-accent bg-accent/10 rounded-xl mb-4">
                   {feature.icon}
                 </div>
-                <h3 className="font-display text-lg font-semibold text-text-primary mb-2">
+                <h3 className="font-display text-lg font-medium text-text-primary mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-sm text-text-secondary">{feature.description}</p>
-                <div
-                  className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${
-                    feature.accent === "gold"
-                      ? "bg-gradient-to-br from-gold/5 to-transparent"
-                      : feature.accent === "red"
-                        ? "bg-gradient-to-br from-red/5 to-transparent"
-                        : "bg-gradient-to-br from-accent/5 to-transparent"
-                  }`}
-                />
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Sports Section */}
-      <section id="sports" className="relative py-24 px-6 overflow-hidden">
-        <div className="max-w-[1200px] mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <span className="inline-block px-3 py-1 text-xs font-semibold tracking-widest uppercase text-accent bg-accent/10 rounded-full mb-4">
-                MULTI-SPORT
-              </span>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-                ONE PLATFORM,
-                <br />
-                <span className="text-gold">EVERY SPORT</span>
-              </h2>
-              <p className="text-text-secondary mb-8 max-w-md">
-                From court to field, customize scoring rules and formats for any
-                competition.
-              </p>
-              <Link
-                href="/sign-up"
-                className="inline-flex items-center gap-2 text-accent font-semibold hover:text-accent-bright transition-colors"
-              >
-                Start Your Tournament →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-4 gap-3">
-              {sports.map((sport, index) => (
-                <div
-                  key={sport.name}
-                  className="flex flex-col items-center gap-2 p-4 bg-bg-card border border-border rounded-xl hover:border-accent/30 hover:bg-bg-card-hover transition-all animate-fadeInUp"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <span className="text-3xl">{sport.icon}</span>
-                  <span className="text-xs font-medium text-text-secondary">
-                    {sport.name}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
+      {/* CTA */}
       <section className="py-24 px-6">
-        <div className="relative max-w-3xl mx-auto text-center p-12 bg-bg-card border border-border rounded-3xl overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-accent/20 blur-[100px] rounded-full" />
-          <h2 className="relative font-display text-4xl font-bold text-text-primary mb-4">
-            READY TO COMPETE?
+        <div className="relative max-w-2xl mx-auto text-center p-12 bg-bg-card border border-border rounded-3xl overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[150px] bg-accent/10 blur-[80px] rounded-full" />
+          <h2 className="relative font-display text-3xl font-semibold text-text-primary mb-4">
+            Ready to get started?
           </h2>
-          <p className="relative text-text-secondary mb-8">
-            Join thousands of organizers running tournaments on ScoreForge.
+          <p className="relative text-text-secondary mb-8 max-w-md mx-auto">
+            Join organizers running successful tournaments on ScoreForge.
           </p>
           <Link
             href="/sign-up"
-            className="relative inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold text-bg-void bg-accent rounded-xl hover:bg-accent-bright transition-all"
+            className="relative inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all"
           >
-            Create Free Account
+            Create free account
           </Link>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border">
-        <div className="max-w-[1200px] mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="text-xl text-accent">⚡</span>
-            <span className="font-display text-lg font-bold tracking-widest">
-              SCOREFORGE
-            </span>
+        <div className="max-w-[1000px] mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-accent/10 flex items-center justify-center">
+                <svg className="w-3 h-3 text-accent" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+                </svg>
+              </div>
+              <span className="font-display text-sm font-medium">ScoreForge</span>
+            </div>
+            <p className="text-sm text-text-muted">
+              &copy; {new Date().getFullYear()} ScoreForge. All rights reserved.
+            </p>
           </div>
-          <p className="text-sm text-text-muted mb-6">Built for the love of sports</p>
-          <div className="flex items-center justify-center gap-6 text-sm text-text-secondary mb-8">
-            <a href="#features" className="hover:text-text-primary transition-colors">
-              Features
-            </a>
-            <a href="#sports" className="hover:text-text-primary transition-colors">
-              Sports
-            </a>
-            <Link href="/sign-in" className="hover:text-text-primary transition-colors">
-              Sign In
-            </Link>
-            <Link href="/sign-up" className="hover:text-text-primary transition-colors">
-              Sign Up
-            </Link>
-          </div>
-          <div className="h-px bg-border max-w-xs mx-auto mb-6" />
-          <p className="text-xs text-text-muted">
-            © {new Date().getFullYear()} ScoreForge. All rights reserved.
-          </p>
         </div>
       </footer>
     </>
-  );
-}
-
-function BracketDemo() {
-  return (
-    <div className="flex items-center gap-4 opacity-40">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col bg-bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-4 py-2 text-sm text-text-secondary border-b border-border">
-            Team Alpha
-          </div>
-          <div className="px-4 py-2 text-sm text-accent bg-accent/5">Team Beta</div>
-        </div>
-        <div className="flex flex-col bg-bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-4 py-2 text-sm text-accent bg-accent/5">Team Gamma</div>
-          <div className="px-4 py-2 text-sm text-text-secondary border-t border-border">
-            Team Delta
-          </div>
-        </div>
-      </div>
-      <div className="w-8 h-px bg-border" />
-      <div className="relative flex flex-col bg-bg-card border border-accent/30 rounded-lg overflow-hidden">
-        <div className="px-4 py-2 text-sm text-text-secondary border-b border-border">
-          Team Beta
-        </div>
-        <div className="px-4 py-2 text-sm text-accent bg-accent/5">Team Gamma</div>
-        <span className="absolute top-1 right-1 px-1 text-[9px] font-bold text-white bg-gold rounded">
-          FINAL
-        </span>
-      </div>
-    </div>
   );
 }

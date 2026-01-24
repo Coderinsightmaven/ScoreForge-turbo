@@ -50,8 +50,8 @@ export default function OrganizationSettingsPage({
           >
             <span>←</span> Back to {organization.name}
           </Link>
-          <h1 className="font-display text-3xl tracking-wide text-text-primary">
-            ORGANIZATION SETTINGS
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-text-primary">
+            Organization settings
           </h1>
           <p className="text-text-secondary mt-1">{organization.name}</p>
         </div>
@@ -128,8 +128,8 @@ function GeneralSettingsSection({
   return (
     <section className="bg-bg-card border border-border rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-border">
-        <h2 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-          GENERAL SETTINGS
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          General settings
         </h2>
       </div>
       <form onSubmit={handleSave} className="p-6 space-y-4">
@@ -178,7 +178,7 @@ function GeneralSettingsSection({
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-3 font-semibold text-sm text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50"
+            className="px-5 py-2.5 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>
@@ -240,14 +240,14 @@ function MembersSection({
   return (
     <section className="bg-bg-card border border-border rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-border">
-        <h2 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-          MEMBERS ({members.length})
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Members ({members.length})
         </h2>
       </div>
       <div className="divide-y divide-border">
         {members.map((member) => (
           <div key={member._id} className="flex items-center gap-4 p-4">
-            <div className="w-10 h-10 flex items-center justify-center font-display text-sm font-semibold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full flex-shrink-0">
+            <div className="w-10 h-10 flex items-center justify-center font-display text-sm font-semibold text-text-inverse bg-gradient-to-br from-accent to-accent-dim rounded-full flex-shrink-0">
               {member.user.name?.charAt(0).toUpperCase() || "?"}
             </div>
             <div className="flex-1 min-w-0">
@@ -354,8 +354,8 @@ function AddMemberSection({
   return (
     <section className="bg-bg-card border border-border rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-border">
-        <h2 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-          ADD MEMBER
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Add member
         </h2>
         <p className="text-sm text-text-muted mt-1">
           Search for existing users by name or email to add them to your organization
@@ -388,7 +388,7 @@ function AddMemberSection({
                   }}
                   className="w-full flex items-center gap-3 p-3 hover:bg-bg-elevated transition-colors text-left"
                 >
-                  <div className="w-8 h-8 flex items-center justify-center font-display text-xs font-semibold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full flex-shrink-0">
+                  <div className="w-8 h-8 flex items-center justify-center font-display text-xs font-semibold text-text-inverse bg-gradient-to-br from-accent to-accent-dim rounded-full flex-shrink-0">
                     {user.name?.charAt(0).toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -413,7 +413,7 @@ function AddMemberSection({
         {/* Selected user display */}
         {selectedUser && (
           <div className="flex items-center gap-3 p-3 bg-bg-elevated border border-accent/30 rounded-lg">
-            <div className="w-8 h-8 flex items-center justify-center font-display text-xs font-semibold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full flex-shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center font-display text-xs font-semibold text-text-inverse bg-gradient-to-br from-accent to-accent-dim rounded-full flex-shrink-0">
               {selectedUser.name?.charAt(0).toUpperCase() || "?"}
             </div>
             <div className="flex-1 min-w-0">
@@ -448,7 +448,7 @@ function AddMemberSection({
           <button
             onClick={handleAdd}
             disabled={adding || !selectedUser}
-            className="flex-1 px-6 py-3 font-semibold text-sm text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-5 py-2.5 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {adding ? "Adding..." : "Add Member"}
           </button>
@@ -524,8 +524,8 @@ function DangerZoneSection({
   return (
     <section className="bg-bg-card border border-red/20 rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-red/20">
-        <h2 className="font-display text-lg font-semibold tracking-wide text-red">
-          DANGER ZONE
+        <h2 className="font-display text-lg font-medium text-error">
+          Danger zone
         </h2>
       </div>
       <div className="p-6 space-y-6">
@@ -651,18 +651,22 @@ function LoadingSkeleton() {
 function NotFound({ slug }: { slug: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6 opacity-40">⬡</div>
-      <h1 className="font-display text-3xl font-bold text-text-primary mb-3">
-        Organization Not Found
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+        </svg>
+      </div>
+      <h1 className="font-display text-xl font-medium text-text-primary mb-2">
+        Organization not found
       </h1>
-      <p className="text-text-secondary mb-8">
+      <p className="text-text-secondary mb-6">
         The organization &quot;{slug}&quot; doesn&apos;t exist or you don&apos;t have access.
       </p>
       <Link
         href="/dashboard"
-        className="text-accent hover:text-accent-bright transition-colors"
+        className="text-sm text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Dashboard
+        ← Back to dashboard
       </Link>
     </div>
   );
@@ -671,18 +675,22 @@ function NotFound({ slug }: { slug: string }) {
 function Unauthorized({ slug }: { slug: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6 opacity-40">🔒</div>
-      <h1 className="font-display text-3xl font-bold text-text-primary mb-3">
-        Access Denied
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      </div>
+      <h1 className="font-display text-xl font-medium text-text-primary mb-2">
+        Access denied
       </h1>
-      <p className="text-text-secondary mb-8">
+      <p className="text-text-secondary mb-6">
         You don&apos;t have permission to access organization settings.
       </p>
       <Link
         href={`/organizations/${slug}`}
-        className="text-accent hover:text-accent-bright transition-colors"
+        className="text-sm text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Organization
+        ← Back to organization
       </Link>
     </div>
   );

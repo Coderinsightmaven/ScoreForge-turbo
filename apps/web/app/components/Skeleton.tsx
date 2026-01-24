@@ -15,7 +15,7 @@ export function Skeleton({
       className={`relative overflow-hidden bg-bg-elevated rounded animate-pulse ${className}`}
     >
       {children}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/5 to-transparent animate-shimmer" />
     </div>
   );
 }

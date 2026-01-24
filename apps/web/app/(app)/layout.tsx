@@ -11,20 +11,19 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-bg-void">
+    <div className="min-h-screen bg-bg-primary">
       <Navigation />
 
       <AuthLoading>
-        <div className="flex items-center justify-center min-h-screen bg-bg-void">
-          <div className="flex flex-col items-center gap-6 animate-fadeIn">
-            <div className="text-5xl text-accent animate-float drop-shadow-[0_0_20px_var(--accent-glow)]">
-              ⚡
+        <div className="flex items-center justify-center min-h-screen bg-bg-primary">
+          <div className="flex flex-col items-center gap-4 animate-fadeIn">
+            <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <svg className="w-6 h-6 text-accent animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+              </svg>
             </div>
-            <div className="font-display text-3xl font-bold tracking-widest text-text-primary">
-              SCOREFORGE
-            </div>
-            <div className="w-[200px] h-[3px] bg-bg-card rounded overflow-hidden">
-              <div className="w-[30%] h-full bg-gradient-to-r from-accent to-gold rounded animate-shimmer" />
+            <div className="font-display text-xl font-semibold tracking-tight text-text-primary">
+              ScoreForge
             </div>
           </div>
         </div>
@@ -51,11 +50,11 @@ function RedirectToSignIn() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-bg-void">
-      <div className="flex flex-col items-center gap-6">
-        <div className="font-display text-lg tracking-wide text-text-primary">
-          Redirecting...
-        </div>
+    <div className="flex items-center justify-center min-h-screen bg-bg-primary">
+      <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+        <svg className="w-6 h-6 text-accent animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+        </svg>
       </div>
     </div>
   );

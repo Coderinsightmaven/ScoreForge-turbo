@@ -9,57 +9,46 @@ export default function OrganizationsPage() {
   const organizations = useQuery(api.organizations.listMyOrganizations);
 
   return (
-    <div className="min-h-screen">
-      {/* Page Header */}
-      <header className="relative overflow-hidden py-12 px-6">
-        <div className="absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-accent/10 blur-[100px] rounded-full" />
-          <div className="absolute inset-0 grid-bg opacity-50" />
-        </div>
-        <div className="relative max-w-[var(--content-max)] mx-auto">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs tracking-[0.2em] text-accent uppercase mb-2 block">
-                MANAGE
-              </span>
-              <h1 className="font-display text-5xl tracking-wide text-text-primary mb-2">
-                ORGANIZATIONS
-              </h1>
-              <p className="text-text-secondary">
-                Create and manage your sports organizations, leagues, and clubs
-              </p>
-            </div>
-            <Link
-              href="/organizations/new"
-              className="flex items-center gap-2 px-5 py-2.5 bg-accent text-text-inverse font-semibold rounded-lg hover:bg-accent-bright transition-all"
-            >
-              <span className="text-lg">+</span>
-              <span>New Organization</span>
-            </Link>
+    <div className="min-h-screen py-8 px-6">
+      <div className="max-w-[var(--content-max)] mx-auto">
+        {/* Header */}
+        <header className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary mb-2">
+              Organizations
+            </h1>
+            <p className="text-text-secondary">
+              Manage your sports organizations, leagues, and clubs
+            </p>
           </div>
-        </div>
-      </header>
+          <Link
+            href="/organizations/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            New organization
+          </Link>
+        </header>
 
-      {/* Organizations Grid */}
-      <main className="px-6 pb-16">
-        <div className="max-w-[var(--content-max)] mx-auto">
-          {!organizations ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <OrganizationCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : organizations.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {organizations.map((org, index) => (
-                <OrganizationCard key={org._id} organization={org} index={index} />
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
+        {/* Content */}
+        {!organizations ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <OrganizationCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : organizations.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {organizations.map((org, index) => (
+              <OrganizationCard key={org._id} organization={org} index={index} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -77,81 +66,71 @@ function OrganizationCard({
   };
   index: number;
 }) {
-  const roleLabels: Record<string, string> = {
-    owner: "Owner",
-    admin: "Admin",
-    scorer: "Scorer",
-  };
-
-  const roleColors: Record<string, string> = {
-    owner: "text-accent bg-accent/10 border-accent/30",
-    admin: "text-info bg-info/10 border-info/30",
-    scorer: "text-success bg-success/10 border-success/30",
+  const roleStyles: Record<string, string> = {
+    owner: "text-accent bg-accent/10",
+    admin: "text-info bg-info/10",
+    scorer: "text-success bg-success/10",
   };
 
   return (
     <Link
       href={`/organizations/${organization.slug}`}
-      className="group relative flex items-center gap-4 p-4 bg-bg-card border border-border rounded-xl hover:border-accent/30 hover:bg-bg-card-hover transition-all animate-fadeInUp"
-      style={{ animationDelay: `${index * 0.05}s` }}
+      className="group flex items-center gap-4 p-4 bg-bg-card border border-border rounded-xl hover:border-accent/30 hover:bg-bg-card-hover transition-all duration-200 animate-fadeInUp"
+      style={{ animationDelay: `${index * 0.03}s` }}
     >
-      <div className="flex items-center gap-4 flex-1">
-        {/* Avatar */}
-        <div className="w-14 h-14 rounded-lg bg-bg-elevated border border-border flex items-center justify-center text-2xl font-display text-accent overflow-hidden">
-          {organization.image ? (
-            <img
-              src={organization.image}
-              alt={organization.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span>{organization.name.charAt(0).toUpperCase()}</span>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-text-primary truncate">
-            {organization.name}
-          </h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className={`inline-block px-2 py-0.5 text-xs rounded border ${roleColors[organization.role] || "text-text-muted bg-bg-elevated border-border"}`}
-            >
-              {roleLabels[organization.role] || organization.role}
-            </span>
-            <span className="text-text-muted text-sm">/{organization.slug}</span>
-          </div>
-        </div>
-
-        {/* Arrow */}
-        <div className="text-text-muted group-hover:text-accent group-hover:translate-x-1 transition-all text-xl">
-          →
+      <div className="w-12 h-12 rounded-xl bg-bg-elevated border border-border flex items-center justify-center text-xl font-display font-semibold text-accent overflow-hidden">
+        {organization.image ? (
+          <img src={organization.image} alt={organization.name} className="w-full h-full object-cover" />
+        ) : (
+          organization.name.charAt(0).toUpperCase()
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium text-text-primary truncate group-hover:text-accent transition-colors">
+          {organization.name}
+        </h3>
+        <div className="flex items-center gap-2 mt-1">
+          <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-md ${roleStyles[organization.role] || "text-text-muted bg-bg-elevated"}`}>
+            {organization.role}
+          </span>
+          <span className="text-xs text-text-muted">/{organization.slug}</span>
         </div>
       </div>
-
-      {/* Glow effect */}
-      <div className="absolute inset-0 rounded-xl bg-accent/0 group-hover:bg-accent/5 transition-all pointer-events-none" />
+      <svg
+        className="w-4 h-4 text-text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.5}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+      </svg>
     </Link>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-      <div className="text-6xl text-text-muted mb-6 animate-float">⬡</div>
-      <h2 className="font-display text-2xl text-text-primary mb-3">
-        No Organizations Yet
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+        </svg>
+      </div>
+      <h2 className="font-display text-xl font-medium text-text-primary mb-2">
+        No organizations yet
       </h2>
-      <p className="text-text-secondary mb-8 max-w-md">
-        Create your first organization to start managing tournaments, teams, and
-        competitions.
+      <p className="text-text-secondary mb-6 max-w-sm">
+        Create your first organization to start managing tournaments, teams, and competitions.
       </p>
       <Link
         href="/organizations/new"
-        className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-text-inverse font-semibold rounded-lg hover:bg-accent-bright transition-all"
+        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors"
       >
-        <span>+</span> Create Organization
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Create organization
       </Link>
     </div>
   );
@@ -160,15 +139,14 @@ function EmptyState() {
 function OrganizationCardSkeleton() {
   return (
     <div className="flex items-center gap-4 p-4 bg-bg-card border border-border rounded-xl">
-      <Skeleton className="w-14 h-14 rounded-lg" />
+      <Skeleton className="w-12 h-12 rounded-xl" />
       <div className="flex-1">
-        <Skeleton className="h-5 w-40 mb-2" />
+        <Skeleton className="h-5 w-36 mb-2" />
         <div className="flex items-center gap-2">
-          <Skeleton className="h-5 w-16 rounded" />
-          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-5 w-14 rounded-md" />
+          <Skeleton className="h-4 w-20" />
         </div>
       </div>
-      <Skeleton className="w-6 h-6" />
     </div>
   );
 }

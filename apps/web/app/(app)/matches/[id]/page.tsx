@@ -218,14 +218,14 @@ export default function MatchDetailPage({
 
 function MatchStatusBadge({ status }: { status: string }) {
   const statusConfig: Record<string, { label: string; className: string; pulse: boolean }> = {
-    pending: { label: "Pending", className: "text-text-muted bg-white/5", pulse: false },
+    pending: { label: "Pending", className: "text-text-muted bg-bg-elevated", pulse: false },
     scheduled: { label: "Scheduled", className: "text-info bg-info/10", pulse: false },
     live: { label: "Live", className: "text-success bg-success/10", pulse: true },
     completed: { label: "Completed", className: "text-gold bg-gold/10", pulse: false },
-    bye: { label: "Bye", className: "text-text-muted bg-white/5", pulse: false },
+    bye: { label: "Bye", className: "text-text-muted bg-bg-elevated", pulse: false },
   };
 
-  const config = statusConfig[status] ?? { label: "Pending", className: "text-text-muted bg-white/5", pulse: false };
+  const config = statusConfig[status] ?? { label: "Pending", className: "text-text-muted bg-bg-elevated", pulse: false };
 
   return (
     <span
@@ -339,7 +339,7 @@ function Scoreboard({
             <button
               onClick={() => handleScoreChange(1, 1)}
               disabled={saving}
-              className="w-10 h-10 flex items-center justify-center text-xl font-bold text-text-secondary bg-bg-elevated border border-border rounded-lg hover:bg-accent hover:text-bg-void transition-all"
+              className="w-10 h-10 flex items-center justify-center text-xl font-bold text-text-secondary bg-bg-elevated border border-border rounded-lg hover:bg-accent hover:text-text-inverse transition-all"
             >
               +
             </button>
@@ -401,7 +401,7 @@ function Scoreboard({
             <button
               onClick={() => handleScoreChange(2, 1)}
               disabled={saving}
-              className="w-10 h-10 flex items-center justify-center text-xl font-bold text-text-secondary bg-bg-elevated border border-border rounded-lg hover:bg-accent hover:text-bg-void transition-all"
+              className="w-10 h-10 flex items-center justify-center text-xl font-bold text-text-secondary bg-bg-elevated border border-border rounded-lg hover:bg-accent hover:text-text-inverse transition-all"
             >
               +
             </button>
@@ -467,7 +467,7 @@ function MatchActions({
         <button
           onClick={handleStart}
           disabled={loading}
-          className="px-6 py-3 font-semibold text-bg-void bg-success rounded-lg hover:opacity-90 transition-all disabled:opacity-50"
+          className="px-6 py-3 font-semibold text-text-inverse bg-success rounded-lg hover:opacity-90 transition-all disabled:opacity-50"
         >
           {loading ? "Starting..." : "Start Match"}
         </button>
@@ -476,7 +476,7 @@ function MatchActions({
         <button
           onClick={handleComplete}
           disabled={loading}
-          className="px-6 py-3 font-semibold text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50"
+          className="px-6 py-3 font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50"
         >
           {loading ? "Completing..." : "Complete Match"}
         </button>
@@ -536,7 +536,11 @@ function LoadingSkeleton() {
 function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6 opacity-40">◎</div>
+      <div className="w-16 h-16 flex items-center justify-center bg-bg-card rounded-2xl mb-6">
+        <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+        </svg>
+      </div>
       <h1 className="font-display text-3xl font-bold text-text-primary mb-3">
         Match Not Found
       </h1>

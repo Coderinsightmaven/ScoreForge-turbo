@@ -44,11 +44,11 @@ export default function TournamentDetailPage({
   };
 
   const statusStyles: Record<string, string> = {
-    draft: "text-text-muted bg-white/5",
+    draft: "text-text-muted bg-bg-elevated",
     registration: "text-info bg-info/10",
     active: "text-success bg-success/10",
     completed: "text-gold bg-gold/10",
-    cancelled: "text-red bg-red/10",
+    cancelled: "text-error bg-error/10",
   };
 
   const formatLabels: Record<string, string> = {
@@ -59,15 +59,15 @@ export default function TournamentDetailPage({
 
   const canManage = tournament.myRole === "owner" || tournament.myRole === "admin";
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: "bracket", label: "Bracket", icon: "⬡" },
-    { id: "matches", label: "Matches", icon: "◎" },
-    { id: "participants", label: "Participants", icon: "👥" },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "bracket", label: "Bracket" },
+    { id: "matches", label: "Matches" },
+    { id: "participants", label: "Participants" },
     ...(tournament.format === "round_robin"
-      ? [{ id: "standings" as Tab, label: "Standings", icon: "📊" }]
+      ? [{ id: "standings" as Tab, label: "Standings" }]
       : []),
     ...(canManage
-      ? [{ id: "scorers" as Tab, label: "Scorers", icon: "📋" }]
+      ? [{ id: "scorers" as Tab, label: "Scorers" }]
       : []),
   ];
 
@@ -104,7 +104,7 @@ export default function TournamentDetailPage({
                   {formatLabels[tournament.format] || tournament.format}
                 </span>
               </div>
-              <h1 className="font-display text-[clamp(28px,4vw,40px)] font-bold tracking-wide text-text-primary mb-2">
+              <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary mb-2">
                 {tournament.name}
               </h1>
               {tournament.description && (
@@ -148,13 +148,10 @@ export default function TournamentDetailPage({
               onClick={() => setActiveTab(tab.id)}
               className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium -mb-px border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "text-accent border-accent"
+                  ? "text-text-primary border-accent"
                   : "text-text-secondary border-transparent hover:text-text-primary"
               }`}
             >
-              <span className={activeTab === tab.id ? "opacity-100" : "opacity-70"}>
-                {tab.icon}
-              </span>
               <span>{tab.label}</span>
             </button>
           ))}
@@ -200,7 +197,9 @@ function TournamentActions({
   const openRegistration = useMutation(api.tournaments.openRegistration);
   const startTournament = useMutation(api.tournaments.startTournament);
   const cancelTournament = useMutation(api.tournaments.cancelTournament);
+  const deleteTournament = useMutation(api.tournaments.deleteTournament);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleOpenRegistration = async () => {
     setLoading(true);
@@ -233,6 +232,18 @@ function TournamentActions({
     setLoading(false);
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to permanently delete this tournament? This action cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      await deleteTournament({ tournamentId: tournament._id as any });
+      window.location.href = "/tournaments";
+    } catch (err) {
+      console.error(err);
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
       {tournament.status === "draft" && (
@@ -248,7 +259,7 @@ function TournamentActions({
         <button
           onClick={handleStart}
           disabled={loading || tournament.participantCount < 2}
-          className="px-4 py-2 text-xs font-semibold tracking-wide text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-xs font-semibold tracking-wide text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "..." : "Start Tournament"}
         </button>
@@ -264,6 +275,15 @@ function TournamentActions({
             Cancel
           </button>
         )}
+      {tournament.myRole === "owner" && (
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="px-4 py-2 text-xs font-semibold tracking-wide text-red bg-red/10 border border-red/20 rounded-lg hover:bg-red hover:text-white transition-all disabled:opacity-50"
+        >
+          {deleting ? "Deleting..." : "Delete"}
+        </button>
+      )}
     </div>
   );
 }
@@ -321,7 +341,11 @@ function BracketTab({
   if (bracket.matches.length === 0) {
     return (
       <div className="flex flex-col items-center py-16 text-center bg-bg-secondary border border-dashed border-border rounded-2xl">
-        <span className="text-5xl text-text-muted mb-4 opacity-50">⬡</span>
+        <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+          <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+          </svg>
+        </div>
         <p className="text-text-secondary">
           Bracket will be generated when the tournament starts
         </p>
@@ -371,7 +395,7 @@ function BracketTab({
         <div className="flex gap-8 min-w-max">
           {roundNumbers.map((round) => (
             <div key={round} className="flex flex-col gap-3 min-w-[260px]">
-              <div className="font-display text-sm font-semibold tracking-widest text-text-muted uppercase pb-2 border-b border-border">
+              <div className="text-sm font-medium text-text-muted pb-2 border-b border-border">
                 {getRoundName(round, roundNumbers.length)}
               </div>
               <div className="flex flex-col gap-3 flex-1 justify-around">
@@ -454,7 +478,7 @@ function BracketTab({
                         )}
                       </div>
                       {isByeMatch && (
-                        <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-text-muted bg-white/5 rounded">
+                        <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-medium text-text-muted bg-bg-secondary rounded">
                           BYE
                         </span>
                       )}
@@ -511,7 +535,11 @@ function MatchesTab({ tournamentId }: { tournamentId: string }) {
   if (matches.length === 0) {
     return (
       <div className="flex flex-col items-center py-16 text-center bg-bg-secondary border border-dashed border-border rounded-2xl">
-        <span className="text-5xl text-text-muted mb-4 opacity-50">◎</span>
+        <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+          <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+          </svg>
+        </div>
         <p className="text-text-secondary">
           Matches will appear when the tournament starts
         </p>
@@ -529,11 +557,11 @@ function MatchesTab({ tournamentId }: { tournamentId: string }) {
   });
 
   const matchStatusStyles: Record<string, string> = {
-    pending: "text-text-muted bg-white/5",
+    pending: "text-text-muted bg-bg-elevated",
     scheduled: "text-info bg-info/10",
     live: "text-success bg-success/10",
     completed: "text-gold bg-gold/10",
-    bye: "text-text-muted bg-white/5",
+    bye: "text-text-muted bg-bg-elevated",
   };
 
   return (
@@ -651,13 +679,13 @@ function ParticipantsTab({
   return (
     <div className="animate-fadeIn">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg font-semibold tracking-widest text-text-primary">
-          PARTICIPANTS ({participants.length})
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Participants ({participants.length})
         </h2>
         {canAdd && (
           <Link
             href={`/tournaments/${tournamentId}/participants/add`}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold tracking-wide uppercase text-accent bg-accent/10 border border-accent/30 rounded-lg hover:bg-accent hover:text-bg-void transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/30 rounded-lg hover:bg-accent hover:text-text-inverse transition-all"
           >
             <span>+</span> Add Participant
           </Link>
@@ -671,7 +699,7 @@ function ParticipantsTab({
           {canAdd && (
             <Link
               href={`/tournaments/${tournamentId}/participants/add`}
-              className="px-4 py-2 text-sm font-semibold text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all"
+              className="px-4 py-2 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all"
             >
               Add Participant
             </Link>
@@ -863,13 +891,13 @@ function ScorersTab({
   return (
     <div className="animate-fadeIn">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg font-semibold tracking-widest text-text-primary">
-          ASSIGNED SCORERS ({scorers.length})
+        <h2 className="font-display text-lg font-medium text-text-primary">
+          Assigned scorers ({scorers.length})
         </h2>
         <button
           onClick={() => setShowAddModal(true)}
           disabled={availableMembers.length === 0}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold tracking-wide uppercase text-accent bg-accent/10 border border-accent/30 rounded-lg hover:bg-accent hover:text-bg-void transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/30 rounded-lg hover:bg-accent hover:text-text-inverse transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span>+</span> Assign Scorer
         </button>
@@ -885,7 +913,7 @@ function ScorersTab({
           {availableMembers.length > 0 ? (
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 text-sm font-semibold text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all"
+              className="px-4 py-2 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all"
             >
               Assign Scorer
             </button>
@@ -934,8 +962,8 @@ function ScorersTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-lg bg-bg-card border border-border rounded-2xl shadow-2xl animate-scaleIn">
             <div className="flex items-center justify-between p-6 border-b border-border">
-              <h3 className="font-display text-lg font-semibold tracking-wide text-text-primary">
-                ASSIGN SCORER
+              <h3 className="font-display text-lg font-medium text-text-primary">
+                Assign scorer
               </h3>
               <button
                 onClick={() => {
@@ -1022,7 +1050,7 @@ function ScorersTab({
               <button
                 onClick={handleAssign}
                 disabled={!selectedUserId || loading}
-                className="px-4 py-2 text-sm font-semibold text-bg-void bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Assigning..." : "Assign Scorer"}
               </button>
@@ -1090,7 +1118,11 @@ function LoadingSkeleton() {
 function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6 opacity-40">◎</div>
+      <div className="w-16 h-16 flex items-center justify-center bg-bg-card rounded-2xl mb-6">
+        <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+        </svg>
+      </div>
       <h1 className="font-display text-3xl font-bold text-text-primary mb-3">
         Tournament Not Found
       </h1>

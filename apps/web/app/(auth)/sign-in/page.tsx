@@ -21,7 +21,6 @@ export default function SignInPage() {
       await signIn("password", formData);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      // Map common auth errors to user-friendly messages
       if (message.includes("InvalidSecret") ||
           message.toLowerCase().includes("invalid") ||
           message.toLowerCase().includes("incorrect") ||
@@ -45,18 +44,28 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="relative w-full max-w-md p-8 bg-bg-card border border-border rounded-2xl overflow-hidden animate-scaleIn">
+    <div className="w-full max-w-sm animate-fadeInUp">
       <div className="text-center mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-wide text-text-primary mb-2">
-          WELCOME BACK
+        <Link href="/" className="inline-flex items-center gap-2 mb-6">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+            <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 3L4 14h7v7l9-11h-7V3z" />
+            </svg>
+          </div>
+          <span className="font-display text-lg font-semibold tracking-tight">ScoreForge</span>
+        </Link>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary mb-2">
+          Welcome back
         </h1>
-        <p className="text-text-secondary">Sign in to manage your tournaments</p>
+        <p className="text-sm text-text-secondary">
+          Sign in to your account to continue
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="email" className="text-sm font-medium text-text-secondary">
-            Email Address
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-2">
+            Email
           </label>
           <input
             id="email"
@@ -65,12 +74,12 @@ export default function SignInPage() {
             required
             autoComplete="email"
             placeholder="you@example.com"
-            className="px-4 py-3 text-base text-text-primary bg-bg-elevated border border-border rounded-lg placeholder:text-text-muted focus:outline-none focus:border-accent focus:bg-bg-secondary transition-all"
+            className="input-field"
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="password" className="text-sm font-medium text-text-secondary">
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">
             Password
           </label>
           <input
@@ -80,47 +89,41 @@ export default function SignInPage() {
             required
             autoComplete="current-password"
             placeholder="Enter your password"
-            className="px-4 py-3 text-base text-text-primary bg-bg-elevated border border-border rounded-lg placeholder:text-text-muted focus:outline-none focus:border-accent focus:bg-bg-secondary transition-all"
+            className="input-field"
           />
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red bg-red/10 border border-red/20 rounded-lg">
-            <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red rounded-full flex-shrink-0">
-              !
-            </span>
-            {error}
+          <div className="flex items-start gap-3 p-3 text-sm text-error bg-error/10 border border-error/20 rounded-lg">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <span>{error}</span>
           </div>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center mt-2 px-6 py-3 font-display text-sm font-semibold tracking-widest uppercase text-bg-void bg-accent rounded-lg min-h-[50px] hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-glow transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center py-3 px-4 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
-            <span className="w-5 h-5 border-2 border-transparent border-t-current rounded-full animate-spin" />
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
           ) : (
-            "Sign In"
+            "Sign in"
           )}
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-border text-center text-sm text-text-secondary">
-        <p>
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/sign-up"
-            className="text-accent font-medium hover:text-accent-bright hover:underline transition-colors"
-          >
-            Create one
-          </Link>
-        </p>
-      </div>
-
-      {/* Decorative elements */}
-      <div className="absolute -top-[100px] left-1/2 -translate-x-1/2 w-[300px] h-[200px] bg-[radial-gradient(ellipse_at_center,var(--accent-glow)_0%,transparent_70%)] opacity-30 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-accent via-gold to-accent" />
+      <p className="mt-8 text-center text-sm text-text-secondary">
+        Don&apos;t have an account?{" "}
+        <Link href="/sign-up" className="font-medium text-accent hover:text-accent-bright transition-colors">
+          Create one
+        </Link>
+      </p>
     </div>
   );
 }

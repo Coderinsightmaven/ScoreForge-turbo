@@ -37,7 +37,7 @@ export default function TeamDetailPage({
             <span>←</span> Teams
           </Link>
           <div className="flex items-center gap-6">
-            <div className="w-[100px] h-[100px] flex items-center justify-center font-display text-5xl font-bold text-bg-void bg-gradient-to-br from-accent to-gold rounded-2xl shadow-[0_8px_32px_var(--accent-glow)] flex-shrink-0 overflow-hidden">
+            <div className="w-20 h-20 flex items-center justify-center font-display text-3xl font-semibold text-text-inverse bg-gradient-to-br from-accent to-accent-dim rounded-2xl flex-shrink-0 overflow-hidden">
               {team.image ? (
                 <img
                   src={team.image}
@@ -49,7 +49,7 @@ export default function TeamDetailPage({
               )}
             </div>
             <div>
-              <h1 className="font-display text-[clamp(28px,4vw,40px)] font-bold tracking-wide text-text-primary mb-2">
+              <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text-primary mb-2">
                 {team.name}
               </h1>
               <div className="flex items-center gap-4">
@@ -67,9 +67,9 @@ export default function TeamDetailPage({
       <main className="py-8 px-6 max-w-[var(--content-max)] mx-auto">
         {/* Members Section */}
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-            <h2 className="font-display text-lg font-semibold tracking-widest text-text-primary">
-              TEAM ROSTER
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-medium text-text-primary">
+              Team roster
             </h2>
           </div>
 
@@ -93,9 +93,9 @@ export default function TeamDetailPage({
 
         {/* Team Stats */}
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-            <h2 className="font-display text-lg font-semibold tracking-widest text-text-primary">
-              TEAM PERFORMANCE
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-medium text-text-primary">
+              Team performance
             </h2>
           </div>
 
@@ -165,8 +165,8 @@ function MemberCard({
   index: number;
 }) {
   const roleStyles: Record<string, string> = {
-    captain: "text-gold bg-gold/15",
-    player: "text-text-secondary bg-white/5",
+    captain: "text-gold bg-gold/10",
+    player: "text-text-secondary bg-bg-elevated",
   };
 
   return (
@@ -174,7 +174,7 @@ function MemberCard({
       className="flex items-center gap-4 p-4 bg-bg-card border border-border rounded-xl hover:bg-bg-card-hover hover:border-accent/30 transition-all animate-fadeInUp"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
-      <div className="w-12 h-12 flex items-center justify-center font-display text-xl font-semibold text-bg-void bg-gradient-to-br from-accent to-gold rounded-full flex-shrink-0">
+      <div className="w-10 h-10 flex items-center justify-center font-display text-sm font-semibold text-text-inverse bg-gradient-to-br from-accent to-accent-dim rounded-full flex-shrink-0">
         {member.userName?.charAt(0).toUpperCase() || "?"}
       </div>
       <div className="flex-1 min-w-0">
@@ -215,18 +215,22 @@ function LoadingSkeleton() {
 function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <div className="text-6xl text-text-muted mb-6 opacity-40">◇</div>
-      <h1 className="font-display text-3xl font-bold text-text-primary mb-3">
-        Team Not Found
+      <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
+        <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+        </svg>
+      </div>
+      <h1 className="font-display text-xl font-medium text-text-primary mb-2">
+        Team not found
       </h1>
-      <p className="text-text-secondary mb-8">
+      <p className="text-text-secondary mb-6">
         This team doesn&apos;t exist or you don&apos;t have access.
       </p>
       <Link
         href="/teams"
-        className="text-accent hover:text-accent-bright transition-colors"
+        className="text-sm text-accent hover:text-accent-bright transition-colors"
       >
-        ← Back to Teams
+        ← Back to teams
       </Link>
     </div>
   );
