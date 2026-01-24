@@ -796,6 +796,16 @@ export const deleteTournament = mutation({
       await ctx.db.delete("tournamentParticipants", participant._id);
     }
 
+    // Delete all scorers
+    const scorers = await ctx.db
+      .query("tournamentScorers")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+      .collect();
+
+    for (const scorer of scorers) {
+      await ctx.db.delete("tournamentScorers", scorer._id);
+    }
+
     // Delete the tournament
     await ctx.db.delete("tournaments", args.tournamentId);
     return null;
