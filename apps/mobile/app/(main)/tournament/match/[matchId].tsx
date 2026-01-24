@@ -1,10 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View, Alert } from 'react-native';
+import { Pressable, StyleSheet, View, Alert, ScrollView, Dimensions } from 'react-native';
 import Animated, {
   FadeInDown,
+  FadeIn,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
@@ -16,6 +19,37 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Shadows, Spacing, Radius } from '@/constants/theme';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Tennis point display helper
+function getTennisPointDisplay(
+  points: number[],
+  playerIndex: 0 | 1,
+  isAdScoring: boolean,
+  isTiebreak: boolean
+): string {
+  if (isTiebreak) {
+    return (points[playerIndex] ?? 0).toString();
+  }
+
+  const p1 = points[0] ?? 0;
+  const p2 = points[1] ?? 0;
+  const myPoints = points[playerIndex] ?? 0;
+  const oppPoints = points[1 - playerIndex] ?? 0;
+
+  if (p1 >= 3 && p2 >= 3) {
+    if (p1 === p2) return '40';
+    if (isAdScoring) {
+      if (myPoints > oppPoints) return 'Ad';
+      return '40';
+    }
+    return '40';
+  }
+
+  const pointNames = ['0', '15', '30', '40'];
+  return pointNames[Math.min(myPoints, 3)] || '40';
+}
 
 function AnimatedPressable({
   children,
@@ -51,6 +85,52 @@ function AnimatedPressable({
   );
 }
 
+// Scoring tap zone with flash animation
+function ScoringZone({
+  playerName,
+  onPress,
+  disabled,
+  isTop,
+  isServing,
+}: {
+  playerName: string;
+  onPress: () => void;
+  disabled: boolean;
+  isTop: boolean;
+  isServing: boolean;
+}) {
+  const flash = useSharedValue(0);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: `rgba(245, 166, 35, ${flash.value * 0.3})`,
+  }));
+
+  const handlePress = () => {
+    flash.value = withSequence(
+      withTiming(1, { duration: 100 }),
+      withTiming(0, { duration: 300 })
+    );
+    onPress();
+  };
+
+  return (
+    <Pressable
+      onPress={disabled ? undefined : handlePress}
+      disabled={disabled}
+      style={[styles.scoringZone, isTop ? styles.scoringZoneTop : styles.scoringZoneBottom]}>
+      <Animated.View style={[styles.scoringZoneInner, animatedStyle]}>
+        <View style={styles.scoringZoneContent}>
+          {isServing && <View style={styles.servingIndicatorLarge} />}
+          <ThemedText style={styles.scoringZoneName} numberOfLines={1}>
+            {playerName}
+          </ThemedText>
+          <ThemedText style={styles.scoringZoneHint}>Tap to score</ThemedText>
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 const STATUS_COLORS: Record<string, string> = {
   pending: Colors.textMuted,
   scheduled: Colors.info,
@@ -66,55 +146,50 @@ export default function MatchScoreScreen() {
 
   const match = useQuery(api.matches.getMatch, { matchId: id });
 
-  const [score1, setScore1] = useState<number | null>(null);
-  const [score2, setScore2] = useState<number | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const updateScore = useMutation(api.matches.updateScore);
   const startMatch = useMutation(api.matches.startMatch);
-  const completeMatch = useMutation(api.matches.completeMatch);
 
-  // Initialize scores from match data
-  if (match && score1 === null && score2 === null) {
-    setScore1(match.participant1Score);
-    setScore2(match.participant2Score);
-  }
+  // Sport-specific mutations
+  const initTennisMatch = useMutation(api.tennis.initTennisMatch);
+  const scoreTennisPoint = useMutation(api.tennis.scoreTennisPoint);
+  const undoTennisPoint = useMutation(api.tennis.undoTennisPoint);
+  const initVolleyballMatch = useMutation(api.volleyball.initVolleyballMatch);
+  const scoreVolleyballPoint = useMutation(api.volleyball.scoreVolleyballPoint);
+  const undoVolleyballPoint = useMutation(api.volleyball.undoVolleyballPoint);
 
-  const currentScore1 = score1 ?? match?.participant1Score ?? 0;
-  const currentScore2 = score2 ?? match?.participant2Score ?? 0;
+  // First server selection state
+  const [selectedFirstServer, setSelectedFirstServer] = useState<1 | 2>(1);
 
-  const canEdit = match?.status === 'live' || match?.status === 'scheduled' || match?.status === 'pending';
   const canStart = match?.status === 'pending' || match?.status === 'scheduled';
-  const canComplete = match?.status === 'live';
 
-  const handleScoreChange = async (participant: 1 | 2, delta: number) => {
-    if (!match || !canEdit) return;
+  // Sport detection
+  const isTennis = match?.sport === 'tennis';
+  const isVolleyball = match?.sport === 'volleyball';
+  const isSportSpecific = isTennis || isVolleyball;
+  const needsSetup = isSportSpecific && !match?.tennisState && !match?.volleyballState;
+  const isLive = match?.status === 'live';
+  const isMatchComplete = match?.tennisState?.isMatchComplete || match?.volleyballState?.isMatchComplete;
 
-    const newScore1 = participant === 1 ? Math.max(0, currentScore1 + delta) : currentScore1;
-    const newScore2 = participant === 2 ? Math.max(0, currentScore2 + delta) : currentScore2;
-
-    if (participant === 1) setScore1(newScore1);
-    else setScore2(newScore2);
-
-    try {
-      await updateScore({
-        matchId: id,
-        participant1Score: newScore1,
-        participant2Score: newScore2,
-      });
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update score');
-      // Revert
-      if (participant === 1) setScore1(currentScore1);
-      else setScore2(currentScore2);
-    }
-  };
+  // Bye match detection
+  const isByeMatch =
+    (match?.participant1 && !match?.participant2) ||
+    (!match?.participant1 && match?.participant2) ||
+    match?.status === 'bye';
+  const byeWinner = isByeMatch
+    ? match?.participant1 || match?.participant2
+    : null;
 
   const handleStartMatch = async () => {
     if (!match) return;
 
     setIsUpdating(true);
     try {
+      if (isTennis) {
+        await initTennisMatch({ matchId: id, firstServer: selectedFirstServer });
+      } else if (isVolleyball) {
+        await initVolleyballMatch({ matchId: id, firstServer: selectedFirstServer });
+      }
       await startMatch({ matchId: id });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to start match');
@@ -123,37 +198,44 @@ export default function MatchScoreScreen() {
     }
   };
 
-  const handleCompleteMatch = () => {
-    if (!match) return;
+  const handleScorePoint = async (winner: 1 | 2) => {
+    if (!match || !isLive || isMatchComplete) return;
 
-    if (currentScore1 === currentScore2) {
-      Alert.alert(
-        'Tied Score',
-        'The match is tied. Please update the score to determine a winner.',
-        [{ text: 'OK' }]
-      );
-      return;
+    setIsUpdating(true);
+    try {
+      if (isTennis) {
+        await scoreTennisPoint({ matchId: id, winnerParticipant: winner });
+      } else if (isVolleyball) {
+        await scoreVolleyballPoint({ matchId: id, winnerTeam: winner });
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to score point');
+    } finally {
+      setIsUpdating(false);
     }
+  };
 
-    const winner =
-      currentScore1 > currentScore2
-        ? match.participant1?.displayName
-        : match.participant2?.displayName;
+  const handleUndo = async () => {
+    if (!match || !isLive || isMatchComplete) return;
 
     Alert.alert(
-      'Complete Match',
-      `Are you sure you want to complete this match? ${winner} will be declared the winner.`,
+      'Undo Last Point',
+      'Revert to the previous state?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Complete',
+          text: 'Undo',
+          style: 'destructive',
           onPress: async () => {
             setIsUpdating(true);
             try {
-              await completeMatch({ matchId: id });
-              router.back();
+              if (isTennis) {
+                await undoTennisPoint({ matchId: id });
+              } else if (isVolleyball) {
+                await undoVolleyballPoint({ matchId: id });
+              }
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to complete match');
+              Alert.alert('Error', error.message || 'Failed to undo');
             } finally {
               setIsUpdating(false);
             }
@@ -173,9 +255,205 @@ export default function MatchScoreScreen() {
     );
   }
 
+  // Full-screen scoring mode for live matches
+  if (isLive && !isMatchComplete && (match.tennisState || match.volleyballState)) {
+    const serving1 = isTennis
+      ? match.tennisState?.servingParticipant === 1
+      : match.volleyballState?.servingTeam === 1;
+    const serving2 = isTennis
+      ? match.tennisState?.servingParticipant === 2
+      : match.volleyballState?.servingTeam === 2;
+
+    return (
+      <ThemedView style={styles.container}>
+        {/* Player 1 Scoring Zone (Top) */}
+        <ScoringZone
+          playerName={match.participant1?.displayName || 'Player 1'}
+          onPress={() => handleScorePoint(1)}
+          disabled={isUpdating}
+          isTop={true}
+          isServing={serving1 ?? false}
+        />
+
+        {/* Center Scoreboard */}
+        <View style={[styles.centerScoreboard, { paddingTop: insets.top }]}>
+          {/* Mini Header */}
+          <View style={styles.miniHeader}>
+            <Pressable onPress={() => router.back()} style={styles.miniBackButton}>
+              <IconSymbol name="chevron.left" size={18} color={Colors.textPrimary} />
+            </Pressable>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <ThemedText style={styles.liveText}>LIVE</ThemedText>
+            </View>
+            <View style={{ width: 36 }} />
+          </View>
+
+          {/* Tennis Scoreboard */}
+          {isTennis && match.tennisState && (
+            <View style={styles.fullScoreboard}>
+              {/* Tiebreak indicator only */}
+              {match.tennisState.isTiebreak && (
+                <View style={styles.configRow}>
+                  <View style={[styles.configBadgeSmall, { backgroundColor: Colors.warning + '30' }]}>
+                    <ThemedText style={[styles.configBadgeTextSmall, { color: Colors.warning }]}>
+                      Tiebreak
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
+
+              {/* Score Table */}
+              <View style={styles.scoreTable}>
+                {/* Player 1 Row */}
+                <View style={styles.scoreRow}>
+                  <View style={styles.playerCell}>
+                    {serving1 && <View style={styles.servingDotSmall} />}
+                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                      {match.participant1?.displayName || 'P1'}
+                    </ThemedText>
+                  </View>
+                  {match.tennisState.sets.map((set, idx) => (
+                    <View key={idx} style={styles.setCell}>
+                      <ThemedText style={[styles.setCellText, (set[0] ?? 0) > (set[1] ?? 0) && styles.setCellWinner]}>
+                        {set[0]}
+                      </ThemedText>
+                    </View>
+                  ))}
+                  <View style={[styles.setCell, styles.currentSetCell]}>
+                    <ThemedText style={styles.currentSetCellText}>
+                      {match.tennisState.currentSetGames[0]}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.pointsCell}>
+                    <ThemedText style={styles.pointsCellText}>
+                      {getTennisPointDisplay(
+                        match.tennisState.isTiebreak ? match.tennisState.tiebreakPoints : match.tennisState.currentGamePoints,
+                        0,
+                        match.tennisState.isAdScoring,
+                        match.tennisState.isTiebreak
+                      )}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {/* Player 2 Row */}
+                <View style={[styles.scoreRow, styles.scoreRowLast]}>
+                  <View style={styles.playerCell}>
+                    {serving2 && <View style={styles.servingDotSmall} />}
+                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                      {match.participant2?.displayName || 'P2'}
+                    </ThemedText>
+                  </View>
+                  {match.tennisState.sets.map((set, idx) => (
+                    <View key={idx} style={styles.setCell}>
+                      <ThemedText style={[styles.setCellText, (set[1] ?? 0) > (set[0] ?? 0) && styles.setCellWinner]}>
+                        {set[1]}
+                      </ThemedText>
+                    </View>
+                  ))}
+                  <View style={[styles.setCell, styles.currentSetCell]}>
+                    <ThemedText style={styles.currentSetCellText}>
+                      {match.tennisState.currentSetGames[1]}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.pointsCell}>
+                    <ThemedText style={styles.pointsCellText}>
+                      {getTennisPointDisplay(
+                        match.tennisState.isTiebreak ? match.tennisState.tiebreakPoints : match.tennisState.currentGamePoints,
+                        1,
+                        match.tennisState.isAdScoring,
+                        match.tennisState.isTiebreak
+                      )}
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Volleyball Scoreboard */}
+          {isVolleyball && match.volleyballState && (
+            <View style={styles.fullScoreboard}>
+
+              {/* Score Table */}
+              <View style={styles.scoreTable}>
+                {/* Team 1 Row */}
+                <View style={styles.scoreRow}>
+                  <View style={styles.playerCell}>
+                    {serving1 && <View style={styles.servingDotSmall} />}
+                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                      {match.participant1?.displayName || 'T1'}
+                    </ThemedText>
+                  </View>
+                  {match.volleyballState.sets.map((set, idx) => (
+                    <View key={idx} style={styles.setCell}>
+                      <ThemedText style={[styles.setCellText, (set[0] ?? 0) > (set[1] ?? 0) && styles.setCellWinner]}>
+                        {set[0]}
+                      </ThemedText>
+                    </View>
+                  ))}
+                  <View style={styles.pointsCellLarge}>
+                    <ThemedText style={styles.pointsCellTextLarge}>
+                      {match.volleyballState.currentSetPoints[0]}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {/* Team 2 Row */}
+                <View style={[styles.scoreRow, styles.scoreRowLast]}>
+                  <View style={styles.playerCell}>
+                    {serving2 && <View style={styles.servingDotSmall} />}
+                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                      {match.participant2?.displayName || 'T2'}
+                    </ThemedText>
+                  </View>
+                  {match.volleyballState.sets.map((set, idx) => (
+                    <View key={idx} style={styles.setCell}>
+                      <ThemedText style={[styles.setCellText, (set[1] ?? 0) > (set[0] ?? 0) && styles.setCellWinner]}>
+                        {set[1]}
+                      </ThemedText>
+                    </View>
+                  ))}
+                  <View style={styles.pointsCellLarge}>
+                    <ThemedText style={styles.pointsCellTextLarge}>
+                      {match.volleyballState.currentSetPoints[1]}
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Player 2 Scoring Zone (Bottom) */}
+        <ScoringZone
+          playerName={match.participant2?.displayName || 'Player 2'}
+          onPress={() => handleScorePoint(2)}
+          disabled={isUpdating}
+          isTop={false}
+          isServing={serving2 ?? false}
+        />
+
+        {/* Undo Button - Bottom Left */}
+        <Pressable
+          onPress={handleUndo}
+          style={[styles.cornerUndoButton, { bottom: insets.bottom + Spacing.lg }]}
+          disabled={isUpdating}>
+          <IconSymbol name="arrow.uturn.backward" size={20} color={Colors.textPrimary} />
+          <ThemedText style={styles.cornerUndoText}>Undo</ThemedText>
+        </Pressable>
+      </ThemedView>
+    );
+  }
+
+  // Regular view for non-live matches
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.content, { paddingTop: insets.top + Spacing.md }]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing.xl }]}
+        showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
@@ -205,149 +483,214 @@ export default function MatchScoreScreen() {
               {match.status === 'live' ? 'LIVE' : match.status.toUpperCase()}
             </ThemedText>
           </View>
+          {isSportSpecific && (
+            <View style={[styles.statusBadge, { backgroundColor: Colors.accent + '20' }]}>
+              <ThemedText style={[styles.statusText, { color: Colors.accent }]}>
+                {isTennis ? '🎾 Tennis' : '🏐 Volleyball'}
+              </ThemedText>
+            </View>
+          )}
         </Animated.View>
 
-        {/* Score Display */}
-        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.scoreCard}>
-          {/* Participant 1 */}
-          <View style={styles.participantSection}>
-            <View style={styles.participantInfo}>
-              <View style={styles.avatar}>
-                <ThemedText style={styles.avatarText}>
-                  {match.participant1?.displayName?.charAt(0).toUpperCase() || '?'}
-                </ThemedText>
-              </View>
-              <View style={styles.participantDetails}>
-                <ThemedText style={styles.participantName} numberOfLines={1}>
-                  {match.participant1?.displayName || 'TBD'}
-                </ThemedText>
-                {match.participant1 && (
-                  <ThemedText type="muted" style={styles.participantRecord}>
-                    {match.participant1.wins}W - {match.participant1.losses}L
-                  </ThemedText>
-                )}
-              </View>
+        {/* Bye Match Display */}
+        {isByeMatch && (
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.byeCard}>
+            <View style={styles.byeIconContainer}>
+              <ThemedText style={styles.byeIcon}>🎫</ThemedText>
             </View>
-            <View style={styles.scoreSection}>
-              {canEdit && (
-                <AnimatedPressable
-                  style={styles.scoreButton}
-                  onPress={() => handleScoreChange(1, -1)}
-                  disabled={currentScore1 <= 0}>
-                  <IconSymbol name="minus" size={20} color={Colors.textPrimary} />
-                </AnimatedPressable>
-              )}
-              <View style={styles.scoreDisplay}>
-                <ThemedText style={styles.scoreText}>{currentScore1}</ThemedText>
-              </View>
-              {canEdit && (
-                <AnimatedPressable
-                  style={styles.scoreButton}
-                  onPress={() => handleScoreChange(1, 1)}>
-                  <IconSymbol name="plus" size={20} color={Colors.textPrimary} />
-                </AnimatedPressable>
-              )}
-            </View>
-          </View>
-
-          {/* VS Divider */}
-          <View style={styles.vsDivider}>
-            <View style={styles.vsLine} />
-            <View style={styles.vsCircle}>
-              <ThemedText style={styles.vsText}>VS</ThemedText>
-            </View>
-            <View style={styles.vsLine} />
-          </View>
-
-          {/* Participant 2 */}
-          <View style={styles.participantSection}>
-            <View style={styles.participantInfo}>
-              <View style={styles.avatar}>
-                <ThemedText style={styles.avatarText}>
-                  {match.participant2?.displayName?.charAt(0).toUpperCase() || '?'}
-                </ThemedText>
-              </View>
-              <View style={styles.participantDetails}>
-                <ThemedText style={styles.participantName} numberOfLines={1}>
-                  {match.participant2?.displayName || 'TBD'}
-                </ThemedText>
-                {match.participant2 && (
-                  <ThemedText type="muted" style={styles.participantRecord}>
-                    {match.participant2.wins}W - {match.participant2.losses}L
-                  </ThemedText>
-                )}
-              </View>
-            </View>
-            <View style={styles.scoreSection}>
-              {canEdit && (
-                <AnimatedPressable
-                  style={styles.scoreButton}
-                  onPress={() => handleScoreChange(2, -1)}
-                  disabled={currentScore2 <= 0}>
-                  <IconSymbol name="minus" size={20} color={Colors.textPrimary} />
-                </AnimatedPressable>
-              )}
-              <View style={styles.scoreDisplay}>
-                <ThemedText style={styles.scoreText}>{currentScore2}</ThemedText>
-              </View>
-              {canEdit && (
-                <AnimatedPressable
-                  style={styles.scoreButton}
-                  onPress={() => handleScoreChange(2, 1)}>
-                  <IconSymbol name="plus" size={20} color={Colors.textPrimary} />
-                </AnimatedPressable>
-              )}
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Winner Banner (if completed) */}
-        {match.status === 'completed' && match.winnerId && (
-          <Animated.View entering={FadeInDown.duration(600).delay(250)} style={styles.winnerBanner}>
-            <IconSymbol name="trophy.fill" size={24} color={Colors.accent} />
-            <ThemedText style={styles.winnerText}>
-              {match.winnerId === match.participant1?._id
-                ? match.participant1?.displayName
-                : match.participant2?.displayName}{' '}
-              wins!
+            <ThemedText style={styles.byeTitle}>Bye Match</ThemedText>
+            <ThemedText type="muted" style={styles.byeSubtitle}>
+              {byeWinner?.displayName || 'Unknown'} automatically advances to the next round.
             </ThemedText>
+            <View style={styles.byeAdvancesBadge}>
+              <View style={styles.byeAdvancesDot} />
+              <ThemedText style={styles.byeAdvancesText}>
+                {byeWinner?.displayName} advances
+              </ThemedText>
+            </View>
           </Animated.View>
         )}
 
-        {/* Action Buttons */}
-        <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.actions}>
-          {canStart && match.participant1 && match.participant2 && (
+        {/* First Server Selection */}
+        {!isByeMatch && needsSetup && canStart && match.participant1 && match.participant2 && (
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.setupCard}>
+            <ThemedText style={styles.setupTitle}>Select First Server</ThemedText>
+            <ThemedText type="muted" style={styles.setupSubtitle}>
+              Who will serve first in this {isTennis ? 'tennis' : 'volleyball'} match?
+            </ThemedText>
+
+            {isTennis && match.tennisConfig && (
+              <View style={styles.configBadges}>
+                <View style={styles.configBadge}>
+                  <ThemedText style={styles.configBadgeText}>
+                    Best of {match.tennisConfig.setsToWin * 2 - 1}
+                  </ThemedText>
+                </View>
+                <View style={styles.configBadge}>
+                  <ThemedText style={styles.configBadgeText}>
+                    {match.tennisConfig.isAdScoring ? 'Ad Scoring' : 'No-Ad'}
+                  </ThemedText>
+                </View>
+              </View>
+            )}
+            {isVolleyball && match.volleyballConfig && (
+              <View style={styles.configBadges}>
+                <View style={styles.configBadge}>
+                  <ThemedText style={styles.configBadgeText}>
+                    Best of {match.volleyballConfig.setsToWin * 2 - 1}
+                  </ThemedText>
+                </View>
+                <View style={styles.configBadge}>
+                  <ThemedText style={styles.configBadgeText}>
+                    Sets to {match.volleyballConfig.pointsPerSet}
+                  </ThemedText>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.serverOptions}>
+              <AnimatedPressable
+                style={[
+                  styles.serverOption,
+                  selectedFirstServer === 1 && styles.serverOptionSelected,
+                ]}
+                onPress={() => setSelectedFirstServer(1)}>
+                <View style={[styles.serverAvatar, selectedFirstServer === 1 && styles.serverAvatarSelected]}>
+                  <ThemedText style={styles.serverAvatarText}>
+                    {match.participant1.displayName.charAt(0).toUpperCase()}
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  style={[styles.serverName, selectedFirstServer === 1 && styles.serverNameSelected]}
+                  numberOfLines={1}>
+                  {match.participant1.displayName}
+                </ThemedText>
+                {selectedFirstServer === 1 && (
+                  <IconSymbol name="checkmark.circle.fill" size={24} color={Colors.success} />
+                )}
+              </AnimatedPressable>
+
+              <AnimatedPressable
+                style={[
+                  styles.serverOption,
+                  selectedFirstServer === 2 && styles.serverOptionSelected,
+                ]}
+                onPress={() => setSelectedFirstServer(2)}>
+                <View style={[styles.serverAvatar, selectedFirstServer === 2 && styles.serverAvatarSelected]}>
+                  <ThemedText style={styles.serverAvatarText}>
+                    {match.participant2.displayName.charAt(0).toUpperCase()}
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  style={[styles.serverName, selectedFirstServer === 2 && styles.serverNameSelected]}
+                  numberOfLines={1}>
+                  {match.participant2.displayName}
+                </ThemedText>
+                {selectedFirstServer === 2 && (
+                  <IconSymbol name="checkmark.circle.fill" size={24} color={Colors.success} />
+                )}
+              </AnimatedPressable>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Completed Match Summary */}
+        {!isByeMatch && match.status === 'completed' && (match.tennisState || match.volleyballState) && (
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.completedCard}>
+            <View style={styles.winnerBanner}>
+              <IconSymbol name="trophy.fill" size={32} color={Colors.accent} />
+              <ThemedText style={styles.winnerText}>
+                {match.winnerId === match.participant1?._id
+                  ? match.participant1?.displayName
+                  : match.participant2?.displayName}{' '}
+                Wins!
+              </ThemedText>
+            </View>
+
+            {/* Final Score */}
+            <View style={styles.finalScoreTable}>
+              {isTennis && match.tennisState && (
+                <>
+                  <View style={styles.finalScoreRow}>
+                    <ThemedText style={styles.finalScoreName} numberOfLines={1}>
+                      {match.participant1?.displayName}
+                    </ThemedText>
+                    {match.tennisState.sets.map((set, idx) => (
+                      <View key={idx} style={styles.finalScoreCell}>
+                        <ThemedText style={[styles.finalScoreText, (set[0] ?? 0) > (set[1] ?? 0) && styles.finalScoreWinner]}>
+                          {set[0]}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.finalScoreRow}>
+                    <ThemedText style={styles.finalScoreName} numberOfLines={1}>
+                      {match.participant2?.displayName}
+                    </ThemedText>
+                    {match.tennisState.sets.map((set, idx) => (
+                      <View key={idx} style={styles.finalScoreCell}>
+                        <ThemedText style={[styles.finalScoreText, (set[1] ?? 0) > (set[0] ?? 0) && styles.finalScoreWinner]}>
+                          {set[1]}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+              {isVolleyball && match.volleyballState && (
+                <>
+                  <View style={styles.finalScoreRow}>
+                    <ThemedText style={styles.finalScoreName} numberOfLines={1}>
+                      {match.participant1?.displayName}
+                    </ThemedText>
+                    {match.volleyballState.sets.map((set, idx) => (
+                      <View key={idx} style={styles.finalScoreCell}>
+                        <ThemedText style={[styles.finalScoreText, (set[0] ?? 0) > (set[1] ?? 0) && styles.finalScoreWinner]}>
+                          {set[0]}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.finalScoreRow}>
+                    <ThemedText style={styles.finalScoreName} numberOfLines={1}>
+                      {match.participant2?.displayName}
+                    </ThemedText>
+                    {match.volleyballState.sets.map((set, idx) => (
+                      <View key={idx} style={styles.finalScoreCell}>
+                        <ThemedText style={[styles.finalScoreText, (set[1] ?? 0) > (set[0] ?? 0) && styles.finalScoreWinner]}>
+                          {set[1]}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Start Button */}
+        {!isByeMatch && needsSetup && canStart && match.participant1 && match.participant2 && (
+          <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.actions}>
             <AnimatedPressable
               style={styles.startButton}
               onPress={handleStartMatch}
               disabled={isUpdating}>
               <IconSymbol name="play.fill" size={20} color={Colors.bgPrimary} />
               <ThemedText style={styles.startButtonText}>
-                {isUpdating ? 'Starting...' : 'Start Match'}
+                {isUpdating ? 'Starting...' : `Start ${isTennis ? 'Tennis' : 'Volleyball'} Match`}
               </ThemedText>
             </AnimatedPressable>
-          )}
-
-          {canComplete && (
-            <AnimatedPressable
-              style={styles.completeButton}
-              onPress={handleCompleteMatch}
-              disabled={isUpdating}>
-              <IconSymbol name="checkmark.circle.fill" size={20} color={Colors.bgPrimary} />
-              <ThemedText style={styles.completeButtonText}>
-                {isUpdating ? 'Completing...' : 'Complete Match'}
-              </ThemedText>
-            </AnimatedPressable>
-          )}
-        </Animated.View>
+          </Animated.View>
+        )}
 
         {/* Role Info */}
         <Animated.View entering={FadeInDown.duration(600).delay(350)} style={styles.roleInfo}>
           <ThemedText type="muted" style={styles.roleText}>
-            You are a {match.myRole}. {canEdit ? 'You can edit scores.' : 'Match is not editable.'}
+            You are a {match.myRole}.
           </ThemedText>
         </Animated.View>
-      </View>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -356,8 +699,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: Spacing.lg,
   },
   loadingContainer: {
@@ -365,6 +710,230 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Full-screen scoring styles
+  scoringZone: {
+    flex: 1,
+  },
+  scoringZoneTop: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  scoringZoneBottom: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  scoringZoneInner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoringZoneContent: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  scoringZoneName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  scoringZoneHint: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  servingIndicatorLarge: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.success,
+    marginBottom: Spacing.xs,
+  },
+
+  centerScoreboard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '50%',
+    transform: [{ translateY: -120 }],
+    zIndex: 10,
+    paddingHorizontal: Spacing.md,
+  },
+  miniHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  miniBackButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.success + '20',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+  },
+  liveText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.success,
+  },
+  undoButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cornerUndoButton: {
+    position: 'absolute',
+    left: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.lg,
+    ...Shadows.sm,
+  },
+  cornerUndoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+
+  fullScoreboard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    ...Shadows.md,
+  },
+  configRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  configBadgeSmall: {
+    backgroundColor: Colors.accent + '20',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+  },
+  configBadgeTextSmall: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  scoreTable: {
+    backgroundColor: Colors.bgSecondary,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  scoreRowLast: {
+    borderBottomWidth: 0,
+  },
+  playerCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  playerNameFull: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  servingDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.success,
+  },
+  setCell: {
+    width: 28,
+    alignItems: 'center',
+  },
+  setCellText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  setCellWinner: {
+    color: Colors.accent,
+  },
+  currentSetCell: {
+    backgroundColor: Colors.accent + '20',
+    borderRadius: Radius.sm,
+    paddingVertical: 2,
+  },
+  currentSetCellText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.accent,
+  },
+  pointsCell: {
+    width: 40,
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: Radius.sm,
+    paddingVertical: 4,
+    marginLeft: Spacing.sm,
+    alignItems: 'center',
+  },
+  pointsCellText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.accent,
+  },
+  pointsCellLarge: {
+    width: 50,
+    backgroundColor: Colors.accent + '20',
+    borderRadius: Radius.sm,
+    paddingVertical: 6,
+    marginLeft: Spacing.sm,
+    alignItems: 'center',
+  },
+  pointsCellTextLarge: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.accent,
+  },
+
+  // Regular view styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,7 +958,11 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   statusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
     marginBottom: Spacing.xl,
   },
   statusBadge: {
@@ -410,122 +983,187 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  scoreCard: {
+
+  // Bye Match styles
+  byeCard: {
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
+    alignItems: 'center',
   },
-  participantSection: {
+  byeIconContainer: {
+    marginBottom: Spacing.md,
+  },
+  byeIcon: {
+    fontSize: 48,
+  },
+  byeTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  byeSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  byeAdvancesBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    backgroundColor: Colors.success + '15',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.lg,
   },
-  participantInfo: {
+  byeAdvancesDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: Colors.success,
+    borderRadius: Radius.full,
+  },
+  byeAdvancesText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.success,
+  },
+
+  // Setup Card styles
+  setupCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.xl,
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  setupTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  setupSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  configBadges: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  configBadge: {
+    backgroundColor: Colors.accent + '20',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+  },
+  configBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.accent,
+  },
+  serverOptions: {
+    width: '100%',
+    gap: Spacing.md,
+  },
+  serverOption: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    flex: 1,
+    padding: Spacing.lg,
+    backgroundColor: Colors.bgSecondary,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    borderColor: Colors.border,
   },
-  avatar: {
-    width: 48,
-    height: 48,
+  serverOptionSelected: {
+    borderColor: Colors.success,
+    backgroundColor: Colors.success + '10',
+  },
+  serverAvatar: {
+    width: 44,
+    height: 44,
     backgroundColor: Colors.bgTertiary,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
+  serverAvatarSelected: {
+    backgroundColor: Colors.success + '20',
+  },
+  serverAvatarText: {
     fontSize: 18,
     fontWeight: '700',
     color: Colors.textSecondary,
   },
-  participantDetails: {
+  serverName: {
     flex: 1,
-  },
-  participantName: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
   },
-  participantRecord: {
-    fontSize: 12,
+  serverNameSelected: {
+    color: Colors.success,
   },
-  scoreSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  scoreButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: Colors.bgTertiary,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+
+  // Completed match styles
+  completedCard: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  scoreDisplay: {
-    width: 60,
-    height: 60,
-    backgroundColor: Colors.bgSecondary,
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.accent,
-  },
-  scoreText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.accent,
-  },
-  vsDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
-  vsLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  vsCircle: {
-    width: 36,
-    height: 36,
-    backgroundColor: Colors.bgTertiary,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  vsText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textMuted,
+    borderColor: Colors.borderAccent,
+    padding: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   winnerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.accentGlow,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderAccent,
-    padding: Spacing.lg,
     marginBottom: Spacing.lg,
   },
   winnerText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.accent,
   },
+  finalScoreTable: {
+    backgroundColor: Colors.bgSecondary,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  finalScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  finalScoreName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  finalScoreCell: {
+    width: 36,
+    alignItems: 'center',
+  },
+  finalScoreText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  finalScoreWinner: {
+    color: Colors.accent,
+  },
+
+  // Action styles
   actions: {
     gap: Spacing.sm,
     marginBottom: Spacing.lg,
@@ -541,21 +1179,6 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   startButtonText: {
-    color: Colors.bgPrimary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  completeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.lg,
-    ...Shadows.accent,
-  },
-  completeButtonText: {
     color: Colors.bgPrimary,
     fontWeight: '700',
     fontSize: 16,

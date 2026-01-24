@@ -39,8 +39,9 @@ function generateSeedOrder(size: number): number[] {
   const result: number[] = [];
 
   for (let i = 0; i < smaller.length; i++) {
-    result.push(smaller[i]);
-    result.push(size + 1 - smaller[i]);
+    const seed = smaller[i]!;
+    result.push(seed);
+    result.push(size + 1 - seed);
   }
 
   return result;
@@ -65,7 +66,7 @@ export function generateSingleEliminationBracket(
   const slots: (Id<"tournamentParticipants"> | null)[] = seedOrder.map(
     (seed) => {
       const index = seed - 1;
-      return index < numParticipants ? participantIds[index] : null;
+      return index < numParticipants ? (participantIds[index] ?? null) : null;
     }
   );
 
@@ -121,19 +122,19 @@ export function generateSingleEliminationBracket(
       currentRoundMatches.push(matchIndex);
 
       // Link previous round matches to this one
-      const prevMatch1Index = previousRoundMatches[i * 2];
-      const prevMatch2Index = previousRoundMatches[i * 2 + 1];
+      const prevMatch1Index = previousRoundMatches[i * 2]!;
+      const prevMatch2Index = previousRoundMatches[i * 2 + 1]!;
 
       // We'll set nextMatchId after all matches are created (using placeholder)
-      matches[prevMatch1Index].nextMatchSlot = 1;
-      matches[prevMatch2Index].nextMatchSlot = 2;
+      matches[prevMatch1Index]!.nextMatchSlot = 1;
+      matches[prevMatch2Index]!.nextMatchSlot = 2;
     }
 
     // Set next match IDs (placeholder indices that will be replaced with actual IDs)
     for (let i = 0; i < previousRoundMatches.length; i++) {
-      const targetMatchIndex = currentRoundMatches[Math.floor(i / 2)];
+      const targetMatchIndex = currentRoundMatches[Math.floor(i / 2)]!;
       // Store as a temporary marker (will be resolved when inserting)
-      (matches[previousRoundMatches[i]] as any)._nextMatchIndex =
+      (matches[previousRoundMatches[i]!] as any)._nextMatchIndex =
         targetMatchIndex;
     }
 
@@ -162,7 +163,7 @@ export function generateDoubleEliminationBracket(
   const slots: (Id<"tournamentParticipants"> | null)[] = seedOrder.map(
     (seed) => {
       const index = seed - 1;
-      return index < numParticipants ? participantIds[index] : null;
+      return index < numParticipants ? (participantIds[index] ?? null) : null;
     }
   );
 
@@ -220,10 +221,10 @@ export function generateDoubleEliminationBracket(
       currentRoundMatches.push(matchIndex);
 
       // Link previous round matches
-      const prevMatch1Index = previousWinnersMatches[i * 2];
-      const prevMatch2Index = previousWinnersMatches[i * 2 + 1];
-      matches[prevMatch1Index].nextMatchSlot = 1;
-      matches[prevMatch2Index].nextMatchSlot = 2;
+      const prevMatch1Index = previousWinnersMatches[i * 2]!;
+      const prevMatch2Index = previousWinnersMatches[i * 2 + 1]!;
+      matches[prevMatch1Index]!.nextMatchSlot = 1;
+      matches[prevMatch2Index]!.nextMatchSlot = 2;
       (matches[prevMatch1Index] as any)._nextMatchIndex = matchIndex;
       (matches[prevMatch2Index] as any)._nextMatchIndex = matchIndex;
     }
@@ -243,7 +244,8 @@ export function generateDoubleEliminationBracket(
 
   // First losers round: losers from winners round 1
   const losersRound1Matches: number[] = [];
-  for (let i = 0; i < winnersRoundMatches[0].length; i += 2) {
+  const winnersRound1 = winnersRoundMatches[0]!;
+  for (let i = 0; i < winnersRound1.length; i += 2) {
     matchNumber++;
     const matchIndex = matches.length;
 
@@ -260,10 +262,10 @@ export function generateDoubleEliminationBracket(
     losersRound1Matches.push(matchIndex);
 
     // Link losers from winners round 1
-    const winnersMatch1 = winnersRoundMatches[0][i];
-    const winnersMatch2 = winnersRoundMatches[0][i + 1];
-    matches[winnersMatch1].loserNextMatchSlot = 1;
-    matches[winnersMatch2].loserNextMatchSlot = 2;
+    const winnersMatch1 = winnersRound1[i]!;
+    const winnersMatch2 = winnersRound1[i + 1]!;
+    matches[winnersMatch1]!.loserNextMatchSlot = 1;
+    matches[winnersMatch2]!.loserNextMatchSlot = 2;
     (matches[winnersMatch1] as any)._loserNextMatchIndex = matchIndex;
     (matches[winnersMatch2] as any)._loserNextMatchIndex = matchIndex;
   }
@@ -279,7 +281,7 @@ export function generateDoubleEliminationBracket(
     if (winnersRoundIndex < numWinnersRounds) {
       // Drop-down round: losers from winners join losers bracket
       const dropDownMatches: number[] = [];
-      const winnersLosers = winnersRoundMatches[winnersRoundIndex];
+      const winnersLosers = winnersRoundMatches[winnersRoundIndex]!;
 
       for (let i = 0; i < previousLosersMatches.length; i++) {
         matchNumber++;
@@ -298,14 +300,14 @@ export function generateDoubleEliminationBracket(
         dropDownMatches.push(matchIndex);
 
         // Slot 1: winner from previous losers round
-        const prevLosersMatch = previousLosersMatches[i];
-        matches[prevLosersMatch].nextMatchSlot = 1;
+        const prevLosersMatch = previousLosersMatches[i]!;
+        matches[prevLosersMatch]!.nextMatchSlot = 1;
         (matches[prevLosersMatch] as any)._nextMatchIndex = matchIndex;
 
         // Slot 2: loser from winners bracket
         if (i < winnersLosers.length) {
-          const winnersMatch = winnersLosers[i];
-          matches[winnersMatch].loserNextMatchSlot = 2;
+          const winnersMatch = winnersLosers[i]!;
+          matches[winnersMatch]!.loserNextMatchSlot = 2;
           (matches[winnersMatch] as any)._loserNextMatchIndex = matchIndex;
         }
       }
@@ -338,10 +340,10 @@ export function generateDoubleEliminationBracket(
         normalMatches.push(matchIndex);
 
         // Link previous losers matches
-        const prevMatch1 = previousLosersMatches[i * 2];
-        const prevMatch2 = previousLosersMatches[i * 2 + 1];
-        matches[prevMatch1].nextMatchSlot = 1;
-        matches[prevMatch2].nextMatchSlot = 2;
+        const prevMatch1 = previousLosersMatches[i * 2]!;
+        const prevMatch2 = previousLosersMatches[i * 2 + 1]!;
+        matches[prevMatch1]!.nextMatchSlot = 1;
+        matches[prevMatch2]!.nextMatchSlot = 2;
         (matches[prevMatch1] as any)._nextMatchIndex = matchIndex;
         (matches[prevMatch2] as any)._nextMatchIndex = matchIndex;
       }
@@ -365,13 +367,13 @@ export function generateDoubleEliminationBracket(
   });
 
   // Link winners bracket final
-  const winnersFinalIndex = winnersRoundMatches[numWinnersRounds - 1][0];
-  matches[winnersFinalIndex].nextMatchSlot = 1;
+  const winnersFinalIndex = winnersRoundMatches[numWinnersRounds - 1]![0]!;
+  matches[winnersFinalIndex]!.nextMatchSlot = 1;
   (matches[winnersFinalIndex] as any)._nextMatchIndex = grandFinalIndex;
 
   // Link losers bracket final
-  const losersFinalIndex = previousLosersMatches[0];
-  matches[losersFinalIndex].nextMatchSlot = 2;
+  const losersFinalIndex = previousLosersMatches[0]!;
+  matches[losersFinalIndex]!.nextMatchSlot = 2;
   (matches[losersFinalIndex] as any)._nextMatchIndex = grandFinalIndex;
 
   // ========== GRAND FINAL RESET (if losers bracket winner wins) ==========
@@ -388,7 +390,7 @@ export function generateDoubleEliminationBracket(
   });
 
   // Grand final winner goes to reset (only played if needed)
-  matches[grandFinalIndex].nextMatchSlot = 1;
+  matches[grandFinalIndex]!.nextMatchSlot = 1;
   (matches[grandFinalIndex] as any)._nextMatchIndex = grandFinalResetIndex;
 
   return matches;

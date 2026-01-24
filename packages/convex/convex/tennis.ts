@@ -7,6 +7,17 @@ import { tennisState } from "./schema";
 // Tennis Scoring Logic Helpers
 // ============================================
 
+type TennisStateSnapshot = {
+  sets: number[][];
+  currentSetGames: number[];
+  currentGamePoints: number[];
+  servingParticipant: number;
+  firstServerOfSet: number;
+  isTiebreak: boolean;
+  tiebreakPoints: number[];
+  isMatchComplete: boolean;
+};
+
 type TennisState = {
   sets: number[][];
   currentSetGames: number[];
@@ -18,7 +29,38 @@ type TennisState = {
   isTiebreak: boolean;
   tiebreakPoints: number[];
   isMatchComplete: boolean;
+  history?: TennisStateSnapshot[];
 };
+
+/**
+ * Create a snapshot of the current state for history
+ */
+function createSnapshot(state: TennisState): TennisStateSnapshot {
+  return {
+    sets: state.sets.map(s => [...s]),
+    currentSetGames: [...state.currentSetGames],
+    currentGamePoints: [...state.currentGamePoints],
+    servingParticipant: state.servingParticipant,
+    firstServerOfSet: state.firstServerOfSet,
+    isTiebreak: state.isTiebreak,
+    tiebreakPoints: [...state.tiebreakPoints],
+    isMatchComplete: state.isMatchComplete,
+  };
+}
+
+/**
+ * Add current state to history (max 50 entries for tennis)
+ */
+function addToHistory(state: TennisState): TennisStateSnapshot[] {
+  const snapshot = createSnapshot(state);
+  const history = state.history ?? [];
+  const newHistory = [...history, snapshot];
+  // Keep only last 50 states (tennis has more granular scoring)
+  if (newHistory.length > 50) {
+    return newHistory.slice(-50);
+  }
+  return newHistory;
+}
 
 /**
  * Convert numeric point value to tennis terminology
@@ -54,34 +96,38 @@ function processGamePoint(
   state: TennisState,
   winnerParticipant: 1 | 2
 ): { gameOver: boolean; gameWinner: 1 | 2 | null; newPoints: number[] } {
-  const [p1Points, p2Points] = state.currentGamePoints;
   const winnerIdx = winnerParticipant - 1;
   const loserIdx = 1 - winnerIdx;
 
   const newPoints = [...state.currentGamePoints];
-  newPoints[winnerIdx]++;
+  newPoints[winnerIdx] = (newPoints[winnerIdx] ?? 0) + 1;
+
+  const np0 = newPoints[0] ?? 0;
+  const np1 = newPoints[1] ?? 0;
+  const npWinner = newPoints[winnerIdx] ?? 0;
+  const npLoser = newPoints[loserIdx] ?? 0;
 
   // Check if deuce situation
-  if (isDeuce(newPoints[0], newPoints[1])) {
+  if (isDeuce(np0, np1)) {
     // At deuce or advantage situation
     if (state.isAdScoring) {
       // Ad scoring: need 2-point lead to win
-      if (newPoints[winnerIdx] >= 4 && newPoints[winnerIdx] - newPoints[loserIdx] >= 2) {
+      if (npWinner >= 4 && npWinner - npLoser >= 2) {
         return { gameOver: true, gameWinner: winnerParticipant, newPoints: [0, 0] };
       }
       // If opponent had advantage and we scored, back to deuce (3-3)
-      if (newPoints[loserIdx] >= 4) {
+      if (npLoser >= 4) {
         return { gameOver: false, gameWinner: null, newPoints: [3, 3] };
       }
       return { gameOver: false, gameWinner: null, newPoints };
     } else {
       // No-Ad scoring: at deuce (3-3), next point wins
-      if (newPoints[0] === 3 && newPoints[1] === 3) {
+      if (np0 === 3 && np1 === 3) {
         // Just reached deuce, game continues to deciding point
         return { gameOver: false, gameWinner: null, newPoints };
       }
       // One player has 4, they win
-      if (newPoints[winnerIdx] === 4) {
+      if (npWinner === 4) {
         return { gameOver: true, gameWinner: winnerParticipant, newPoints: [0, 0] };
       }
       return { gameOver: false, gameWinner: null, newPoints };
@@ -89,7 +135,7 @@ function processGamePoint(
   }
 
   // Regular game progression
-  if (newPoints[winnerIdx] >= 4) {
+  if (npWinner >= 4) {
     return { gameOver: true, gameWinner: winnerParticipant, newPoints: [0, 0] };
   }
 
@@ -105,9 +151,10 @@ function processTiebreakPoint(
   winnerParticipant: 1 | 2
 ): { tiebreakOver: boolean; tiebreakWinner: 1 | 2 | null; newPoints: number[] } {
   const newPoints = [...state.tiebreakPoints];
-  newPoints[winnerParticipant - 1]++;
+  newPoints[winnerParticipant - 1] = (newPoints[winnerParticipant - 1] ?? 0) + 1;
 
-  const [p1, p2] = newPoints;
+  const p1 = newPoints[0] ?? 0;
+  const p2 = newPoints[1] ?? 0;
   // Tiebreak: first to 7 with 2-point lead
   if ((p1 >= 7 || p2 >= 7) && Math.abs(p1 - p2) >= 2) {
     const tiebreakWinner: 1 | 2 = p1 > p2 ? 1 : 2;
@@ -126,9 +173,10 @@ function processSetGame(
   gameWinner: 1 | 2
 ): { setOver: boolean; setWinner: 1 | 2 | null; newGames: number[]; startTiebreak: boolean } {
   const newGames = [...state.currentSetGames];
-  newGames[gameWinner - 1]++;
+  newGames[gameWinner - 1] = (newGames[gameWinner - 1] ?? 0) + 1;
 
-  const [p1, p2] = newGames;
+  const p1 = newGames[0] ?? 0;
+  const p2 = newGames[1] ?? 0;
 
   // Check for tiebreak at 6-6
   if (p1 === 6 && p2 === 6) {
@@ -158,7 +206,7 @@ function processMatchSet(
   let p1Sets = 0;
   let p2Sets = 0;
   for (const set of newSets) {
-    if (set[0] > set[1]) p1Sets++;
+    if ((set[0] ?? 0) > (set[1] ?? 0)) p1Sets++;
     else p2Sets++;
   }
 
@@ -181,7 +229,7 @@ function processMatchSet(
 function getNextServer(state: TennisState, isTiebreakPoint: boolean = false): number {
   if (isTiebreakPoint) {
     // In tiebreak, server changes after first point, then every 2 points
-    const totalPoints = state.tiebreakPoints[0] + state.tiebreakPoints[1];
+    const totalPoints = (state.tiebreakPoints[0] ?? 0) + (state.tiebreakPoints[1] ?? 0);
     if (totalPoints === 0) return state.servingParticipant;
     // After first point, change server
     if (totalPoints === 1) return state.servingParticipant === 1 ? 2 : 1;
@@ -445,6 +493,9 @@ export const scoreTennisPoint = mutation({
 
     let state: TennisState = { ...match.tennisState };
 
+    // Save current state to history before making changes
+    state.history = addToHistory(state);
+
     // Process based on whether we're in a tiebreak or regular game
     if (state.isTiebreak) {
       const { tiebreakOver, tiebreakWinner, newPoints } = processTiebreakPoint(state, winner);
@@ -452,7 +503,7 @@ export const scoreTennisPoint = mutation({
       if (tiebreakOver && tiebreakWinner) {
         // Tiebreak won - update games and check set
         const finalSetGames = [...state.currentSetGames];
-        finalSetGames[tiebreakWinner - 1]++;
+        finalSetGames[tiebreakWinner - 1] = (finalSetGames[tiebreakWinner - 1] ?? 0) + 1;
 
         // Process set win (tiebreak winner wins set 7-6)
         const { matchOver, matchWinner, newSets } = processMatchSet(
@@ -471,8 +522,8 @@ export const scoreTennisPoint = mutation({
           state.isMatchComplete = true;
           // Update match winner and scores
           const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
-          const p1Sets = newSets.filter(s => s[0] > s[1]).length;
-          const p2Sets = newSets.filter(s => s[1] > s[0]).length;
+          const p1Sets = newSets.filter(s => (s[0] ?? 0) > (s[1] ?? 0)).length;
+          const p2Sets = newSets.filter(s => (s[1] ?? 0) > (s[0] ?? 0)).length;
 
           await ctx.db.patch(args.matchId, {
             tennisState: state,
@@ -530,7 +581,7 @@ export const scoreTennisPoint = mutation({
         // Tiebreak continues
         state.tiebreakPoints = newPoints;
         // Server changes: after first point, then every 2 points
-        const totalPoints = newPoints[0] + newPoints[1];
+        const totalPoints = (newPoints[0] ?? 0) + (newPoints[1] ?? 0);
         if (totalPoints > 0) {
           const pointsSinceFirst = totalPoints;
           if (pointsSinceFirst === 1 || (pointsSinceFirst > 1 && (pointsSinceFirst - 1) % 2 === 0)) {
@@ -569,8 +620,8 @@ export const scoreTennisPoint = mutation({
           if (matchOver && matchWinner) {
             state.isMatchComplete = true;
             const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
-            const p1Sets = newSets.filter(s => s[0] > s[1]).length;
-            const p2Sets = newSets.filter(s => s[1] > s[0]).length;
+            const p1Sets = newSets.filter(s => (s[0] ?? 0) > (s[1] ?? 0)).length;
+            const p2Sets = newSets.filter(s => (s[1] ?? 0) > (s[0] ?? 0)).length;
 
             await ctx.db.patch(args.matchId, {
               tennisState: state,
@@ -637,8 +688,8 @@ export const scoreTennisPoint = mutation({
     }
 
     // Update match with new state
-    const p1Sets = state.sets.filter(s => s[0] > s[1]).length;
-    const p2Sets = state.sets.filter(s => s[1] > s[0]).length;
+    const p1Sets = state.sets.filter(s => (s[0] ?? 0) > (s[1] ?? 0)).length;
+    const p2Sets = state.sets.filter(s => (s[1] ?? 0) > (s[0] ?? 0)).length;
 
     await ctx.db.patch(args.matchId, {
       tennisState: state,
@@ -651,15 +702,11 @@ export const scoreTennisPoint = mutation({
 });
 
 /**
- * Undo the last point scored (for corrections)
- * This is a simplified version - for a full undo system, you'd need to track point history
+ * Undo the last point scored
  */
 export const undoTennisPoint = mutation({
   args: {
     matchId: v.id("matches"),
-    // For undo, we need to know what state to restore to
-    // In a real implementation, you'd store point history
-    // For now, we'll just decrement points which may not be accurate for game/set boundaries
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -678,7 +725,7 @@ export const undoTennisPoint = mutation({
       throw new Error("Tournament not found");
     }
 
-    // Check user's role (only admin/owner can undo)
+    // Check user's role
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_organization_and_user", (q) =>
@@ -686,12 +733,48 @@ export const undoTennisPoint = mutation({
       )
       .first();
 
-    if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
-      throw new Error("Not authorized - only admins can undo points");
+    if (!membership) {
+      throw new Error("Not authorized");
     }
 
-    // For now, just notify that full undo is not implemented
-    throw new Error("Point history undo not yet implemented. Use manual score adjustment.");
+    if (!match.tennisState) {
+      throw new Error("Tennis state not initialized");
+    }
+
+    const history = match.tennisState.history;
+    if (!history || history.length === 0) {
+      throw new Error("No history available to undo");
+    }
+
+    // Get the previous state from history
+    const previousSnapshot = history[history.length - 1]!;
+    const newHistory = history.slice(0, -1);
+
+    // Restore the previous state
+    const restoredState: TennisState = {
+      ...match.tennisState,
+      sets: previousSnapshot.sets,
+      currentSetGames: previousSnapshot.currentSetGames,
+      currentGamePoints: previousSnapshot.currentGamePoints,
+      servingParticipant: previousSnapshot.servingParticipant,
+      firstServerOfSet: previousSnapshot.firstServerOfSet,
+      isTiebreak: previousSnapshot.isTiebreak,
+      tiebreakPoints: previousSnapshot.tiebreakPoints,
+      isMatchComplete: previousSnapshot.isMatchComplete,
+      history: newHistory,
+    };
+
+    // Calculate sets won for score display
+    const p1Sets = restoredState.sets.filter(s => (s[0] ?? 0) > (s[1] ?? 0)).length;
+    const p2Sets = restoredState.sets.filter(s => (s[1] ?? 0) > (s[0] ?? 0)).length;
+
+    await ctx.db.patch(args.matchId, {
+      tennisState: restoredState,
+      participant1Score: p1Sets,
+      participant2Score: p2Sets,
+    });
+
+    return null;
   },
 });
 

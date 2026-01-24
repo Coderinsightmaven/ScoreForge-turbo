@@ -8,6 +8,9 @@ import {
   presetSports,
   participantTypes,
   tennisConfig,
+  volleyballConfig,
+  tennisState,
+  volleyballState,
 } from "./schema";
 import {
   generateSingleEliminationBracket,
@@ -137,6 +140,7 @@ export const getTournament = query({
         })
       ),
       tennisConfig: v.optional(tennisConfig),
+      volleyballConfig: v.optional(volleyballConfig),
       createdBy: v.id("users"),
       participantCount: v.number(),
       myRole: v.union(
@@ -195,6 +199,7 @@ export const getTournament = query({
       endDate: tournament.endDate,
       scoringConfig: tournament.scoringConfig,
       tennisConfig: tournament.tennisConfig,
+      volleyballConfig: tournament.volleyballConfig,
       createdBy: tournament.createdBy,
       participantCount: participants.length,
       myRole: membership.role,
@@ -209,6 +214,7 @@ export const getBracket = query({
   args: { tournamentId: v.id("tournaments") },
   returns: v.object({
     format: tournamentFormats,
+    sport: v.string(),
     matches: v.array(
       v.object({
         _id: v.id("matches"),
@@ -241,6 +247,8 @@ export const getBracket = query({
           v.literal("bye")
         ),
         nextMatchId: v.optional(v.id("matches")),
+        tennisState: v.optional(tennisState),
+        volleyballState: v.optional(volleyballState),
       })
     ),
   }),
@@ -316,12 +324,15 @@ export const getBracket = query({
           winnerId: match.winnerId,
           status: match.status,
           nextMatchId: match.nextMatchId,
+          tennisState: match.tennisState,
+          volleyballState: match.volleyballState,
         };
       })
     );
 
     return {
       format: tournament.format,
+      sport: tournament.sport,
       matches: matchesWithParticipants,
     };
   },
@@ -605,6 +616,8 @@ export const createTournament = mutation({
     ),
     // Tennis-specific configuration (required when sport is tennis)
     tennisConfig: v.optional(tennisConfig),
+    // Volleyball-specific configuration (required when sport is volleyball)
+    volleyballConfig: v.optional(volleyballConfig),
   },
   returns: v.id("tournaments"),
   handler: async (ctx, args) => {
@@ -633,6 +646,11 @@ export const createTournament = mutation({
       throw new Error("Tennis configuration is required for tennis tournaments");
     }
 
+    // Validate volleyball config for volleyball tournaments
+    if (args.sport === "volleyball" && !args.volleyballConfig) {
+      throw new Error("Volleyball configuration is required for volleyball tournaments");
+    }
+
     const tournamentId = await ctx.db.insert("tournaments", {
       organizationId: args.organizationId,
       name: args.name,
@@ -647,6 +665,7 @@ export const createTournament = mutation({
       startDate: args.startDate,
       scoringConfig: args.scoringConfig,
       tennisConfig: args.tennisConfig,
+      volleyballConfig: args.volleyballConfig,
       createdBy: userId,
     });
 
@@ -862,7 +881,7 @@ export const startTournament = mutation({
     const matchIdMap = new Map<number, Id<"matches">>();
 
     for (let i = 0; i < matchData.length; i++) {
-      const match = matchData[i];
+      const match = matchData[i]!;
       const matchId = await ctx.db.insert("matches", {
         tournamentId: args.tournamentId,
         round: match.round,
@@ -899,23 +918,29 @@ export const startTournament = mutation({
     }
 
     // Process bye matches - auto-advance winners
-    for (let i = 0; i < matchData.length; i++) {
-      const match = matchData[i];
-      if (match.status === "bye") {
-        const matchId = matchIdMap.get(i)!;
-        const fullMatch = await ctx.db.get("matches", matchId);
-        if (!fullMatch) continue;
+    // We need to process byes in rounds order to handle cascading byes
+    const byeMatches = matchData
+      .map((match, index) => ({ match, index }))
+      .filter(({ match }) => match.status === "bye")
+      .sort((a, b) => a.match.round - b.match.round);
 
-        // The non-null participant wins the bye
-        const winnerId = match.participant1Id || match.participant2Id;
-        if (winnerId && fullMatch.nextMatchId) {
-          // Update winner
-          await ctx.db.patch("matches", matchId, {
-            winnerId,
-            completedAt: Date.now(),
-          });
+    for (const { match, index } of byeMatches) {
+      const matchId = matchIdMap.get(index)!;
+      const fullMatch = await ctx.db.get("matches", matchId);
+      if (!fullMatch) continue;
 
-          // Advance to next match
+      // The non-null participant wins the bye
+      const winnerId = match.participant1Id || match.participant2Id;
+      if (winnerId) {
+        // Update winner and mark as completed
+        await ctx.db.patch("matches", matchId, {
+          winnerId,
+          status: "completed",
+          completedAt: Date.now(),
+        });
+
+        // Advance to next match
+        if (fullMatch.nextMatchId) {
           const nextMatch = await ctx.db.get("matches", fullMatch.nextMatchId);
           if (nextMatch) {
             const slot = fullMatch.nextMatchSlot;
@@ -927,6 +952,56 @@ export const startTournament = mutation({
               await ctx.db.patch("matches", fullMatch.nextMatchId, {
                 participant2Id: winnerId,
               });
+            }
+
+            // Check if the next match now has only one participant (cascading bye)
+            const updatedNextMatch = await ctx.db.get("matches", fullMatch.nextMatchId);
+            if (updatedNextMatch && updatedNextMatch.status === "pending") {
+              const hasP1 = !!updatedNextMatch.participant1Id;
+              const hasP2 = !!updatedNextMatch.participant2Id;
+
+              // If exactly one participant and the match is still pending, make it a bye
+              if ((hasP1 || hasP2) && !(hasP1 && hasP2)) {
+                // Check if this match's "feeder" matches are all completed
+                // Find matches that feed into this one
+                const feederMatches = await ctx.db
+                  .query("matches")
+                  .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+                  .filter((q) => q.eq(q.field("nextMatchId"), fullMatch.nextMatchId))
+                  .collect();
+
+                const allFeedersComplete = feederMatches.every(
+                  (m) => m.status === "completed" || m.status === "bye"
+                );
+
+                if (allFeedersComplete && feederMatches.length > 0) {
+                  const byeWinner = updatedNextMatch.participant1Id || updatedNextMatch.participant2Id;
+                  if (byeWinner) {
+                    await ctx.db.patch("matches", fullMatch.nextMatchId, {
+                      winnerId: byeWinner,
+                      status: "completed",
+                      completedAt: Date.now(),
+                    });
+
+                    // Advance this bye winner too
+                    if (updatedNextMatch.nextMatchId) {
+                      const nextNextMatch = await ctx.db.get("matches", updatedNextMatch.nextMatchId);
+                      if (nextNextMatch) {
+                        const nextSlot = updatedNextMatch.nextMatchSlot;
+                        if (nextSlot === 1) {
+                          await ctx.db.patch("matches", updatedNextMatch.nextMatchId, {
+                            participant1Id: byeWinner,
+                          });
+                        } else if (nextSlot === 2) {
+                          await ctx.db.patch("matches", updatedNextMatch.nextMatchId, {
+                            participant2Id: byeWinner,
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }

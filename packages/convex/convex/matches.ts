@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { matchStatus, tennisState, tennisConfig } from "./schema";
+import { matchStatus, tennisState, tennisConfig, volleyballState, volleyballConfig } from "./schema";
 
 // ============================================
 // Queries
@@ -204,6 +204,8 @@ export const getMatch = query({
       sport: v.string(),
       tennisState: v.optional(tennisState),
       tennisConfig: v.optional(tennisConfig),
+      volleyballState: v.optional(volleyballState),
+      volleyballConfig: v.optional(volleyballConfig),
     }),
     v.null()
   ),
@@ -286,6 +288,8 @@ export const getMatch = query({
       sport: tournament.sport,
       tennisState: match.tennisState,
       tennisConfig: tournament.tennisConfig,
+      volleyballState: match.volleyballState,
+      volleyballConfig: tournament.volleyballConfig,
     };
   },
 });
@@ -302,6 +306,7 @@ export const listMyLiveMatches = query({
       _id: v.id("matches"),
       tournamentId: v.id("tournaments"),
       tournamentName: v.string(),
+      sport: v.string(),
       round: v.number(),
       matchNumber: v.number(),
       bracket: v.optional(v.string()),
@@ -321,6 +326,8 @@ export const listMyLiveMatches = query({
       participant2Score: v.number(),
       status: matchStatus,
       startedAt: v.optional(v.number()),
+      tennisState: v.optional(tennisState),
+      volleyballState: v.optional(volleyballState),
     })
   ),
   handler: async (ctx) => {
@@ -389,6 +396,7 @@ export const listMyLiveMatches = query({
           _id: match._id,
           tournamentId: tournament._id,
           tournamentName: tournament.name,
+          sport: tournament.sport,
           round: match.round,
           matchNumber: match.matchNumber,
           bracket: match.bracket,
@@ -398,6 +406,8 @@ export const listMyLiveMatches = query({
           participant2Score: match.participant2Score,
           status: match.status,
           startedAt: match.startedAt,
+          tennisState: match.tennisState,
+          volleyballState: match.volleyballState,
         });
       }
     };

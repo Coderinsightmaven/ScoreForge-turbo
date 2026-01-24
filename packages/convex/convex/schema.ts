@@ -91,6 +91,34 @@ export const tennisConfig = v.object({
 });
 
 /**
+ * Volleyball tournament configuration (set at tournament level)
+ */
+export const volleyballConfig = v.object({
+  // Best of 3 (setsToWin=2) or Best of 5 (setsToWin=3)
+  setsToWin: v.number(),
+  // Points needed to win a regular set (default 25)
+  pointsPerSet: v.number(),
+  // Points needed to win the deciding set (default 15)
+  pointsPerDecidingSet: v.number(),
+  // Minimum lead required to win (default 2)
+  minLeadToWin: v.number(),
+});
+
+/**
+ * Tennis match state snapshot (for history)
+ */
+export const tennisStateSnapshot = v.object({
+  sets: v.array(v.array(v.number())),
+  currentSetGames: v.array(v.number()),
+  currentGamePoints: v.array(v.number()),
+  servingParticipant: v.number(),
+  firstServerOfSet: v.number(),
+  isTiebreak: v.boolean(),
+  tiebreakPoints: v.array(v.number()),
+  isMatchComplete: v.boolean(),
+});
+
+/**
  * Tennis match state for tracking sets, games, and points
  */
 export const tennisState = v.object({
@@ -115,6 +143,42 @@ export const tennisState = v.object({
   tiebreakPoints: v.array(v.number()),
   // Match completed
   isMatchComplete: v.boolean(),
+  // State history for undo (last 10 states)
+  history: v.optional(v.array(tennisStateSnapshot)),
+});
+
+/**
+ * Volleyball match state snapshot (for history)
+ */
+export const volleyballStateSnapshot = v.object({
+  sets: v.array(v.array(v.number())),
+  currentSetPoints: v.array(v.number()),
+  servingTeam: v.number(),
+  currentSetNumber: v.number(),
+  isMatchComplete: v.boolean(),
+});
+
+/**
+ * Volleyball match state for tracking sets and points
+ */
+export const volleyballState = v.object({
+  // Completed sets: array of [p1Points, p2Points]
+  sets: v.array(v.array(v.number())),
+  // Current set points: [p1Points, p2Points]
+  currentSetPoints: v.array(v.number()),
+  // Which participant is serving (1 or 2)
+  servingTeam: v.number(),
+  // Configuration
+  setsToWin: v.number(),
+  pointsPerSet: v.number(),
+  pointsPerDecidingSet: v.number(),
+  minLeadToWin: v.number(),
+  // Current set number (1-indexed)
+  currentSetNumber: v.number(),
+  // Match completed
+  isMatchComplete: v.boolean(),
+  // State history for undo (last 10 states)
+  history: v.optional(v.array(volleyballStateSnapshot)),
 });
 
 export default defineSchema({
@@ -190,6 +254,8 @@ export default defineSchema({
     ),
     // Tennis-specific configuration (only for tennis tournaments)
     tennisConfig: v.optional(tennisConfig),
+    // Volleyball-specific configuration (only for volleyball tournaments)
+    volleyballConfig: v.optional(volleyballConfig),
     createdBy: v.id("users"),
   })
     .index("by_organization", ["organizationId"])
@@ -262,6 +328,8 @@ export default defineSchema({
     loserNextMatchSlot: v.optional(v.number()),
     // Tennis-specific state (only for tennis matches)
     tennisState: v.optional(tennisState),
+    // Volleyball-specific state (only for volleyball matches)
+    volleyballState: v.optional(volleyballState),
   })
     .index("by_tournament", ["tournamentId"])
     .index("by_tournament_and_round", ["tournamentId", "round"])

@@ -268,6 +268,41 @@ function TournamentActions({
   );
 }
 
+// Tennis score formatter for bracket display
+function formatTennisScoreForBracket(
+  tennisState: {
+    sets: number[][];
+    currentSetGames: number[];
+    currentGamePoints: number[];
+    isTiebreak: boolean;
+    isAdScoring: boolean;
+  },
+  playerIndex: 0 | 1
+): string {
+  const parts: string[] = [];
+  for (const set of tennisState.sets) {
+    parts.push((set[playerIndex] ?? 0).toString());
+  }
+  parts.push((tennisState.currentSetGames[playerIndex] ?? 0).toString());
+  return parts.join(" ");
+}
+
+// Volleyball score formatter for bracket display
+function formatVolleyballScoreForBracket(
+  volleyballState: {
+    sets: number[][];
+    currentSetPoints: number[];
+  },
+  playerIndex: 0 | 1
+): string {
+  const parts: string[] = [];
+  for (const set of volleyballState.sets) {
+    parts.push((set[playerIndex] ?? 0).toString());
+  }
+  parts.push((volleyballState.currentSetPoints[playerIndex] ?? 0).toString());
+  return parts.join(" ");
+}
+
 function BracketTab({
   tournamentId,
   format,
@@ -317,6 +352,19 @@ function BracketTab({
     return `Round ${round}`;
   };
 
+  const getScoreDisplay = (
+    match: (typeof bracket.matches)[0],
+    playerIndex: 0 | 1
+  ) => {
+    if (bracket.sport === "tennis" && match.tennisState) {
+      return formatTennisScoreForBracket(match.tennisState, playerIndex);
+    }
+    if (bracket.sport === "volleyball" && match.volleyballState) {
+      return formatVolleyballScoreForBracket(match.volleyballState, playerIndex);
+    }
+    return playerIndex === 0 ? match.participant1Score : match.participant2Score;
+  };
+
   return (
     <div className="animate-fadeIn">
       <div className="overflow-x-auto pb-4">
@@ -327,71 +375,121 @@ function BracketTab({
                 {getRoundName(round, roundNumbers.length)}
               </div>
               <div className="flex flex-col gap-3 flex-1 justify-around">
-                {(rounds[round] || []).map((match) => (
-                  <Link
-                    key={match._id}
-                    href={`/matches/${match._id}`}
-                    className={`relative flex flex-col bg-bg-card border rounded-lg overflow-hidden transition-all hover:border-accent/30 hover:-translate-y-0.5 ${
-                      match.status === "live"
-                        ? "border-success shadow-[0_0_20px_var(--success-glow)]"
-                        : match.status === "completed"
-                          ? "border-border opacity-80"
-                          : "border-border"
-                    }`}
-                  >
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 border-b border-border ${
-                        match.winnerId === match.participant1?._id
-                          ? "bg-accent/10"
-                          : ""
-                      }`}
-                    >
-                      <span className="w-6 text-xs text-center text-text-muted">
-                        {match.participant1?.seed || "-"}
-                      </span>
-                      <span
-                        className={`flex-1 text-sm font-medium truncate ${
+                {(rounds[round] || []).map((match) => {
+                  // Check if this is a bye match (only one participant)
+                  const isByeMatch =
+                    (match.participant1 && !match.participant2) ||
+                    (!match.participant1 && match.participant2) ||
+                    match.status === "bye";
+                  const isScoreable =
+                    !isByeMatch &&
+                    match.participant1 &&
+                    match.participant2 &&
+                    match.status !== "completed";
+
+                  const matchContent = (
+                    <>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 border-b border-border ${
                           match.winnerId === match.participant1?._id
-                            ? "text-accent"
-                            : "text-text-primary"
+                            ? "bg-accent/10"
+                            : ""
                         }`}
                       >
-                        {match.participant1?.displayName || "TBD"}
-                      </span>
-                      <span className="font-display text-base font-bold text-text-primary min-w-[24px] text-right">
-                        {match.participant1Score}
-                      </span>
-                    </div>
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 ${
-                        match.winnerId === match.participant2?._id
-                          ? "bg-accent/10"
-                          : ""
-                      }`}
-                    >
-                      <span className="w-6 text-xs text-center text-text-muted">
-                        {match.participant2?.seed || "-"}
-                      </span>
-                      <span
-                        className={`flex-1 text-sm font-medium truncate ${
+                        <span className="w-6 text-xs text-center text-text-muted">
+                          {match.participant1?.seed || "-"}
+                        </span>
+                        <span
+                          className={`flex-1 text-sm font-medium truncate ${
+                            match.winnerId === match.participant1?._id
+                              ? "text-accent"
+                              : isByeMatch && match.participant1
+                                ? "text-accent"
+                                : "text-text-primary"
+                          }`}
+                        >
+                          {match.participant1?.displayName || (isByeMatch ? "BYE" : "TBD")}
+                        </span>
+                        {!isByeMatch && (
+                          <span className="font-display text-sm font-bold text-text-primary min-w-[40px] text-right tracking-wider">
+                            {getScoreDisplay(match, 0)}
+                          </span>
+                        )}
+                        {isByeMatch && match.participant1 && (
+                          <span className="text-xs font-medium text-success">
+                            Advances
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 ${
                           match.winnerId === match.participant2?._id
-                            ? "text-accent"
-                            : "text-text-primary"
+                            ? "bg-accent/10"
+                            : ""
                         }`}
                       >
-                        {match.participant2?.displayName || "TBD"}
-                      </span>
-                      <span className="font-display text-base font-bold text-text-primary min-w-[24px] text-right">
-                        {match.participant2Score}
-                      </span>
+                        <span className="w-6 text-xs text-center text-text-muted">
+                          {match.participant2?.seed || "-"}
+                        </span>
+                        <span
+                          className={`flex-1 text-sm font-medium truncate ${
+                            match.winnerId === match.participant2?._id
+                              ? "text-accent"
+                              : isByeMatch && match.participant2
+                                ? "text-accent"
+                                : "text-text-primary"
+                          }`}
+                        >
+                          {match.participant2?.displayName || (isByeMatch ? "BYE" : "TBD")}
+                        </span>
+                        {!isByeMatch && (
+                          <span className="font-display text-sm font-bold text-text-primary min-w-[40px] text-right tracking-wider">
+                            {getScoreDisplay(match, 1)}
+                          </span>
+                        )}
+                        {isByeMatch && match.participant2 && (
+                          <span className="text-xs font-medium text-success">
+                            Advances
+                          </span>
+                        )}
+                      </div>
+                      {isByeMatch && (
+                        <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-text-muted bg-white/5 rounded">
+                          BYE
+                        </span>
+                      )}
+                    </>
+                  );
+
+                  // If match is scoreable, make it a link; otherwise just a div
+                  if (isScoreable || match.status === "live" || match.status === "completed") {
+                    return (
+                      <Link
+                        key={match._id}
+                        href={`/matches/${match._id}`}
+                        className={`relative flex flex-col bg-bg-card border rounded-lg overflow-hidden transition-all hover:border-accent/30 hover:-translate-y-0.5 ${
+                          match.status === "live"
+                            ? "border-success shadow-[0_0_20px_var(--success-glow)]"
+                            : match.status === "completed"
+                              ? "border-border opacity-80"
+                              : "border-border"
+                        }`}
+                      >
+                        {matchContent}
+                      </Link>
+                    );
+                  }
+
+                  // Bye match - not clickable
+                  return (
+                    <div
+                      key={match._id}
+                      className="relative flex flex-col bg-bg-card border border-border rounded-lg overflow-hidden opacity-60"
+                    >
+                      {matchContent}
                     </div>
-                    {match.status === "live" && (
-                      <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-white bg-success rounded animate-pulse">
-                        LIVE
-                      </span>
-                    )}
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

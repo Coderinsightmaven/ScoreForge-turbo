@@ -41,6 +41,37 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: Colors.error,
 };
 
+// Tennis point display helper
+function getTennisPointDisplay(
+  points: number[],
+  playerIndex: 0 | 1,
+  isAdScoring: boolean,
+  isTiebreak: boolean
+): string {
+  if (isTiebreak) return (points[playerIndex] ?? 0).toString();
+
+  const p1 = points[0] ?? 0;
+  const p2 = points[1] ?? 0;
+  const myPoints = playerIndex === 0 ? p1 : p2;
+  const oppPoints = playerIndex === 0 ? p2 : p1;
+
+  // Deuce handling
+  if (p1 >= 3 && p2 >= 3) {
+    if (isAdScoring) {
+      if (p1 === p2) return '40';
+      const leading = p1 > p2 ? 0 : 1;
+      if (playerIndex === leading) return 'Ad';
+      return '40';
+    } else {
+      return '40';
+    }
+  }
+
+  // Normal points
+  const pointLabels = ['0', '15', '30', '40'];
+  return pointLabels[Math.min(myPoints, 3)] ?? '40';
+}
+
 function AnimatedPressable({
   children,
   style,
@@ -166,42 +197,168 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.matchesList}>
-              {liveMatches.map((match, index) => (
-                <Animated.View key={match._id} entering={FadeInRight.duration(400).delay(index * 50)}>
-                  <AnimatedPressable
-                    style={styles.liveMatchCard}
-                    onPress={() => router.push(`/(main)/tournament/match/${match._id}`)}>
-                    <View style={styles.liveMatchHeader}>
-                      <ThemedText type="muted" style={styles.tournamentName}>
-                        {match.tournamentName}
-                      </ThemedText>
-                      <View style={styles.liveMatchBadge}>
-                        <View style={styles.liveDotSmall} />
-                        <ThemedText style={styles.liveMatchBadgeText}>LIVE</ThemedText>
+              {liveMatches.map((match, index) => {
+                const hasTennis = match.sport === 'tennis' && match.tennisState;
+                const hasVolleyball = match.sport === 'volleyball' && match.volleyballState;
+                const isServing1 = hasTennis
+                  ? match.tennisState?.servingParticipant === 1
+                  : hasVolleyball
+                    ? match.volleyballState?.servingTeam === 1
+                    : false;
+                const isServing2 = hasTennis
+                  ? match.tennisState?.servingParticipant === 2
+                  : hasVolleyball
+                    ? match.volleyballState?.servingTeam === 2
+                    : false;
+
+                return (
+                  <Animated.View
+                    key={match._id}
+                    entering={FadeInRight.duration(400).delay(index * 50)}>
+                    <AnimatedPressable
+                      style={styles.liveMatchCard}
+                      onPress={() => router.push(`/(main)/tournament/match/${match._id}`)}>
+                      {/* Header with tournament name and live badge */}
+                      <View style={styles.matchCardHeader}>
+                        <View style={styles.matchCardHeaderLeft}>
+                          <IconSymbol
+                            name={SPORT_ICONS[match.sport] || 'sportscourt'}
+                            size={14}
+                            color={Colors.textMuted}
+                          />
+                          <ThemedText style={styles.matchTournamentName} numberOfLines={1}>
+                            {match.tournamentName}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.liveBadge}>
+                          <View style={styles.liveDotSmall} />
+                        </View>
                       </View>
-                    </View>
-                    <View style={styles.liveMatchScore}>
-                      <View style={styles.liveMatchParticipant}>
-                        <ThemedText style={styles.participantName} numberOfLines={1}>
-                          {match.participant1?.displayName || 'TBD'}
-                        </ThemedText>
-                        <ThemedText style={styles.score}>{match.participant1Score}</ThemedText>
+
+                      {/* Scoreboard */}
+                      <View style={styles.scoreboard}>
+                        {/* Player 1 Row */}
+                        <View style={styles.scoreboardRow}>
+                          <View style={styles.playerInfo}>
+                            {isServing1 && <View style={styles.servingDot} />}
+                            <ThemedText style={styles.playerName} numberOfLines={1}>
+                              {match.participant1?.displayName || 'TBD'}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.scoreSection}>
+                            {hasTennis && match.tennisState ? (
+                              <>
+                                {match.tennisState.sets.map((set: number[], i: number) => (
+                                  <View key={i} style={styles.setScore}>
+                                    <ThemedText style={styles.setScoreText}>
+                                      {set[0] ?? 0}
+                                    </ThemedText>
+                                  </View>
+                                ))}
+                                <View style={[styles.setScore, styles.currentSet]}>
+                                  <ThemedText style={styles.currentSetText}>
+                                    {match.tennisState.currentSetGames[0] ?? 0}
+                                  </ThemedText>
+                                </View>
+                                <View style={styles.gameScore}>
+                                  <ThemedText style={styles.gameScoreText}>
+                                    {getTennisPointDisplay(
+                                      match.tennisState.currentGamePoints,
+                                      0,
+                                      match.tennisState.isAdScoring,
+                                      match.tennisState.isTiebreak
+                                    )}
+                                  </ThemedText>
+                                </View>
+                              </>
+                            ) : hasVolleyball && match.volleyballState ? (
+                              <>
+                                {match.volleyballState.sets.map((set: number[], i: number) => (
+                                  <View key={i} style={styles.setScore}>
+                                    <ThemedText style={styles.setScoreText}>
+                                      {set[0] ?? 0}
+                                    </ThemedText>
+                                  </View>
+                                ))}
+                                <View style={[styles.setScore, styles.currentSet]}>
+                                  <ThemedText style={styles.currentSetText}>
+                                    {match.volleyballState.currentSetPoints[0] ?? 0}
+                                  </ThemedText>
+                                </View>
+                              </>
+                            ) : (
+                              <View style={styles.simpleScore}>
+                                <ThemedText style={styles.simpleScoreText}>
+                                  {match.participant1Score}
+                                </ThemedText>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Player 2 Row */}
+                        <View style={[styles.scoreboardRow, styles.scoreboardRowBottom]}>
+                          <View style={styles.playerInfo}>
+                            {isServing2 && <View style={styles.servingDot} />}
+                            <ThemedText style={styles.playerName} numberOfLines={1}>
+                              {match.participant2?.displayName || 'TBD'}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.scoreSection}>
+                            {hasTennis && match.tennisState ? (
+                              <>
+                                {match.tennisState.sets.map((set: number[], i: number) => (
+                                  <View key={i} style={styles.setScore}>
+                                    <ThemedText style={styles.setScoreText}>
+                                      {set[1] ?? 0}
+                                    </ThemedText>
+                                  </View>
+                                ))}
+                                <View style={[styles.setScore, styles.currentSet]}>
+                                  <ThemedText style={styles.currentSetText}>
+                                    {match.tennisState.currentSetGames[1] ?? 0}
+                                  </ThemedText>
+                                </View>
+                                <View style={styles.gameScore}>
+                                  <ThemedText style={styles.gameScoreText}>
+                                    {getTennisPointDisplay(
+                                      match.tennisState.currentGamePoints,
+                                      1,
+                                      match.tennisState.isAdScoring,
+                                      match.tennisState.isTiebreak
+                                    )}
+                                  </ThemedText>
+                                </View>
+                              </>
+                            ) : hasVolleyball && match.volleyballState ? (
+                              <>
+                                {match.volleyballState.sets.map((set: number[], i: number) => (
+                                  <View key={i} style={styles.setScore}>
+                                    <ThemedText style={styles.setScoreText}>
+                                      {set[1] ?? 0}
+                                    </ThemedText>
+                                  </View>
+                                ))}
+                                <View style={[styles.setScore, styles.currentSet]}>
+                                  <ThemedText style={styles.currentSetText}>
+                                    {match.volleyballState.currentSetPoints[1] ?? 0}
+                                  </ThemedText>
+                                </View>
+                              </>
+                            ) : (
+                              <View style={styles.simpleScore}>
+                                <ThemedText style={styles.simpleScoreText}>
+                                  {match.participant2Score}
+                                </ThemedText>
+                              </View>
+                            )}
+                          </View>
+                        </View>
                       </View>
-                      <ThemedText style={styles.vs}>vs</ThemedText>
-                      <View style={styles.liveMatchParticipant}>
-                        <ThemedText style={styles.participantName} numberOfLines={1}>
-                          {match.participant2?.displayName || 'TBD'}
-                        </ThemedText>
-                        <ThemedText style={styles.score}>{match.participant2Score}</ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.tapToScore}>
-                      <IconSymbol name="pencil" size={14} color={Colors.accent} />
-                      <ThemedText style={styles.tapToScoreText}>Tap to score</ThemedText>
-                    </View>
-                  </AnimatedPressable>
-                </Animated.View>
-              ))}
+                    </AnimatedPressable>
+                  </Animated.View>
+                );
+              })}
             </View>
           )}
         </Animated.View>
@@ -448,78 +605,128 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.success + '40',
-    padding: Spacing.md,
+    borderColor: Colors.success + '50',
+    overflow: 'hidden',
     ...Shadows.sm,
   },
-  liveMatchHeader: {
+  matchCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    backgroundColor: Colors.bgTertiary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  tournamentName: {
-    fontSize: 12,
+  matchCardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
   },
-  liveMatchBadge: {
+  matchTournamentName: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '500',
+  },
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.success + '20',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
   },
   liveDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+  },
+  scoreboard: {
+    paddingHorizontal: Spacing.sm,
+  },
+  scoreboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border + '50',
+  },
+  scoreboardRowBottom: {
+    borderBottomWidth: 0,
+  },
+  playerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  servingDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: Colors.success,
   },
-  liveMatchBadgeText: {
-    fontSize: 10,
+  playerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  scoreSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  setScore: {
+    width: 24,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: 4,
+  },
+  setScoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  currentSet: {
+    backgroundColor: Colors.accent + '20',
+    borderWidth: 1,
+    borderColor: Colors.accent + '40',
+  },
+  currentSetText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.accent,
+  },
+  gameScore: {
+    width: 32,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.success + '15',
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  gameScoreText: {
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.success,
   },
-  liveMatchScore: {
-    flexDirection: 'row',
+  simpleScore: {
+    width: 36,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.sm,
+    backgroundColor: Colors.accent + '20',
+    borderRadius: 4,
   },
-  liveMatchParticipant: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  participantName: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  score: {
-    fontSize: 28,
+  simpleScoreText: {
+    fontSize: 16,
     fontWeight: '800',
     color: Colors.accent,
-  },
-  vs: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  tapToScore: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  tapToScoreText: {
-    fontSize: 12,
-    color: Colors.accent,
-    fontWeight: '600',
   },
   tournamentsList: {
     gap: Spacing.sm,

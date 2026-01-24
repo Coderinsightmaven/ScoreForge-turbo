@@ -7,6 +7,7 @@ import Link from "next/link";
 import { use } from "react";
 import { Skeleton, SkeletonScoreboard } from "@/app/components/Skeleton";
 import { TennisScoreboard, TennisMatchSetup } from "@/app/components/TennisScoreboard";
+import { VolleyballScoreboard, VolleyballMatchSetup } from "@/app/components/VolleyballScoreboard";
 
 export default function MatchDetailPage({
   params,
@@ -28,6 +29,16 @@ export default function MatchDetailPage({
     match.myRole === "owner" ||
     match.myRole === "admin" ||
     match.myRole === "scorer";
+
+  // Check if this is a bye match (only one participant)
+  const isByeMatch =
+    (match.participant1 && !match.participant2) ||
+    (!match.participant1 && match.participant2) ||
+    match.status === "bye";
+
+  const byeWinner = isByeMatch
+    ? match.participant1 || match.participant2
+    : null;
 
   return (
     <div className="min-h-screen flex items-start justify-center px-6 py-12">
@@ -60,8 +71,26 @@ export default function MatchDetailPage({
             <MatchStatusBadge status={match.status} />
           </div>
 
-          {/* Scoreboard - Tennis or Generic */}
-          {match.sport === "tennis" ? (
+          {/* Bye Match Display */}
+          {isByeMatch ? (
+            <div className="p-12 text-center">
+              <div className="mb-6">
+                <span className="text-6xl">🎫</span>
+              </div>
+              <h2 className="font-display text-2xl font-bold text-text-primary mb-2">
+                Bye Match
+              </h2>
+              <p className="text-text-secondary mb-6">
+                {byeWinner?.displayName || "Unknown"} automatically advances to the next round.
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-success/10 rounded-lg">
+                <span className="w-2 h-2 bg-success rounded-full" />
+                <span className="font-semibold text-success">
+                  {byeWinner?.displayName} advances
+                </span>
+              </div>
+            </div>
+          ) : match.sport === "tennis" ? (
             match.tennisState ? (
               <TennisScoreboard
                 matchId={match._id}
@@ -87,6 +116,32 @@ export default function MatchDetailPage({
                 </div>
               )
             )
+          ) : match.sport === "volleyball" ? (
+            match.volleyballState ? (
+              <VolleyballScoreboard
+                matchId={match._id}
+                participant1={match.participant1}
+                participant2={match.participant2}
+                volleyballState={match.volleyballState}
+                canScore={canScore}
+                status={match.status}
+              />
+            ) : (
+              canScore && match.status !== "completed" ? (
+                <VolleyballMatchSetup
+                  matchId={match._id}
+                  participant1Name={match.participant1?.displayName || "Team 1"}
+                  participant2Name={match.participant2?.displayName || "Team 2"}
+                  matchStatus={match.status}
+                  volleyballConfig={match.volleyballConfig}
+                  onSetupComplete={() => {}}
+                />
+              ) : (
+                <div className="p-8 text-center text-text-muted">
+                  Volleyball match not yet configured
+                </div>
+              )
+            )
           ) : (
             <Scoreboard
               match={match}
@@ -99,8 +154,11 @@ export default function MatchDetailPage({
             />
           )}
 
-          {/* Match Actions - For non-tennis or tennis without state */}
-          {canScore && (match.sport !== "tennis" || !match.tennisState) && (
+          {/* Match Actions - For generic sports (not tennis or volleyball with state) */}
+          {canScore &&
+            !isByeMatch &&
+            (match.sport !== "tennis" || !match.tennisState) &&
+            (match.sport !== "volleyball" || !match.volleyballState) && (
             <MatchActions match={match} />
           )}
 

@@ -9,6 +9,7 @@ import { use } from "react";
 
 const SPORTS = [
   { value: "tennis", label: "Tennis", icon: "🎾" },
+  { value: "volleyball", label: "Volleyball", icon: "🏐" },
 ] as const;
 
 const FORMATS = [
@@ -56,6 +57,11 @@ export default function NewTournamentPage({
   const [tennisIsAdScoring, setTennisIsAdScoring] = useState(true);
   const [tennisSetsToWin, setTennisSetsToWin] = useState(2); // Best of 3
 
+  // Volleyball-specific configuration
+  const [volleyballSetsToWin, setVolleyballSetsToWin] = useState(2); // Best of 3
+  const [volleyballPointsPerSet, setVolleyballPointsPerSet] = useState(25);
+  const [volleyballPointsPerDecidingSet, setVolleyballPointsPerDecidingSet] = useState(15);
+
   if (organization === undefined) {
     return <LoadingSkeleton />;
   }
@@ -94,6 +100,13 @@ export default function NewTournamentPage({
         tennisConfig: sport === "tennis" ? {
           isAdScoring: tennisIsAdScoring,
           setsToWin: tennisSetsToWin,
+        } : undefined,
+        // Volleyball-specific configuration
+        volleyballConfig: sport === "volleyball" ? {
+          setsToWin: volleyballSetsToWin,
+          pointsPerSet: volleyballPointsPerSet,
+          pointsPerDecidingSet: volleyballPointsPerDecidingSet,
+          minLeadToWin: 2,
         } : undefined,
       });
       router.push(`/tournaments/${tournamentId}`);
@@ -169,79 +182,218 @@ export default function NewTournamentPage({
               />
             </div>
 
-            {/* Sport & Tennis Configuration */}
-            <div className="space-y-4 p-4 bg-accent/5 border border-accent/20 rounded-xl">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🎾</span>
-                <span className="font-semibold text-accent">Tennis Scoring Rules</span>
-              </div>
-
-              {/* Match Format */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-text-primary">
-                  Match Format
-                </label>
-                <div className="flex gap-3">
+            {/* Sport Selection */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-text-primary">
+                Sport
+              </label>
+              <div className="flex gap-3">
+                {SPORTS.map((s) => (
                   <button
+                    key={s.value}
                     type="button"
-                    onClick={() => setTennisSetsToWin(2)}
-                    className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
-                      tennisSetsToWin === 2
+                    onClick={() => setSport(s.value)}
+                    className={`flex-1 py-4 rounded-lg border-2 font-semibold transition-all ${
+                      sport === s.value
                         ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
                         : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
                     }`}
                   >
-                    {tennisSetsToWin === 2 && <span className="mr-2">✓</span>}
-                    Best of 3
+                    <span className="text-2xl block mb-1">{s.icon}</span>
+                    {sport === s.value && <span className="mr-1">✓</span>}
+                    {s.label}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setTennisSetsToWin(3)}
-                    className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
-                      tennisSetsToWin === 3
-                        ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
-                        : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
-                    }`}
-                  >
-                    {tennisSetsToWin === 3 && <span className="mr-2">✓</span>}
-                    Best of 5
-                  </button>
-                </div>
-              </div>
-
-              {/* Deuce Scoring */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-text-primary">
-                  Deuce Scoring
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setTennisIsAdScoring(true)}
-                    className={`flex-1 py-3 rounded-lg border-2 transition-all ${
-                      tennisIsAdScoring
-                        ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
-                        : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
-                    }`}
-                  >
-                    <span className="block font-semibold">{tennisIsAdScoring && "✓ "}Ad Scoring</span>
-                    <span className={`block text-xs ${tennisIsAdScoring ? "text-text-inverse/70" : "opacity-70"}`}>Traditional rules</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTennisIsAdScoring(false)}
-                    className={`flex-1 py-3 rounded-lg border-2 transition-all ${
-                      !tennisIsAdScoring
-                        ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
-                        : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
-                    }`}
-                  >
-                    <span className="block font-semibold">{!tennisIsAdScoring && "✓ "}No-Ad</span>
-                    <span className={`block text-xs ${!tennisIsAdScoring ? "text-text-inverse/70" : "opacity-70"}`}>Deciding point at deuce</span>
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
+
+            {/* Tennis Configuration */}
+            {sport === "tennis" && (
+              <div className="space-y-4 p-4 bg-accent/5 border border-accent/20 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🎾</span>
+                  <span className="font-semibold text-accent">Tennis Scoring Rules</span>
+                </div>
+
+                {/* Match Format */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
+                    Match Format
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTennisSetsToWin(2)}
+                      className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        tennisSetsToWin === 2
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {tennisSetsToWin === 2 && <span className="mr-2">✓</span>}
+                      Best of 3
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTennisSetsToWin(3)}
+                      className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        tennisSetsToWin === 3
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {tennisSetsToWin === 3 && <span className="mr-2">✓</span>}
+                      Best of 5
+                    </button>
+                  </div>
+                </div>
+
+                {/* Deuce Scoring */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
+                    Deuce Scoring
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTennisIsAdScoring(true)}
+                      className={`flex-1 py-3 rounded-lg border-2 transition-all ${
+                        tennisIsAdScoring
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      <span className="block font-semibold">{tennisIsAdScoring && "✓ "}Ad Scoring</span>
+                      <span className={`block text-xs ${tennisIsAdScoring ? "text-text-inverse/70" : "opacity-70"}`}>Traditional rules</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTennisIsAdScoring(false)}
+                      className={`flex-1 py-3 rounded-lg border-2 transition-all ${
+                        !tennisIsAdScoring
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      <span className="block font-semibold">{!tennisIsAdScoring && "✓ "}No-Ad</span>
+                      <span className={`block text-xs ${!tennisIsAdScoring ? "text-text-inverse/70" : "opacity-70"}`}>Deciding point at deuce</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Volleyball Configuration */}
+            {sport === "volleyball" && (
+              <div className="space-y-4 p-4 bg-accent/5 border border-accent/20 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🏐</span>
+                  <span className="font-semibold text-accent">Volleyball Scoring Rules</span>
+                </div>
+
+                {/* Match Format */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
+                    Match Format
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setVolleyballSetsToWin(2)}
+                      className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        volleyballSetsToWin === 2
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {volleyballSetsToWin === 2 && <span className="mr-2">✓</span>}
+                      Best of 3
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVolleyballSetsToWin(3)}
+                      className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        volleyballSetsToWin === 3
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {volleyballSetsToWin === 3 && <span className="mr-2">✓</span>}
+                      Best of 5
+                    </button>
+                  </div>
+                </div>
+
+                {/* Points per Set */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
+                    Points to Win Set
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setVolleyballPointsPerSet(21)}
+                      className={`flex-1 py-3 rounded-lg border-2 transition-all ${
+                        volleyballPointsPerSet === 21
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      <span className="block font-semibold">{volleyballPointsPerSet === 21 && "✓ "}21 Points</span>
+                      <span className={`block text-xs ${volleyballPointsPerSet === 21 ? "text-text-inverse/70" : "opacity-70"}`}>Beach volleyball</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVolleyballPointsPerSet(25)}
+                      className={`flex-1 py-3 rounded-lg border-2 transition-all ${
+                        volleyballPointsPerSet === 25
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      <span className="block font-semibold">{volleyballPointsPerSet === 25 && "✓ "}25 Points</span>
+                      <span className={`block text-xs ${volleyballPointsPerSet === 25 ? "text-text-inverse/70" : "opacity-70"}`}>Indoor standard</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Deciding Set Points */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
+                    Deciding Set Points
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setVolleyballPointsPerDecidingSet(15)}
+                      className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        volleyballPointsPerDecidingSet === 15
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {volleyballPointsPerDecidingSet === 15 && <span className="mr-2">✓</span>}
+                      15 Points
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVolleyballPointsPerDecidingSet(volleyballPointsPerSet)}
+                      className={`flex-1 py-3 rounded-lg border-2 font-semibold transition-all ${
+                        volleyballPointsPerDecidingSet === volleyballPointsPerSet
+                          ? "bg-accent border-accent text-text-inverse shadow-lg shadow-accent/25"
+                          : "bg-bg-elevated border-border text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {volleyballPointsPerDecidingSet === volleyballPointsPerSet && <span className="mr-2">✓</span>}
+                      Same as Regular
+                    </button>
+                  </div>
+                  <span className="block text-xs text-text-muted">
+                    Must win by 2 points (no cap)
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Format Selection */}
             <div className="space-y-2">

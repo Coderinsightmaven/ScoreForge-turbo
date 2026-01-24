@@ -4,16 +4,15 @@ import { useMutation } from "convex/react";
 import { api } from "@repo/convex";
 import { useState } from "react";
 
-type TennisState = {
+type VolleyballState = {
   sets: number[][];
-  currentSetGames: number[];
-  currentGamePoints: number[];
-  servingParticipant: number;
-  firstServerOfSet: number;
-  isAdScoring: boolean;
+  currentSetPoints: number[];
+  servingTeam: number;
   setsToWin: number;
-  isTiebreak: boolean;
-  tiebreakPoints: number[];
+  pointsPerSet: number;
+  pointsPerDecidingSet: number;
+  minLeadToWin: number;
+  currentSetNumber: number;
   isMatchComplete: boolean;
 };
 
@@ -27,107 +26,46 @@ type Props = {
   matchId: string;
   participant1?: Participant;
   participant2?: Participant;
-  tennisState: TennisState;
+  volleyballState: VolleyballState;
   canScore: boolean;
   status: string;
 };
 
 /**
- * Convert numeric point to tennis terminology
+ * Check if this is the deciding set
  */
-function getPointDisplay(
-  points: number[],
-  playerIndex: 0 | 1,
-  isAdScoring: boolean,
-  isTiebreak: boolean
-): string {
-  if (isTiebreak) {
-    return (points[playerIndex] ?? 0).toString();
+function isDecidingSet(sets: number[][], setsToWin: number): boolean {
+  let p1Sets = 0;
+  let p2Sets = 0;
+  for (const set of sets) {
+    if ((set[0] ?? 0) > (set[1] ?? 0)) p1Sets++;
+    else if ((set[1] ?? 0) > (set[0] ?? 0)) p2Sets++;
   }
-
-  const p1 = points[0] ?? 0;
-  const p2 = points[1] ?? 0;
-  const myPoints = points[playerIndex] ?? 0;
-  const oppPoints = points[1 - playerIndex] ?? 0;
-
-  // At deuce or beyond (3-3 or higher)
-  if (p1 >= 3 && p2 >= 3) {
-    if (p1 === p2) {
-      return "40"; // Deuce
-    }
-    if (isAdScoring) {
-      if (myPoints > oppPoints) return "Ad";
-      return "40";
-    } else {
-      // No-Ad: showing 40 for both at deuce
-      return "40";
-    }
-  }
-
-  const pointNames = ["0", "15", "30", "40"];
-  return pointNames[Math.min(myPoints, 3)] ?? "40";
+  return p1Sets === setsToWin - 1 && p2Sets === setsToWin - 1;
 }
 
-/**
- * Get the game status text (e.g., "Deuce", "Advantage Player 1")
- */
-function getGameStatus(
-  points: number[],
-  isAdScoring: boolean,
-  isTiebreak: boolean,
-  participant1Name: string,
-  participant2Name: string,
-  servingParticipant: number
-): string | null {
-  if (isTiebreak) {
-    return "Tiebreak";
-  }
-
-  const p1 = points[0] ?? 0;
-  const p2 = points[1] ?? 0;
-
-  if (p1 >= 3 && p2 >= 3 && p1 === p2) {
-    return "Deuce";
-  }
-
-  if (isAdScoring && (p1 >= 3 && p2 >= 3)) {
-    if (p1 > p2) {
-      return `Advantage ${participant1Name.split(" ")[0]}`;
-    }
-    if (p2 > p1) {
-      return `Advantage ${participant2Name.split(" ")[0]}`;
-    }
-  }
-
-  if (!isAdScoring && p1 === 3 && p2 === 3) {
-    const receiver = servingParticipant === 1 ? participant2Name : participant1Name;
-    return `Deciding Point (${receiver.split(" ")[0]} chooses side)`;
-  }
-
-  return null;
-}
-
-export function TennisScoreboard({
+export function VolleyballScoreboard({
   matchId,
   participant1,
   participant2,
-  tennisState,
+  volleyballState,
   canScore,
   status,
 }: Props) {
-  const scorePoint = useMutation(api.tennis.scoreTennisPoint);
-  const setServer = useMutation(api.tennis.setTennisServer);
+  const scorePoint = useMutation(api.volleyball.scoreVolleyballPoint);
+  const setServer = useMutation(api.volleyball.setVolleyballServer);
+  const adjustScore = useMutation(api.volleyball.adjustVolleyballScore);
   const [loading, setLoading] = useState(false);
 
   const isLive = status === "live";
-  const canAct = canScore && isLive && !tennisState.isMatchComplete;
+  const canAct = canScore && isLive && !volleyballState.isMatchComplete;
 
   const handleScorePoint = async (winner: 1 | 2) => {
     setLoading(true);
     try {
       await scorePoint({
         matchId: matchId as any,
-        winnerParticipant: winner,
+        winnerTeam: winner,
       });
     } catch (err) {
       console.error(err);
@@ -140,79 +78,92 @@ export function TennisScoreboard({
     try {
       await setServer({
         matchId: matchId as any,
-        servingParticipant: server,
+        servingTeam: server,
       });
     } catch (err) {
       console.error(err);
     }
   };
 
-  const p1Name = participant1?.displayName || "Player 1";
-  const p2Name = participant2?.displayName || "Player 2";
+  const handleAdjustScore = async (team: 1 | 2, adjustment: number) => {
+    try {
+      await adjustScore({
+        matchId: matchId as any,
+        team,
+        adjustment,
+      });
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to adjust score");
+    }
+  };
 
-  const gameStatus = getGameStatus(
-    tennisState.isTiebreak ? tennisState.tiebreakPoints : tennisState.currentGamePoints,
-    tennisState.isAdScoring,
-    tennisState.isTiebreak,
-    p1Name,
-    p2Name,
-    tennisState.servingParticipant
-  );
+  const p1Name = participant1?.displayName || "Team 1";
+  const p2Name = participant2?.displayName || "Team 2";
 
   // Count sets won
-  const p1SetsWon = tennisState.sets.filter((s) => (s[0] ?? 0) > (s[1] ?? 0)).length;
-  const p2SetsWon = tennisState.sets.filter((s) => (s[1] ?? 0) > (s[0] ?? 0)).length;
+  const p1SetsWon = volleyballState.sets.filter((s) => (s[0] ?? 0) > (s[1] ?? 0)).length;
+  const p2SetsWon = volleyballState.sets.filter((s) => (s[1] ?? 0) > (s[0] ?? 0)).length;
+
+  // Determine target points for current set
+  const isDeciding = isDecidingSet(volleyballState.sets, volleyballState.setsToWin);
+  const targetPoints = isDeciding
+    ? volleyballState.pointsPerDecidingSet
+    : volleyballState.pointsPerSet;
 
   return (
     <div className="p-6 space-y-6">
       {/* Match Format Badge */}
       <div className="flex justify-center gap-2">
         <span className="px-3 py-1 text-xs font-semibold text-accent bg-accent/10 rounded-full">
-          Best of {tennisState.setsToWin * 2 - 1}
+          Best of {volleyballState.setsToWin * 2 - 1}
         </span>
         <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-white/5 rounded-full">
-          {tennisState.isAdScoring ? "Ad Scoring" : "No-Ad"}
+          First to {targetPoints}
         </span>
+        {isDeciding && !volleyballState.isMatchComplete && (
+          <span className="px-3 py-1 text-xs font-semibold text-gold bg-gold/10 rounded-full">
+            Deciding Set
+          </span>
+        )}
       </div>
 
       {/* Main Scoreboard */}
       <div className="bg-bg-secondary rounded-xl overflow-hidden border border-border">
         {/* Header Row */}
-        <div className="grid grid-cols-[1fr_repeat(5,48px)_64px] gap-1 p-2 bg-bg-elevated text-xs font-semibold text-text-muted">
-          <div className="px-3">Player</div>
-          {tennisState.sets.map((_, idx) => (
+        <div className="grid grid-cols-[1fr_repeat(5,48px)_80px] gap-1 p-2 bg-bg-elevated text-xs font-semibold text-text-muted">
+          <div className="px-3">Team</div>
+          {volleyballState.sets.map((_, idx) => (
             <div key={idx} className="text-center">
               Set {idx + 1}
             </div>
           ))}
-          {tennisState.sets.length < (tennisState.setsToWin * 2 - 1) && (
+          {volleyballState.sets.length < volleyballState.setsToWin * 2 - 1 && (
             <div className="text-center text-accent">
-              Set {tennisState.sets.length + 1}
+              Set {volleyballState.sets.length + 1}
             </div>
           )}
           {/* Pad remaining set columns */}
           {Array.from({
-            length: Math.max(0, 3 - tennisState.sets.length - 1),
+            length: Math.max(0, (volleyballState.setsToWin * 2 - 1) - volleyballState.sets.length - 1),
           }).map((_, idx) => (
             <div key={`pad-${idx}`} className="text-center">
               -
             </div>
           ))}
-          <div className="text-center">
-            {tennisState.isTiebreak ? "TB" : "Game"}
-          </div>
+          <div className="text-center">Points</div>
         </div>
 
-        {/* Player 1 Row */}
+        {/* Team 1 Row */}
         <div
-          className={`grid grid-cols-[1fr_repeat(5,48px)_64px] gap-1 p-2 items-center border-b border-border ${
-            tennisState.isMatchComplete && p1SetsWon > p2SetsWon
+          className={`grid grid-cols-[1fr_repeat(5,48px)_80px] gap-1 p-2 items-center border-b border-border ${
+            volleyballState.isMatchComplete && p1SetsWon > p2SetsWon
               ? "bg-accent/10"
               : ""
           }`}
         >
           <div className="flex items-center gap-2 px-3">
-            {tennisState.servingParticipant === 1 && (
+            {volleyballState.servingTeam === 1 && (
               <span className="w-2 h-2 bg-success rounded-full animate-pulse" title="Serving" />
             )}
             <span className="font-semibold text-text-primary truncate">{p1Name}</span>
@@ -221,7 +172,7 @@ export function TennisScoreboard({
             )}
           </div>
           {/* Completed Sets */}
-          {tennisState.sets.map((set, idx) => (
+          {volleyballState.sets.map((set, idx) => (
             <div
               key={idx}
               className={`text-center font-display text-lg font-bold ${
@@ -232,42 +183,35 @@ export function TennisScoreboard({
             </div>
           ))}
           {/* Current Set */}
-          {tennisState.sets.length < (tennisState.setsToWin * 2 - 1) && (
+          {volleyballState.sets.length < volleyballState.setsToWin * 2 - 1 && (
             <div className="text-center font-display text-lg font-bold text-accent">
-              {tennisState.currentSetGames[0]}
+              -
             </div>
           )}
           {/* Pad remaining */}
           {Array.from({
-            length: Math.max(0, 3 - tennisState.sets.length - 1),
+            length: Math.max(0, (volleyballState.setsToWin * 2 - 1) - volleyballState.sets.length - 1),
           }).map((_, idx) => (
             <div key={`pad-${idx}`} className="text-center text-text-muted">
               -
             </div>
           ))}
-          {/* Current Game/Tiebreak Points */}
-          <div className="text-center font-display text-xl font-bold text-accent">
-            {getPointDisplay(
-              tennisState.isTiebreak
-                ? tennisState.tiebreakPoints
-                : tennisState.currentGamePoints,
-              0,
-              tennisState.isAdScoring,
-              tennisState.isTiebreak
-            )}
+          {/* Current Points */}
+          <div className="text-center font-display text-2xl font-bold text-accent">
+            {volleyballState.currentSetPoints[0]}
           </div>
         </div>
 
-        {/* Player 2 Row */}
+        {/* Team 2 Row */}
         <div
-          className={`grid grid-cols-[1fr_repeat(5,48px)_64px] gap-1 p-2 items-center ${
-            tennisState.isMatchComplete && p2SetsWon > p1SetsWon
+          className={`grid grid-cols-[1fr_repeat(5,48px)_80px] gap-1 p-2 items-center ${
+            volleyballState.isMatchComplete && p2SetsWon > p1SetsWon
               ? "bg-accent/10"
               : ""
           }`}
         >
           <div className="flex items-center gap-2 px-3">
-            {tennisState.servingParticipant === 2 && (
+            {volleyballState.servingTeam === 2 && (
               <span className="w-2 h-2 bg-success rounded-full animate-pulse" title="Serving" />
             )}
             <span className="font-semibold text-text-primary truncate">{p2Name}</span>
@@ -276,7 +220,7 @@ export function TennisScoreboard({
             )}
           </div>
           {/* Completed Sets */}
-          {tennisState.sets.map((set, idx) => (
+          {volleyballState.sets.map((set, idx) => (
             <div
               key={idx}
               className={`text-center font-display text-lg font-bold ${
@@ -287,44 +231,39 @@ export function TennisScoreboard({
             </div>
           ))}
           {/* Current Set */}
-          {tennisState.sets.length < (tennisState.setsToWin * 2 - 1) && (
+          {volleyballState.sets.length < volleyballState.setsToWin * 2 - 1 && (
             <div className="text-center font-display text-lg font-bold text-accent">
-              {tennisState.currentSetGames[1]}
+              -
             </div>
           )}
           {/* Pad remaining */}
           {Array.from({
-            length: Math.max(0, 3 - tennisState.sets.length - 1),
+            length: Math.max(0, (volleyballState.setsToWin * 2 - 1) - volleyballState.sets.length - 1),
           }).map((_, idx) => (
             <div key={`pad-${idx}`} className="text-center text-text-muted">
               -
             </div>
           ))}
-          {/* Current Game/Tiebreak Points */}
-          <div className="text-center font-display text-xl font-bold text-accent">
-            {getPointDisplay(
-              tennisState.isTiebreak
-                ? tennisState.tiebreakPoints
-                : tennisState.currentGamePoints,
-              1,
-              tennisState.isAdScoring,
-              tennisState.isTiebreak
-            )}
+          {/* Current Points */}
+          <div className="text-center font-display text-2xl font-bold text-accent">
+            {volleyballState.currentSetPoints[1]}
           </div>
         </div>
       </div>
 
-      {/* Game Status */}
-      {gameStatus && !tennisState.isMatchComplete && (
-        <div className="text-center">
-          <span className="px-4 py-2 text-sm font-semibold text-gold bg-gold/10 rounded-lg">
-            {gameStatus}
-          </span>
-        </div>
-      )}
+      {/* Set Score Summary */}
+      <div className="flex justify-center gap-4 text-lg">
+        <span className={`font-bold ${p1SetsWon > p2SetsWon ? "text-accent" : "text-text-primary"}`}>
+          {p1SetsWon}
+        </span>
+        <span className="text-text-muted">-</span>
+        <span className={`font-bold ${p2SetsWon > p1SetsWon ? "text-accent" : "text-text-primary"}`}>
+          {p2SetsWon}
+        </span>
+      </div>
 
       {/* Match Complete */}
-      {tennisState.isMatchComplete && (
+      {volleyballState.isMatchComplete && (
         <div className="text-center">
           <span className="px-4 py-2 text-lg font-bold text-accent bg-accent/10 rounded-lg">
             Match Complete - {p1SetsWon > p2SetsWon ? p1Name : p2Name} Wins!
@@ -336,7 +275,7 @@ export function TennisScoreboard({
       {canAct && (
         <div className="space-y-4">
           <div className="text-center text-xs text-text-muted uppercase tracking-wide">
-            Point Won By
+            Point Scored By
           </div>
           <div className="flex gap-4">
             <button
@@ -361,7 +300,7 @@ export function TennisScoreboard({
             <button
               onClick={() => handleSetServer(1)}
               className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                tennisState.servingParticipant === 1
+                volleyballState.servingTeam === 1
                   ? "bg-success text-white"
                   : "bg-bg-elevated text-text-secondary hover:bg-bg-card"
               }`}
@@ -371,12 +310,29 @@ export function TennisScoreboard({
             <button
               onClick={() => handleSetServer(2)}
               className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                tennisState.servingParticipant === 2
+                volleyballState.servingTeam === 2
                   ? "bg-success text-white"
                   : "bg-bg-elevated text-text-secondary hover:bg-bg-card"
               }`}
             >
               {p2Name.split(" ")[0]}
+            </button>
+          </div>
+
+          {/* Score Adjustment (for corrections) */}
+          <div className="flex items-center justify-center gap-2 pt-2 text-xs text-text-muted">
+            <span>Adjust:</span>
+            <button
+              onClick={() => handleAdjustScore(1, -1)}
+              className="px-2 py-1 bg-bg-elevated rounded hover:bg-bg-card"
+            >
+              {p1Name.split(" ")[0]} -1
+            </button>
+            <button
+              onClick={() => handleAdjustScore(2, -1)}
+              className="px-2 py-1 bg-bg-elevated rounded hover:bg-bg-card"
+            >
+              {p2Name.split(" ")[0]} -1
             </button>
           </div>
         </div>
@@ -386,28 +342,30 @@ export function TennisScoreboard({
 }
 
 /**
- * Tennis Match Setup Form
+ * Volleyball Match Setup Form
  * Only asks for first server - scoring rules come from tournament config
  */
-export function TennisMatchSetup({
+export function VolleyballMatchSetup({
   matchId,
   participant1Name,
   participant2Name,
   onSetupComplete,
   matchStatus,
-  tennisConfig,
+  volleyballConfig,
 }: {
   matchId: string;
   participant1Name: string;
   participant2Name: string;
   onSetupComplete: () => void;
   matchStatus?: string;
-  tennisConfig?: {
-    isAdScoring: boolean;
+  volleyballConfig?: {
     setsToWin: number;
+    pointsPerSet: number;
+    pointsPerDecidingSet: number;
+    minLeadToWin: number;
   };
 }) {
-  const initTennisMatch = useMutation(api.tennis.initTennisMatch);
+  const initVolleyballMatch = useMutation(api.volleyball.initVolleyballMatch);
   const startMatch = useMutation(api.matches.startMatch);
   const [firstServer, setFirstServer] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -416,8 +374,8 @@ export function TennisMatchSetup({
     e.preventDefault();
     setLoading(true);
     try {
-      // Initialize tennis state (pulls config from tournament)
-      await initTennisMatch({
+      // Initialize volleyball state (pulls config from tournament)
+      await initVolleyballMatch({
         matchId: matchId as any,
         firstServer,
       });
@@ -437,7 +395,7 @@ export function TennisMatchSetup({
     <form onSubmit={handleSubmit} className="p-6 space-y-6">
       <div className="text-center">
         <h3 className="font-display text-xl font-bold text-text-primary mb-2">
-          Start Tennis Match
+          Start Volleyball Match
         </h3>
         <p className="text-sm text-text-secondary">
           Select who will serve first
@@ -445,13 +403,16 @@ export function TennisMatchSetup({
       </div>
 
       {/* Tournament Rules Display */}
-      {tennisConfig && (
+      {volleyballConfig && (
         <div className="flex justify-center gap-3">
           <span className="px-3 py-1 text-xs font-semibold text-accent bg-accent/10 rounded-full">
-            Best of {tennisConfig.setsToWin * 2 - 1}
+            Best of {volleyballConfig.setsToWin * 2 - 1}
           </span>
           <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-white/5 rounded-full">
-            {tennisConfig.isAdScoring ? "Ad Scoring" : "No-Ad"}
+            Sets to {volleyballConfig.pointsPerSet}
+          </span>
+          <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-white/5 rounded-full">
+            Deciding: {volleyballConfig.pointsPerDecidingSet}
           </span>
         </div>
       )}
