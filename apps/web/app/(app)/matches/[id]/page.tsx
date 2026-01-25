@@ -65,22 +65,8 @@ export default function MatchDetailPage({
     );
   }
 
-  // First server setup for tennis/volleyball before match starts
-  if (needsSetup && canScore && !isByeMatch && match.participant1 && match.participant2 &&
-      (match.status === "pending" || match.status === "scheduled")) {
-    return (
-      <FirstServerSetup
-        matchId={match._id}
-        tournamentId={match.tournamentId}
-        participant1Name={match.participant1.displayName}
-        participant2Name={match.participant2.displayName}
-        sport={match.sport as "tennis" | "volleyball"}
-        tennisConfig={match.tennisConfig}
-        volleyballConfig={match.volleyballConfig}
-        matchStatus={match.status}
-      />
-    );
-  }
+  // Note: First server setup is now shown inline in the match detail view below
+  // to allow court editing before starting the match
 
   // Match complete screen for tennis/volleyball
   if (isMatchComplete && (match.tennisState || match.volleyballState)) {
@@ -128,6 +114,14 @@ export default function MatchDetailPage({
               <span className="text-sm text-text-muted">
                 Match {match.matchNumber}
               </span>
+              {match.court && (
+                <>
+                  <span className="text-text-muted">|</span>
+                  <span className="text-sm text-accent">
+                    {match.court}
+                  </span>
+                </>
+              )}
             </div>
             <MatchStatusBadge status={match.status} />
           </div>
@@ -215,11 +209,28 @@ export default function MatchDetailPage({
             />
           )}
 
+          {/* First Server Setup - For tennis/volleyball matches that need setup */}
+          {needsSetup && canScore && !isByeMatch && match.participant1 && match.participant2 &&
+            (match.status === "pending" || match.status === "scheduled") && (
+            <InlineFirstServerSetup
+              matchId={match._id}
+              participant1Name={match.participant1.displayName}
+              participant2Name={match.participant2.displayName}
+              sport={match.sport as "tennis" | "volleyball"}
+              tennisConfig={match.tennisConfig}
+              volleyballConfig={match.volleyballConfig}
+              matchStatus={match.status}
+              currentCourt={match.court}
+              availableCourts={match.availableCourts}
+            />
+          )}
+
           {/* Match Actions - For generic sports (not tennis or volleyball with state) */}
           {canScore &&
             !isByeMatch &&
             (match.sport !== "tennis" || !match.tennisState) &&
-            (match.sport !== "volleyball" || !match.volleyballState) && (
+            (match.sport !== "volleyball" || !match.volleyballState) &&
+            !needsSetup && (
             <MatchActions match={match} />
           )}
 
@@ -241,6 +252,12 @@ export default function MatchDetailPage({
                 </span>
               </div>
             )}
+            <CourtInfo
+              matchId={match._id}
+              court={match.court}
+              canEdit={(match.myRole === "owner" || match.myRole === "admin") && match.status !== "completed" && match.status !== "bye"}
+              availableCourts={match.availableCourts}
+            />
             {match.startedAt && (
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -542,6 +559,359 @@ function MatchActions({
           {loading ? "Completing..." : "Complete Match"}
         </button>
       )}
+    </div>
+  );
+}
+
+function InlineFirstServerSetup({
+  matchId,
+  participant1Name,
+  participant2Name,
+  sport,
+  tennisConfig,
+  volleyballConfig,
+  matchStatus,
+  currentCourt,
+  availableCourts,
+}: {
+  matchId: string;
+  participant1Name: string;
+  participant2Name: string;
+  sport: "tennis" | "volleyball";
+  tennisConfig?: { isAdScoring: boolean; setsToWin: number };
+  volleyballConfig?: {
+    setsToWin: number;
+    pointsPerSet: number;
+    pointsPerDecidingSet: number;
+  };
+  matchStatus?: string;
+  currentCourt?: string;
+  availableCourts?: string[];
+}) {
+  const [selectedServer, setSelectedServer] = useState<1 | 2>(1);
+  const [court, setCourt] = useState(currentCourt || "");
+  const [loading, setLoading] = useState(false);
+
+  const initTennisMatch = useMutation(api.tennis.initTennisMatch);
+  const initVolleyballMatch = useMutation(api.volleyball.initVolleyballMatch);
+  const startMatch = useMutation(api.matches.startMatch);
+  const updateMatchCourt = useMutation(api.matches.updateMatchCourt);
+
+  const isTennis = sport === "tennis";
+
+  const handleStart = async () => {
+    setLoading(true);
+    try {
+      // Save court if changed
+      if (court !== currentCourt) {
+        await updateMatchCourt({ matchId: matchId as any, court: court.trim() || undefined });
+      }
+      if (isTennis) {
+        await initTennisMatch({ matchId: matchId as any, firstServer: selectedServer });
+      } else {
+        await initVolleyballMatch({ matchId: matchId as any, firstServer: selectedServer });
+      }
+      if (matchStatus === "pending" || matchStatus === "scheduled") {
+        await startMatch({ matchId: matchId as any });
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to start match");
+    }
+    setLoading(false);
+  };
+
+  const handleSaveCourt = async () => {
+    try {
+      await updateMatchCourt({ matchId: matchId as any, court: court.trim() || undefined });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="p-6 border-t border-border">
+      <div className="text-center mb-4">
+        <h3 className="font-display text-lg font-bold text-text-primary mb-1">
+          Match Setup
+        </h3>
+        <p className="text-sm text-text-secondary">
+          Configure the match before starting
+        </p>
+      </div>
+
+      {/* Config Badges */}
+      <div className="flex justify-center gap-3 mb-6">
+        {isTennis && tennisConfig && (
+          <>
+            <span className="px-3 py-1 text-xs font-semibold text-accent bg-accent/10 rounded-full">
+              Best of {tennisConfig.setsToWin * 2 - 1}
+            </span>
+            <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-bg-elevated rounded-full">
+              {tennisConfig.isAdScoring ? "Ad Scoring" : "No-Ad"}
+            </span>
+          </>
+        )}
+        {!isTennis && volleyballConfig && (
+          <>
+            <span className="px-3 py-1 text-xs font-semibold text-accent bg-accent/10 rounded-full">
+              Best of {volleyballConfig.setsToWin * 2 - 1}
+            </span>
+            <span className="px-3 py-1 text-xs font-semibold text-text-muted bg-bg-elevated rounded-full">
+              Sets to {volleyballConfig.pointsPerSet}
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* Court Assignment */}
+      <div className="mb-6">
+        <label className="block text-xs font-medium uppercase tracking-wide text-text-muted mb-2">
+          Court Assignment
+        </label>
+        {availableCourts && availableCourts.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {availableCourts.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCourt(c)}
+                className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                  court === c
+                    ? "border-accent bg-accent text-white font-semibold"
+                    : "border-border bg-bg-secondary text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                {court === c && <span className="mr-1">✓</span>}
+                {c}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCourt("")}
+              className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                court === ""
+                  ? "border-accent bg-accent text-white font-semibold"
+                  : "border-border bg-bg-secondary text-text-secondary hover:border-text-muted"
+              }`}
+            >
+              {court === "" && <span className="mr-1">✓</span>}
+              None
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={court}
+              onChange={(e) => setCourt(e.target.value)}
+              placeholder="e.g. Court 1, Stadium Court"
+              className="flex-1 px-3 py-2 text-sm bg-bg-secondary border border-border rounded-lg focus:border-accent focus:outline-none text-text-primary placeholder:text-text-muted"
+            />
+          </div>
+        )}
+        {court !== currentCourt && (
+          <button
+            onClick={handleSaveCourt}
+            className="mt-2 px-3 py-2 text-xs font-medium text-accent bg-accent/10 rounded-lg hover:bg-accent/20 transition-colors"
+          >
+            Save Court
+          </button>
+        )}
+      </div>
+
+      {/* First Server Selection */}
+      <div className="mb-6">
+        <label className="block text-xs font-medium uppercase tracking-wide text-text-muted mb-2">
+          First Server
+        </label>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setSelectedServer(1)}
+            className={`flex-1 flex items-center justify-center gap-3 p-3 rounded-xl border-2 transition-all ${
+              selectedServer === 1
+                ? "border-success bg-success/10"
+                : "border-border bg-bg-secondary hover:border-border-hover"
+            }`}
+          >
+            <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold ${
+              selectedServer === 1 ? "bg-success/20 text-success" : "bg-bg-elevated text-text-secondary"
+            }`}>
+              {participant1Name.charAt(0).toUpperCase()}
+            </div>
+            <span className={`font-semibold truncate ${selectedServer === 1 ? "text-success" : "text-text-primary"}`}>
+              {participant1Name}
+            </span>
+            {selectedServer === 1 && (
+              <svg className="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+
+          <button
+            onClick={() => setSelectedServer(2)}
+            className={`flex-1 flex items-center justify-center gap-3 p-3 rounded-xl border-2 transition-all ${
+              selectedServer === 2
+                ? "border-success bg-success/10"
+                : "border-border bg-bg-secondary hover:border-border-hover"
+            }`}
+          >
+            <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold ${
+              selectedServer === 2 ? "bg-success/20 text-success" : "bg-bg-elevated text-text-secondary"
+            }`}>
+              {participant2Name.charAt(0).toUpperCase()}
+            </div>
+            <span className={`font-semibold truncate ${selectedServer === 2 ? "text-success" : "text-text-primary"}`}>
+              {participant2Name}
+            </span>
+            {selectedServer === 2 && (
+              <svg className="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Start Button */}
+      <button
+        onClick={handleStart}
+        disabled={loading}
+        className="w-full py-3 font-semibold text-text-inverse bg-success rounded-xl hover:opacity-90 transition-all disabled:opacity-50"
+      >
+        {loading ? "Starting..." : `Start ${isTennis ? "Tennis" : "Volleyball"} Match`}
+      </button>
+    </div>
+  );
+}
+
+function CourtInfo({
+  matchId,
+  court,
+  canEdit,
+  availableCourts,
+}: {
+  matchId: string;
+  court?: string;
+  canEdit: boolean;
+  availableCourts?: string[];
+}) {
+  const updateMatchCourt = useMutation(api.matches.updateMatchCourt);
+  const [isEditing, setIsEditing] = useState(false);
+  const [courtValue, setCourtValue] = useState(court || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (value?: string) => {
+    const newValue = value !== undefined ? value : courtValue;
+    setSaving(true);
+    try {
+      await updateMatchCourt({
+        matchId: matchId as any,
+        court: newValue.trim() || undefined,
+      });
+      setCourtValue(newValue);
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+    }
+    setSaving(false);
+  };
+
+  const handleCancel = () => {
+    setCourtValue(court || "");
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+          Court
+        </span>
+        {availableCourts && availableCourts.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {availableCourts.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => handleSave(c)}
+                disabled={saving}
+                className={`px-2 py-1 text-xs rounded border transition-all ${
+                  courtValue === c
+                    ? "border-accent bg-accent text-white font-semibold"
+                    : "border-border bg-bg-elevated text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleSave("")}
+              disabled={saving}
+              className={`px-2 py-1 text-xs rounded border transition-all ${
+                courtValue === ""
+                  ? "border-accent bg-accent text-white font-semibold"
+                  : "border-border bg-bg-elevated text-text-secondary hover:border-text-muted"
+              }`}
+            >
+              None
+            </button>
+            <button
+              onClick={handleCancel}
+              className="px-2 py-1 text-xs font-medium text-text-muted hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={courtValue}
+              onChange={(e) => setCourtValue(e.target.value)}
+              placeholder="e.g. Court 1"
+              className="w-32 px-2 py-1 text-sm bg-bg-elevated border border-border rounded focus:border-accent focus:outline-none text-text-primary"
+              autoFocus
+            />
+            <button
+              onClick={() => handleSave()}
+              disabled={saving}
+              className="px-2 py-1 text-xs font-medium text-text-inverse bg-accent rounded hover:bg-accent-bright transition-colors disabled:opacity-50"
+            >
+              {saving ? "..." : "Save"}
+            </button>
+            <button
+              onClick={handleCancel}
+              className="px-2 py-1 text-xs font-medium text-text-muted hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+        Court
+      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-text-primary">
+          {court || "Not assigned"}
+        </span>
+        {canEdit && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="text-xs text-accent hover:text-accent-bright transition-colors"
+          >
+            Edit
+          </button>
+        )}
+      </div>
     </div>
   );
 }

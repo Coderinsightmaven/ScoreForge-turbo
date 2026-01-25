@@ -570,6 +570,13 @@ export default function MatchScoreScreen() {
               {match.bracket ? `${match.bracket} ` : ''}Round {match.round}
             </ThemedText>
             <ThemedText type="subtitle">Match {match.matchNumber}</ThemedText>
+            {match.court && (
+              <View style={[styles.courtBadge, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '30' }]}>
+                <ThemedText style={[styles.courtBadgeText, { color: colors.accent }]}>
+                  {match.court}
+                </ThemedText>
+              </View>
+            )}
           </View>
           <View style={{ width: 40 }} />
         </Animated.View>
@@ -1122,6 +1129,17 @@ const styles = StyleSheet.create({
   matchInfo: {
     fontSize: 12,
     textTransform: 'capitalize',
+  },
+  courtBadge: {
+    marginTop: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+  },
+  courtBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   statusRow: {
     flexDirection: 'row',

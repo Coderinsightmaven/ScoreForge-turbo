@@ -273,6 +273,8 @@ export default defineSchema({
     tennisConfig: v.optional(tennisConfig),
     // Volleyball-specific configuration (only for volleyball tournaments)
     volleyballConfig: v.optional(volleyballConfig),
+    // Available courts for this tournament
+    courts: v.optional(v.array(v.string())),
     createdBy: v.id("users"),
   })
     .index("by_organization", ["organizationId"])
@@ -334,6 +336,7 @@ export default defineSchema({
     status: matchStatus,
     // Scheduling
     scheduledTime: v.optional(v.number()),
+    court: v.optional(v.string()),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     // For bracket progression

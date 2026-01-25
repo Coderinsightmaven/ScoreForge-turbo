@@ -51,7 +51,6 @@ export function Navigation() {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/organizations", label: "Organizations" },
     { href: "/tournaments", label: "Tournaments" },
-    { href: "/teams", label: "Teams" },
   ];
 
   const initials = user?.name

@@ -181,6 +181,7 @@ function TournamentActions({
     status: string;
     participantCount: number;
     myRole: string;
+    organizationSlug: string;
   };
 }) {
   const generateBracket = useMutation(api.tournaments.generateBracket);
@@ -227,7 +228,7 @@ function TournamentActions({
     setDeleting(true);
     try {
       await deleteTournament({ tournamentId: tournament._id as any });
-      window.location.href = "/tournaments";
+      window.location.href = `/organizations/${tournament.organizationSlug}`;
     } catch (err) {
       console.error(err);
       setDeleting(false);
@@ -405,12 +406,18 @@ function BracketTab({
 
                   const matchContent = (
                     <>
+                      {/* Court badge - top-left */}
+                      {match.court && (
+                        <div className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] font-medium text-accent bg-accent/10 rounded z-10">
+                          {match.court}
+                        </div>
+                      )}
                       <div
                         className={`flex items-center gap-2 px-3 py-2 border-b border-border ${
                           match.winnerId === match.participant1?._id
                             ? "bg-accent/10"
                             : ""
-                        }`}
+                        } ${match.court ? "pt-5" : ""}`}
                       >
                         <span className="w-6 text-xs text-center text-text-muted">
                           {match.participant1?.seed || "-"}
@@ -477,8 +484,8 @@ function BracketTab({
                     </>
                   );
 
-                  // Only allow clicking matches when tournament is active (not draft)
-                  const isClickable = status !== "draft" && (isScoreable || match.status === "live" || match.status === "completed");
+                  // Allow clicking matches in draft mode for admin/owner to set court, or when tournament is active
+                  const isClickable = isScoreable || match.status === "live" || match.status === "completed" || (status === "draft" && !isByeMatch);
 
                   if (isClickable) {
                     return (
@@ -560,7 +567,8 @@ function MatchesTab({ tournamentId, status }: { tournamentId: string; status: st
     bye: "text-text-muted bg-bg-elevated",
   };
 
-  const isClickable = status !== "draft";
+  // Allow clicking matches in draft mode to set court
+  const isClickable = true;
 
   return (
     <div className="animate-fadeIn">
@@ -575,6 +583,11 @@ function MatchesTab({ tournamentId, status }: { tournamentId: string; status: st
                 <span className="text-xs text-text-muted">
                   Match {match.matchNumber}
                 </span>
+                {match.court && (
+                  <span className="text-xs text-accent">
+                    @ {match.court}
+                  </span>
+                )}
                 <span
                   className={`flex items-center gap-1 ml-auto px-2 py-0.5 text-[10px] font-semibold uppercase rounded ${matchStatusStyles[match.status]}`}
                 >

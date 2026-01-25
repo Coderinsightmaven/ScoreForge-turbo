@@ -121,6 +121,7 @@ export const getTournament = query({
       _id: v.id("tournaments"),
       _creationTime: v.number(),
       organizationId: v.id("organizations"),
+      organizationSlug: v.string(),
       name: v.string(),
       description: v.optional(v.string()),
       sport: presetSports,
@@ -139,6 +140,7 @@ export const getTournament = query({
       ),
       tennisConfig: v.optional(tennisConfig),
       volleyballConfig: v.optional(volleyballConfig),
+      courts: v.optional(v.array(v.string())),
       createdBy: v.id("users"),
       participantCount: v.number(),
       myRole: v.union(
@@ -157,6 +159,11 @@ export const getTournament = query({
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
+      return null;
+    }
+
+    const organization = await ctx.db.get("organizations", tournament.organizationId);
+    if (!organization) {
       return null;
     }
 
@@ -184,6 +191,7 @@ export const getTournament = query({
       _id: tournament._id,
       _creationTime: tournament._creationTime,
       organizationId: tournament.organizationId,
+      organizationSlug: organization.slug,
       name: tournament.name,
       description: tournament.description,
       sport: tournament.sport,
@@ -196,6 +204,7 @@ export const getTournament = query({
       scoringConfig: tournament.scoringConfig,
       tennisConfig: tournament.tennisConfig,
       volleyballConfig: tournament.volleyballConfig,
+      courts: tournament.courts,
       createdBy: tournament.createdBy,
       participantCount: participants.length,
       myRole: membership.role,
@@ -242,6 +251,8 @@ export const getBracket = query({
           v.literal("completed"),
           v.literal("bye")
         ),
+        scheduledTime: v.optional(v.number()),
+        court: v.optional(v.string()),
         nextMatchId: v.optional(v.id("matches")),
         tennisState: v.optional(tennisState),
         volleyballState: v.optional(volleyballState),
@@ -319,6 +330,8 @@ export const getBracket = query({
           participant2Score: match.participant2Score,
           winnerId: match.winnerId,
           status: match.status,
+          scheduledTime: match.scheduledTime,
+          court: match.court,
           nextMatchId: match.nextMatchId,
           tennisState: match.tennisState,
           volleyballState: match.volleyballState,
@@ -612,6 +625,8 @@ export const createTournament = mutation({
     tennisConfig: v.optional(tennisConfig),
     // Volleyball-specific configuration (required when sport is volleyball)
     volleyballConfig: v.optional(volleyballConfig),
+    // Available courts for this tournament
+    courts: v.optional(v.array(v.string())),
   },
   returns: v.id("tournaments"),
   handler: async (ctx, args) => {
@@ -658,6 +673,7 @@ export const createTournament = mutation({
       scoringConfig: args.scoringConfig,
       tennisConfig: args.tennisConfig,
       volleyballConfig: args.volleyballConfig,
+      courts: args.courts,
       createdBy: userId,
     });
 

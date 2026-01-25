@@ -43,6 +43,7 @@ export const listMatches = query({
       winnerId: v.optional(v.id("tournamentParticipants")),
       status: matchStatus,
       scheduledTime: v.optional(v.number()),
+      court: v.optional(v.string()),
       startedAt: v.optional(v.number()),
       completedAt: v.optional(v.number()),
       sport: v.string(),
@@ -144,6 +145,7 @@ export const listMatches = query({
           winnerId: match.winnerId,
           status: match.status,
           scheduledTime: match.scheduledTime,
+          court: match.court,
           startedAt: match.startedAt,
           completedAt: match.completedAt,
           sport: tournament.sport,
@@ -199,6 +201,7 @@ export const getMatch = query({
       winnerId: v.optional(v.id("tournamentParticipants")),
       status: matchStatus,
       scheduledTime: v.optional(v.number()),
+      court: v.optional(v.string()),
       startedAt: v.optional(v.number()),
       completedAt: v.optional(v.number()),
       nextMatchId: v.optional(v.id("matches")),
@@ -212,6 +215,7 @@ export const getMatch = query({
       tennisConfig: v.optional(tennisConfig),
       volleyballState: v.optional(volleyballState),
       volleyballConfig: v.optional(volleyballConfig),
+      availableCourts: v.optional(v.array(v.string())),
     }),
     v.null()
   ),
@@ -287,6 +291,7 @@ export const getMatch = query({
       winnerId: match.winnerId,
       status: match.status,
       scheduledTime: match.scheduledTime,
+      court: match.court,
       startedAt: match.startedAt,
       completedAt: match.completedAt,
       nextMatchId: match.nextMatchId,
@@ -296,6 +301,7 @@ export const getMatch = query({
       tennisConfig: tournament.tennisConfig,
       volleyballState: match.volleyballState,
       volleyballConfig: tournament.volleyballConfig,
+      availableCourts: tournament.courts,
     };
   },
 });
@@ -331,6 +337,8 @@ export const listMyLiveMatches = query({
       participant1Score: v.number(),
       participant2Score: v.number(),
       status: matchStatus,
+      scheduledTime: v.optional(v.number()),
+      court: v.optional(v.string()),
       startedAt: v.optional(v.number()),
       tennisState: v.optional(tennisState),
       volleyballState: v.optional(volleyballState),
@@ -411,6 +419,8 @@ export const listMyLiveMatches = query({
           participant1Score: match.participant1Score,
           participant2Score: match.participant2Score,
           status: match.status,
+          scheduledTime: match.scheduledTime,
+          court: match.court,
           startedAt: match.startedAt,
           tennisState: match.tennisState,
           volleyballState: match.volleyballState,
@@ -735,6 +745,7 @@ export const scheduleMatch = mutation({
   args: {
     matchId: v.id("matches"),
     scheduledTime: v.number(),
+    court: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -776,6 +787,60 @@ export const scheduleMatch = mutation({
     await ctx.db.patch("matches", args.matchId, {
       status: "scheduled",
       scheduledTime: args.scheduledTime,
+      court: args.court,
+    });
+
+    return null;
+  },
+});
+
+/**
+ * Update match court assignment (admin/owner only)
+ */
+export const updateMatchCourt = mutation({
+  args: {
+    matchId: v.id("matches"),
+    court: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const match = await ctx.db.get("matches", args.matchId);
+    if (!match) {
+      throw new Error("Match not found");
+    }
+
+    const tournament = await ctx.db.get("tournaments", match.tournamentId);
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+
+    // Check user's role (only admin/owner can update court)
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_organization_and_user", (q) =>
+        q.eq("organizationId", tournament.organizationId).eq("userId", userId)
+      )
+      .first();
+
+    if (
+      !membership ||
+      (membership.role !== "owner" && membership.role !== "admin")
+    ) {
+      throw new Error("Not authorized");
+    }
+
+    // Can only update court for pending, scheduled, or live matches
+    if (match.status === "completed" || match.status === "bye") {
+      throw new Error("Cannot update court for this match");
+    }
+
+    await ctx.db.patch("matches", args.matchId, {
+      court: args.court,
     });
 
     return null;

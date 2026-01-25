@@ -223,6 +223,7 @@ export default function TournamentDetailScreen() {
                       <View style={[styles.matchCardHeader, { backgroundColor: colors.bgTertiary, borderBottomColor: colors.border }]}>
                         <ThemedText style={[styles.matchCardHeaderText, { color: colors.textMuted }]} numberOfLines={1}>
                           {match.bracket ? `${match.bracket} ` : ''}Round {match.round} • Match {match.matchNumber}
+                          {match.court ? ` @ ${match.court}` : ''}
                         </ThemedText>
                         <View style={styles.liveBadge}>
                           <View style={[styles.liveDotSmall, { backgroundColor: colors.success }]} />
@@ -487,6 +488,7 @@ export default function TournamentDetailScreen() {
                     <View style={styles.matchHeader}>
                       <ThemedText type="muted" style={styles.matchRound}>
                         {match.bracket ? `${match.bracket} ` : ''}Round {match.round} • Match {match.matchNumber}
+                        {match.court ? ` @ ${match.court}` : ''}
                       </ThemedText>
                       <View style={[styles.matchStatusPill, { backgroundColor: colors.bgTertiary }]}>
                         <ThemedText style={[styles.matchStatusPillText, { color: colors.textMuted }]}>
@@ -539,6 +541,7 @@ export default function TournamentDetailScreen() {
                     <View style={styles.matchHeader}>
                       <ThemedText type="muted" style={styles.matchRound}>
                         {match.bracket ? `${match.bracket} ` : ''}Round {match.round} • Match {match.matchNumber}
+                        {match.court ? ` @ ${match.court}` : ''}
                       </ThemedText>
                       <View style={[styles.matchStatusPillCompleted, { backgroundColor: colors.accentGlow }]}>
                         <ThemedText style={[styles.matchStatusPillTextCompleted, { color: colors.accent }]}>COMPLETED</ThemedText>

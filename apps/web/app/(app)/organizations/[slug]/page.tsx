@@ -7,7 +7,7 @@ import Link from "next/link";
 import { use } from "react";
 import { Skeleton, SkeletonTabs, SkeletonCard } from "@/app/components/Skeleton";
 
-type Tab = "tournaments" | "teams" | "members";
+type Tab = "tournaments" | "members";
 
 export default function OrganizationDetailPage({
   params,
@@ -19,10 +19,6 @@ export default function OrganizationDetailPage({
   const organization = useQuery(api.organizations.getOrganizationBySlug, { slug });
   const tournaments = useQuery(
     api.tournaments.listByOrganization,
-    organization ? { organizationId: organization._id } : "skip"
-  );
-  const teams = useQuery(
-    api.teams.listByOrganization,
     organization ? { organizationId: organization._id } : "skip"
   );
   const members = useQuery(
@@ -40,7 +36,6 @@ export default function OrganizationDetailPage({
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "tournaments", label: "Tournaments", count: tournaments?.length },
-    { id: "teams", label: "Teams", count: teams?.length },
     { id: "members", label: "Members", count: members?.length },
   ];
 
@@ -134,13 +129,6 @@ export default function OrganizationDetailPage({
           {activeTab === "tournaments" && (
             <TournamentsTab
               tournaments={tournaments}
-              organizationSlug={slug}
-              canCreate={organization.myRole === "owner" || organization.myRole === "admin"}
-            />
-          )}
-          {activeTab === "teams" && (
-            <TeamsTab
-              teams={teams}
               organizationSlug={slug}
               canCreate={organization.myRole === "owner" || organization.myRole === "admin"}
             />
@@ -267,93 +255,6 @@ function TournamentsTab({
   );
 }
 
-function TeamsTab({
-  teams,
-  organizationSlug,
-  canCreate,
-}: {
-  teams?: {
-    _id: string;
-    name: string;
-    image?: string;
-    captainName?: string;
-    memberCount: number;
-  }[];
-  organizationSlug: string;
-  canCreate: boolean;
-}) {
-  if (!teams) {
-    return <TabSkeleton />;
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg font-medium text-text-primary">
-          Teams
-        </h2>
-        {canCreate && (
-          <Link
-            href={`/organizations/${organizationSlug}/teams/new`}
-            className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 rounded-lg text-sm text-accent hover:bg-accent/20 transition-all"
-          >
-            <span>+</span> New Team
-          </Link>
-        )}
-      </div>
-
-      {teams.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-12 h-12 flex items-center justify-center bg-bg-card rounded-xl mb-4">
-            <svg className="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-            </svg>
-          </div>
-          <p className="text-text-secondary mb-4">No teams yet</p>
-          {canCreate && (
-            <Link
-              href={`/organizations/${organizationSlug}/teams/new`}
-              className="text-accent hover:text-accent-bright transition-colors"
-            >
-              Create Team
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {teams.map((team, index) => (
-            <Link
-              key={team._id}
-              href={`/teams/${team._id}`}
-              className="group p-4 bg-bg-card border border-border rounded-xl hover:border-accent/30 hover:bg-bg-card-hover transition-all animate-fadeInUp"
-              style={{ animationDelay: `${index * 0.05}s` }}
-            >
-              <div className="w-12 h-12 rounded-lg bg-bg-elevated border border-border flex items-center justify-center text-xl font-display text-accent mb-3 overflow-hidden">
-                {team.image ? (
-                  <img
-                    src={team.image}
-                    alt={team.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  team.name.charAt(0).toUpperCase()
-                )}
-              </div>
-              <h3 className="font-semibold text-text-primary mb-1 truncate">
-                {team.name}
-              </h3>
-              <div className="flex flex-col gap-1 text-sm text-text-secondary">
-                {team.captainName && <span>Capt: {team.captainName}</span>}
-                <span>{team.memberCount} members</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function MembersTab({
   members,
   slug,
@@ -464,7 +365,7 @@ function LoadingSkeleton() {
       {/* Tabs */}
       <nav className="px-6 border-b border-border">
         <div className="max-w-[var(--content-max)] mx-auto">
-          <SkeletonTabs count={3} className="py-3" />
+          <SkeletonTabs count={2} className="py-3" />
         </div>
       </nav>
 

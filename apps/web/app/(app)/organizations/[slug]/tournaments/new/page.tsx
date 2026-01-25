@@ -36,6 +36,19 @@ const PARTICIPANT_TYPES = [
   { value: "team", label: "Teams", description: "Teams compete against each other" },
 ] as const;
 
+const AVAILABLE_COURTS = [
+  "Stadium",
+  "Grandstand",
+  "Court 1",
+  "Court 2",
+  "Court 3",
+  "Court 4",
+  "Court 5",
+  "Court 6",
+  "Court 7",
+  "Court 8",
+] as const;
+
 export default function NewTournamentPage({
   params,
 }: {
@@ -61,6 +74,17 @@ export default function NewTournamentPage({
   const [volleyballSetsToWin, setVolleyballSetsToWin] = useState(2); // Best of 3
   const [volleyballPointsPerSet, setVolleyballPointsPerSet] = useState(25);
   const [volleyballPointsPerDecidingSet, setVolleyballPointsPerDecidingSet] = useState(15);
+
+  // Court selection
+  const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
+
+  const toggleCourt = (court: string) => {
+    setSelectedCourts((prev) =>
+      prev.includes(court)
+        ? prev.filter((c) => c !== court)
+        : [...prev, court]
+    );
+  };
 
   if (organization === undefined) {
     return <LoadingSkeleton />;
@@ -108,6 +132,8 @@ export default function NewTournamentPage({
           pointsPerDecidingSet: volleyballPointsPerDecidingSet,
           minLeadToWin: 2,
         } : undefined,
+        // Selected courts
+        courts: selectedCourts.length > 0 ? selectedCourts : undefined,
       });
       router.push(`/tournaments/${tournamentId}`);
     } catch (err) {
@@ -566,6 +592,38 @@ export default function NewTournamentPage({
                 type="datetime-local"
                 className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent transition-colors"
               />
+            </div>
+
+            {/* Court Selection */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-text-primary">
+                Available Courts (Optional)
+              </label>
+              <p className="text-xs text-text-muted mb-3">
+                Select the courts that will be used for this tournament
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {AVAILABLE_COURTS.map((court) => (
+                  <button
+                    key={court}
+                    type="button"
+                    onClick={() => toggleCourt(court)}
+                    className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                      selectedCourts.includes(court)
+                        ? "border-accent bg-accent text-white font-semibold"
+                        : "border-border bg-bg-elevated text-text-secondary hover:border-text-muted"
+                    }`}
+                  >
+                    {selectedCourts.includes(court) && <span className="mr-1">✓</span>}
+                    {court}
+                  </button>
+                ))}
+              </div>
+              {selectedCourts.length > 0 && (
+                <p className="text-xs text-accent mt-2">
+                  {selectedCourts.length} court{selectedCourts.length !== 1 ? "s" : ""} selected
+                </p>
+              )}
             </div>
 
             {error && (
