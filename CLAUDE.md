@@ -115,6 +115,7 @@ Both include `history` array for undo functionality (last 10 states).
 ### Route Groups
 - `(app)` - Authenticated routes with Navigation layout
 - `(auth)` - Sign-in/sign-up flows
+- Components live in `apps/web/app/components/`
 
 ### Auth Components
 ```tsx
@@ -131,13 +132,22 @@ const mutate = useMutation(api.file.mutation);
 
 ### Navigation
 - Uses Expo Router (file-based routing like Next.js)
+- Route groups: `(auth)` for sign-in/sign-up, `(main)` for authenticated routes
 - Bottom tabs via `@react-navigation/bottom-tabs`
 
+### Path Aliases
+Use `@/` prefix for imports:
+```tsx
+import { ConvexProvider } from "@/providers/ConvexProvider";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Colors } from "@/constants/theme";
+```
+
 ### Theme System
-- `ThemeContext` provides `useTheme()` hook with `theme`, `isDark`, `setTheme`
-- `useThemeColors()` returns current theme's color palette
+- `ThemeContext` provides `useTheme()` hook with `theme`, `isDark`, `resolvedTheme`, `setTheme`
 - Theme syncs to Convex via `userPreferences` table
 - Colors defined in `constants/theme.ts` with `Colors.light` and `Colors.dark`
+- Fonts: DM Serif Display (display), Outfit (body) - loaded via `expo-font`
 
 ### Environment
 - Convex URL: `EXPO_PUBLIC_CONVEX_URL`
