@@ -8,6 +8,7 @@ import { use } from "react";
 import { Skeleton, SkeletonScoreboard } from "@/app/components/Skeleton";
 import { TennisScoreboard, TennisMatchSetup } from "@/app/components/TennisScoreboard";
 import { VolleyballScoreboard, VolleyballMatchSetup } from "@/app/components/VolleyballScoreboard";
+import { FullScreenScoring, FirstServerSetup, MatchCompleteScreen } from "@/app/components/FullScreenScoring";
 
 export default function MatchDetailPage({
   params,
@@ -39,6 +40,66 @@ export default function MatchDetailPage({
   const byeWinner = isByeMatch
     ? match.participant1 || match.participant2
     : null;
+
+  // Sport detection for full-screen scoring
+  const isTennis = match.sport === "tennis";
+  const isVolleyball = match.sport === "volleyball";
+  const isSportSpecific = isTennis || isVolleyball;
+  const needsSetup = isSportSpecific && !match.tennisState && !match.volleyballState;
+  const isLive = match.status === "live";
+  const isMatchComplete = match.tennisState?.isMatchComplete || match.volleyballState?.isMatchComplete;
+
+  // Full-screen scoring for live tennis/volleyball matches
+  if (isLive && !isMatchComplete && (match.tennisState || match.volleyballState) && canScore) {
+    return (
+      <FullScreenScoring
+        matchId={match._id}
+        tournamentId={match.tournamentId}
+        participant1={match.participant1}
+        participant2={match.participant2}
+        sport={match.sport as "tennis" | "volleyball"}
+        tennisState={match.tennisState}
+        volleyballState={match.volleyballState}
+        canScore={canScore}
+      />
+    );
+  }
+
+  // First server setup for tennis/volleyball before match starts
+  if (needsSetup && canScore && !isByeMatch && match.participant1 && match.participant2 &&
+      (match.status === "pending" || match.status === "scheduled")) {
+    return (
+      <FirstServerSetup
+        matchId={match._id}
+        tournamentId={match.tournamentId}
+        participant1Name={match.participant1.displayName}
+        participant2Name={match.participant2.displayName}
+        sport={match.sport as "tennis" | "volleyball"}
+        tennisConfig={match.tennisConfig}
+        volleyballConfig={match.volleyballConfig}
+        matchStatus={match.status}
+      />
+    );
+  }
+
+  // Match complete screen for tennis/volleyball
+  if (isMatchComplete && (match.tennisState || match.volleyballState)) {
+    const winnerName = match.winnerId === match.participant1?._id
+      ? match.participant1?.displayName || "Player 1"
+      : match.participant2?.displayName || "Player 2";
+
+    return (
+      <MatchCompleteScreen
+        tournamentId={match.tournamentId}
+        winnerName={winnerName}
+        participant1Name={match.participant1?.displayName || "Player 1"}
+        participant2Name={match.participant2?.displayName || "Player 2"}
+        sport={match.sport as "tennis" | "volleyball"}
+        tennisState={match.tennisState}
+        volleyballState={match.volleyballState}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-start justify-center px-6 py-12">
