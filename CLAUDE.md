@@ -49,12 +49,10 @@ bun run android      # Run on Android emulator
 
 ### Packages
 - `packages/convex` - Convex serverless backend (database, functions, real-time)
-- `packages/ui` - Shared React component library (`@repo/ui`)
 - `packages/eslint-config` - Shared ESLint configs
 - `packages/typescript-config` - Shared TypeScript configs
 
 ### Package Imports
-- UI components: `import { Button } from "@repo/ui/button"`
 - Convex functions: `api.filename.functionName`
 
 ## Convex Patterns
