@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ThemeToggleWithLabel } from '@/components/ui/theme-toggle';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Shadows, Spacing, Radius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-color';
 
@@ -156,7 +156,7 @@ export default function HomeScreen() {
             <ThemedText style={[styles.logoText, { color: colors.textPrimary }]}>SCOREFORGE</ThemedText>
           </View>
           <View style={styles.headerRight}>
-            <ThemeToggleWithLabel />
+            <ThemeToggle />
             <Pressable onPress={handleSignOut} disabled={signingOut}>
               {signingOut ? (
                 <ActivityIndicator color={colors.accent} size="small" />
