@@ -68,7 +68,7 @@ export function Navigation() {
       >
         <div className="flex items-center justify-between h-[var(--nav-height)] px-5 lg:px-8 max-w-[1400px] mx-auto">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group relative">
+          <Link href="/dashboard" className="flex items-center gap-3 group relative">
             <img
               src="/logo.png"
               alt="ScoreForge"

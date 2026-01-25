@@ -62,6 +62,8 @@ export const listMyOrganizations = query({
       image: v.optional(v.string()),
       role: organizationRoles,
       memberCount: v.number(),
+      tournamentCount: v.number(),
+      liveTournamentCount: v.number(),
     })
   ),
   handler: async (ctx) => {
@@ -90,6 +92,17 @@ export const listMyOrganizations = query({
           )
           .collect();
 
+        // Count tournaments
+        const tournaments = await ctx.db
+          .query("tournaments")
+          .withIndex("by_organization", (q) =>
+            q.eq("organizationId", membership.organizationId)
+          )
+          .collect();
+
+        // Count live tournaments (those with status "active")
+        const liveTournaments = tournaments.filter((t) => t.status === "active");
+
         return {
           _id: org._id,
           _creationTime: org._creationTime,
@@ -99,6 +112,8 @@ export const listMyOrganizations = query({
           image: org.image,
           role: membership.role,
           memberCount: members.length,
+          tournamentCount: tournaments.length,
+          liveTournamentCount: liveTournaments.length,
         };
       })
     );
