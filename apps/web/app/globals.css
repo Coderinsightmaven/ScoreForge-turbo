@@ -7,16 +7,16 @@
      Clean whites, warm shadows, elegant typography
      ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Core Backgrounds - Pure & Warm */
-  --color-bg-page: #f8f7f4;
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #faf9f7;
-  --color-bg-tertiary: #f3f2ef;
-  --color-bg-elevated: #ffffff;
-  --color-bg-card: #ffffff;
-  --color-bg-card-hover: #fdfcfa;
-  --color-bg-field: #f5f4f1;
-  --color-bg-inset: #f0efec;
+  /* Core Backgrounds - Warm & Slightly Muted */
+  --color-bg-page: #eeede9;
+  --color-bg-primary: #f5f4f1;
+  --color-bg-secondary: #f0efeb;
+  --color-bg-tertiary: #e8e7e3;
+  --color-bg-elevated: #f8f7f4;
+  --color-bg-card: #f5f4f1;
+  --color-bg-card-hover: #f0efeb;
+  --color-bg-field: #eae9e5;
+  --color-bg-inset: #e4e3df;
 
   /* Text Colors - Rich & Readable */
   --color-text-primary: #1a1a1a;
