@@ -63,7 +63,6 @@ apps/
   mobile/       # Expo React Native app
 packages/
   convex/       # Convex backend (schema, functions)
-  ui/           # Shared React components
   eslint-config/
   typescript-config/
 ```

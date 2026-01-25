@@ -107,6 +107,9 @@ Tennis and volleyball have dedicated state objects on matches:
 
 Both include `history` array for undo functionality (last 10 states).
 
+### User Preferences
+- `userPreferences` - Stores user settings (theme preference), indexed by userId
+
 ## Web App Patterns
 
 ### Route Groups
@@ -130,5 +133,17 @@ const mutate = useMutation(api.file.mutation);
 - Uses Expo Router (file-based routing like Next.js)
 - Bottom tabs via `@react-navigation/bottom-tabs`
 
+### Theme System
+- `ThemeContext` provides `useTheme()` hook with `theme`, `isDark`, `setTheme`
+- `useThemeColors()` returns current theme's color palette
+- Theme syncs to Convex via `userPreferences` table
+- Colors defined in `constants/theme.ts` with `Colors.light` and `Colors.dark`
+
 ### Environment
 - Convex URL: `EXPO_PUBLIC_CONVEX_URL`
+
+## Web App Theme
+
+- Uses `next-themes` with `ThemeSyncProvider` for Convex sync
+- Dark theme CSS variables in `globals.css` under `:root.dark`
+- Theme toggle cycles: system → light → dark
