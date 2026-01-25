@@ -325,6 +325,9 @@ export default function MatchScoreScreen() {
     const name2 = match.participant2?.displayName || 'Player 2';
     const showScoreboard = shouldShowScoreboard(name1, name2);
 
+    // Check if this is a doubles match (names contain " / ")
+    const isDoubles = isDoublesName(name1) || isDoublesName(name2);
+
     return (
       <ThemedView style={styles.container}>
         {/* Player 1 Scoring Zone (Top) */}
@@ -350,7 +353,7 @@ export default function MatchScoreScreen() {
             </View>
           </View>
 
-          {/* Tennis Scoreboard - only show if names aren't too long */}
+          {/* Tennis Scoreboard */}
           {showScoreboard && isTennis && match.tennisState && (
             <View style={[styles.fullScoreboard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
               {/* Tiebreak indicator only */}
@@ -368,12 +371,16 @@ export default function MatchScoreScreen() {
               <View style={[styles.scoreTable, { backgroundColor: colors.bgSecondary }]}>
                 {/* Player 1 Row */}
                 <View style={[styles.scoreRow, { borderBottomColor: colors.border }]}>
-                  <View style={styles.playerCell}>
-                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {match.participant1?.displayName || 'P1'}
-                    </ThemedText>
-                    {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
-                  </View>
+                  {/* Show names only for singles/teams, not doubles */}
+                  {!isDoubles && (
+                    <View style={styles.playerCell}>
+                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {match.participant1?.displayName || 'P1'}
+                      </ThemedText>
+                      {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+                    </View>
+                  )}
+                  {isDoubles && serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
                   {match.tennisState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
                       <ThemedText style={[styles.setCellText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
@@ -400,12 +407,16 @@ export default function MatchScoreScreen() {
 
                 {/* Player 2 Row */}
                 <View style={[styles.scoreRow, styles.scoreRowLast]}>
-                  <View style={styles.playerCell}>
-                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {match.participant2?.displayName || 'P2'}
-                    </ThemedText>
-                    {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
-                  </View>
+                  {/* Show names only for singles/teams, not doubles */}
+                  {!isDoubles && (
+                    <View style={styles.playerCell}>
+                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {match.participant2?.displayName || 'P2'}
+                      </ThemedText>
+                      {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+                    </View>
+                  )}
+                  {isDoubles && serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
                   {match.tennisState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
                       <ThemedText style={[styles.setCellText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
@@ -433,7 +444,7 @@ export default function MatchScoreScreen() {
             </View>
           )}
 
-          {/* Volleyball Scoreboard - only show if names aren't too long */}
+          {/* Volleyball Scoreboard */}
           {showScoreboard && isVolleyball && match.volleyballState && (
             <View style={[styles.fullScoreboard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
 
@@ -441,12 +452,16 @@ export default function MatchScoreScreen() {
               <View style={[styles.scoreTable, { backgroundColor: colors.bgSecondary }]}>
                 {/* Team 1 Row */}
                 <View style={[styles.scoreRow, { borderBottomColor: colors.border }]}>
-                  <View style={styles.playerCell}>
-                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {match.participant1?.displayName || 'T1'}
-                    </ThemedText>
-                    {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
-                  </View>
+                  {/* Show names only for singles/teams, not doubles */}
+                  {!isDoubles && (
+                    <View style={styles.playerCell}>
+                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {match.participant1?.displayName || 'T1'}
+                      </ThemedText>
+                      {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+                    </View>
+                  )}
+                  {isDoubles && serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
                   {match.volleyballState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
                       <ThemedText style={[styles.setCellText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
@@ -463,12 +478,16 @@ export default function MatchScoreScreen() {
 
                 {/* Team 2 Row */}
                 <View style={[styles.scoreRow, styles.scoreRowLast]}>
-                  <View style={styles.playerCell}>
-                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {match.participant2?.displayName || 'T2'}
-                    </ThemedText>
-                    {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
-                  </View>
+                  {/* Show names only for singles/teams, not doubles */}
+                  {!isDoubles && (
+                    <View style={styles.playerCell}>
+                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {match.participant2?.displayName || 'T2'}
+                      </ThemedText>
+                      {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+                    </View>
+                  )}
+                  {isDoubles && serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
                   {match.volleyballState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
                       <ThemedText style={[styles.setCellText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
