@@ -15,7 +15,7 @@ import type { Id } from '@repo/convex/dataModel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, Shadows, Spacing, Radius } from '@/constants/theme';
+import { Shadows, Spacing, Radius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-color';
 
 function AnimatedPressable({
@@ -639,10 +639,8 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   headerContent: {
     flex: 1,
@@ -654,12 +652,10 @@ const styles = StyleSheet.create({
   sportIcon: {
     width: 44,
     height: 44,
-    backgroundColor: Colors.accentGlow,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.borderAccent,
   },
   titleContainer: {
     alignItems: 'flex-start',
@@ -693,10 +689,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   descriptionCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
   },
@@ -709,9 +703,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  sectionLabel: {
-    color: Colors.accent,
-  },
+  sectionLabel: {},
   liveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -721,26 +713,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.success,
   },
-  liveLabel: {
-    color: Colors.success,
-  },
+  liveLabel: {},
   matchesList: {
     gap: Spacing.sm,
   },
   matchCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.md,
   },
   liveMatchCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.success + '50',
     overflow: 'hidden',
     ...Shadows.sm,
   },
@@ -750,13 +735,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
-    backgroundColor: Colors.bgTertiary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   matchCardHeaderText: {
     fontSize: 11,
-    color: Colors.textMuted,
     fontWeight: '500',
     textTransform: 'capitalize',
   },
@@ -769,7 +751,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.success,
   },
   scoreboard: {
     paddingHorizontal: Spacing.sm,
@@ -780,7 +761,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border + '50',
   },
   scoreboardRowBottom: {
     borderBottomWidth: 0,
@@ -795,12 +775,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.success,
   },
   playerName: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textPrimary,
     flex: 1,
   },
   scoreSection: {
@@ -813,50 +791,41 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.bgTertiary,
     borderRadius: 4,
   },
   setScoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   currentSet: {
-    backgroundColor: Colors.accent + '20',
     borderWidth: 1,
-    borderColor: Colors.accent + '40',
   },
   currentSetText: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.accent,
   },
   gameScore: {
     width: 32,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.success + '15',
     borderRadius: 4,
     marginLeft: 4,
   },
   gameScoreText: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.success,
   },
   simpleScore: {
     width: 36,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.accent + '20',
     borderRadius: 4,
   },
   simpleScoreText: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.accent,
   },
   matchHeader: {
     flexDirection: 'row',
@@ -872,23 +841,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
-    backgroundColor: Colors.bgTertiary,
   },
   matchStatusPillCompleted: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
-    backgroundColor: Colors.accentGlow,
   },
   matchStatusPillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.textMuted,
   },
   matchStatusPillTextCompleted: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.accent,
   },
   matchParticipants: {
     flexDirection: 'row',
@@ -910,12 +875,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: Spacing.sm,
   },
-  winnerName: {
-    color: Colors.accent,
-  },
-  winnerScore: {
-    color: Colors.accent,
-  },
   matchVs: {
     fontSize: 12,
   },
@@ -925,31 +884,25 @@ const styles = StyleSheet.create({
   },
   // Standings styles
   standingsContainer: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     overflow: 'hidden',
   },
   standingsHeader: {
     flexDirection: 'row',
     padding: Spacing.md,
-    backgroundColor: Colors.bgTertiary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   standingsHeaderCell: {
     width: 40,
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textMuted,
     textAlign: 'center',
   },
   standingsRow: {
     flexDirection: 'row',
     padding: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   standingsCell: {
     width: 40,
@@ -962,7 +915,6 @@ const styles = StyleSheet.create({
   },
   standingsPoints: {
     fontWeight: '700',
-    color: Colors.accent,
   },
   // Bracket styles
   bracketContainer: {
@@ -974,16 +926,13 @@ const styles = StyleSheet.create({
   roundLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textMuted,
     marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   bracketMatch: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     overflow: 'hidden',
     marginBottom: Spacing.sm,
   },
@@ -993,9 +942,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-  },
-  bracketWinner: {
-    backgroundColor: Colors.accentGlow,
   },
   bracketName: {
     flex: 1,
@@ -1008,14 +954,12 @@ const styles = StyleSheet.create({
   },
   bracketDivider: {
     height: 1,
-    backgroundColor: Colors.border,
   },
   matchStatusBadge: {
     position: 'absolute',
     right: Spacing.sm,
     top: '50%',
     transform: [{ translateY: -10 }],
-    backgroundColor: Colors.success + '20',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
@@ -1023,7 +967,6 @@ const styles = StyleSheet.create({
   matchStatusText: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.success,
   },
   emptyState: {
     alignItems: 'center',

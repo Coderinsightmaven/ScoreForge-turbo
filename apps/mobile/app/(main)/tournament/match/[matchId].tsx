@@ -18,7 +18,7 @@ import type { Id } from '@repo/convex/dataModel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, Shadows, Spacing, Radius } from '@/constants/theme';
+import { Shadows, Spacing, Radius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-color';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -128,7 +128,7 @@ function ScoringZone({
       <Animated.View style={[styles.scoringZoneInner, animatedStyle]}>
         <View style={styles.scoringZoneContent}>
           <View style={styles.scoringZoneNameRow}>
-            {isServing && <View style={styles.servingIndicatorLarge} />}
+            {isServing && <View style={[styles.servingIndicatorLarge, { backgroundColor: colors.success }]} />}
             <ThemedText style={[styles.scoringZoneName, { color: colors.textPrimary }]} numberOfLines={1}>
               {playerName}
             </ThemedText>
@@ -306,8 +306,8 @@ export default function MatchScoreScreen() {
               {/* Tiebreak indicator only */}
               {match.tennisState.isTiebreak && (
                 <View style={styles.configRow}>
-                  <View style={[styles.configBadgeSmall, { backgroundColor: Colors.warning + '30' }]}>
-                    <ThemedText style={[styles.configBadgeTextSmall, { color: Colors.warning }]}>
+                  <View style={[styles.configBadgeSmall, { backgroundColor: colors.warning + '30' }]}>
+                    <ThemedText style={[styles.configBadgeTextSmall, { color: colors.warning }]}>
                       Tiebreak
                     </ThemedText>
                   </View>
@@ -319,25 +319,25 @@ export default function MatchScoreScreen() {
                 {/* Player 1 Row */}
                 <View style={[styles.scoreRow, { borderBottomColor: colors.border }]}>
                   <View style={styles.playerCell}>
-                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
                       {match.participant1?.displayName || 'P1'}
                     </ThemedText>
-                    {serving1 && <View style={styles.servingDotSmall} />}
+                    {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
                   </View>
                   {match.tennisState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, (set[0] ?? 0) > (set[1] ?? 0) && styles.setCellWinner]}>
+                      <ThemedText style={[styles.setCellText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
                         {set[0]}
                       </ThemedText>
                     </View>
                   ))}
-                  <View style={[styles.setCell, styles.currentSetCell]}>
-                    <ThemedText style={styles.currentSetCellText}>
+                  <View style={[styles.setCell, styles.currentSetCell, { backgroundColor: colors.accent + '20' }]}>
+                    <ThemedText style={[styles.currentSetCellText, { color: colors.accent }]}>
                       {match.tennisState.currentSetGames[0]}
                     </ThemedText>
                   </View>
-                  <View style={styles.pointsCell}>
-                    <ThemedText style={styles.pointsCellText}>
+                  <View style={[styles.pointsCell, { backgroundColor: colors.bgTertiary }]}>
+                    <ThemedText style={[styles.pointsCellText, { color: colors.accent }]}>
                       {getTennisPointDisplay(
                         match.tennisState.isTiebreak ? match.tennisState.tiebreakPoints : match.tennisState.currentGamePoints,
                         0,
@@ -351,25 +351,25 @@ export default function MatchScoreScreen() {
                 {/* Player 2 Row */}
                 <View style={[styles.scoreRow, styles.scoreRowLast]}>
                   <View style={styles.playerCell}>
-                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
                       {match.participant2?.displayName || 'P2'}
                     </ThemedText>
-                    {serving2 && <View style={styles.servingDotSmall} />}
+                    {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
                   </View>
                   {match.tennisState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, (set[1] ?? 0) > (set[0] ?? 0) && styles.setCellWinner]}>
+                      <ThemedText style={[styles.setCellText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
                         {set[1]}
                       </ThemedText>
                     </View>
                   ))}
-                  <View style={[styles.setCell, styles.currentSetCell]}>
-                    <ThemedText style={styles.currentSetCellText}>
+                  <View style={[styles.setCell, styles.currentSetCell, { backgroundColor: colors.accent + '20' }]}>
+                    <ThemedText style={[styles.currentSetCellText, { color: colors.accent }]}>
                       {match.tennisState.currentSetGames[1]}
                     </ThemedText>
                   </View>
-                  <View style={styles.pointsCell}>
-                    <ThemedText style={styles.pointsCellText}>
+                  <View style={[styles.pointsCell, { backgroundColor: colors.bgTertiary }]}>
+                    <ThemedText style={[styles.pointsCellText, { color: colors.accent }]}>
                       {getTennisPointDisplay(
                         match.tennisState.isTiebreak ? match.tennisState.tiebreakPoints : match.tennisState.currentGamePoints,
                         1,
@@ -392,20 +392,20 @@ export default function MatchScoreScreen() {
                 {/* Team 1 Row */}
                 <View style={[styles.scoreRow, { borderBottomColor: colors.border }]}>
                   <View style={styles.playerCell}>
-                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
                       {match.participant1?.displayName || 'T1'}
                     </ThemedText>
-                    {serving1 && <View style={styles.servingDotSmall} />}
+                    {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
                   </View>
                   {match.volleyballState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, (set[0] ?? 0) > (set[1] ?? 0) && styles.setCellWinner]}>
+                      <ThemedText style={[styles.setCellText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
                         {set[0]}
                       </ThemedText>
                     </View>
                   ))}
-                  <View style={styles.pointsCellLarge}>
-                    <ThemedText style={styles.pointsCellTextLarge}>
+                  <View style={[styles.pointsCellLarge, { backgroundColor: colors.accent + '20' }]}>
+                    <ThemedText style={[styles.pointsCellTextLarge, { color: colors.accent }]}>
                       {match.volleyballState.currentSetPoints[0]}
                     </ThemedText>
                   </View>
@@ -414,20 +414,20 @@ export default function MatchScoreScreen() {
                 {/* Team 2 Row */}
                 <View style={[styles.scoreRow, styles.scoreRowLast]}>
                   <View style={styles.playerCell}>
-                    <ThemedText style={styles.playerNameFull} numberOfLines={1}>
+                    <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
                       {match.participant2?.displayName || 'T2'}
                     </ThemedText>
-                    {serving2 && <View style={styles.servingDotSmall} />}
+                    {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
                   </View>
                   {match.volleyballState.sets.map((set, idx) => (
                     <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, (set[1] ?? 0) > (set[0] ?? 0) && styles.setCellWinner]}>
+                      <ThemedText style={[styles.setCellText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
                         {set[1]}
                       </ThemedText>
                     </View>
                   ))}
-                  <View style={styles.pointsCellLarge}>
-                    <ThemedText style={styles.pointsCellTextLarge}>
+                  <View style={[styles.pointsCellLarge, { backgroundColor: colors.accent + '20' }]}>
+                    <ThemedText style={[styles.pointsCellTextLarge, { color: colors.accent }]}>
                       {match.volleyballState.currentSetPoints[1]}
                     </ThemedText>
                   </View>
@@ -518,7 +518,7 @@ export default function MatchScoreScreen() {
 
         {/* Bye Match Display */}
         {isByeMatch && (
-          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.byeCard}>
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.byeCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
             <View style={styles.byeIconContainer}>
               <ThemedText style={styles.byeIcon}>🎫</ThemedText>
             </View>
@@ -526,9 +526,9 @@ export default function MatchScoreScreen() {
             <ThemedText type="muted" style={styles.byeSubtitle}>
               {byeWinner?.displayName || 'Unknown'} automatically advances to the next round.
             </ThemedText>
-            <View style={styles.byeAdvancesBadge}>
-              <View style={styles.byeAdvancesDot} />
-              <ThemedText style={styles.byeAdvancesText}>
+            <View style={[styles.byeAdvancesBadge, { backgroundColor: colors.success + '15' }]}>
+              <View style={[styles.byeAdvancesDot, { backgroundColor: colors.success }]} />
+              <ThemedText style={[styles.byeAdvancesText, { color: colors.success }]}>
                 {byeWinner?.displayName} advances
               </ThemedText>
             </View>
@@ -537,7 +537,7 @@ export default function MatchScoreScreen() {
 
         {/* First Server Selection */}
         {!isByeMatch && needsSetup && canStart && match.participant1 && match.participant2 && (
-          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.setupCard}>
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.setupCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
             <ThemedText style={styles.setupTitle}>Select First Server</ThemedText>
             <ThemedText type="muted" style={styles.setupSubtitle}>
               Who will serve first in this {isTennis ? 'tennis' : 'volleyball'} match?
@@ -545,13 +545,13 @@ export default function MatchScoreScreen() {
 
             {isTennis && match.tennisConfig && (
               <View style={styles.configBadges}>
-                <View style={styles.configBadge}>
-                  <ThemedText style={styles.configBadgeText}>
+                <View style={[styles.configBadge, { backgroundColor: colors.accent + '20' }]}>
+                  <ThemedText style={[styles.configBadgeText, { color: colors.accent }]}>
                     Best of {match.tennisConfig.setsToWin * 2 - 1}
                   </ThemedText>
                 </View>
-                <View style={styles.configBadge}>
-                  <ThemedText style={styles.configBadgeText}>
+                <View style={[styles.configBadge, { backgroundColor: colors.accent + '20' }]}>
+                  <ThemedText style={[styles.configBadgeText, { color: colors.accent }]}>
                     {match.tennisConfig.isAdScoring ? 'Ad Scoring' : 'No-Ad'}
                   </ThemedText>
                 </View>
@@ -559,13 +559,13 @@ export default function MatchScoreScreen() {
             )}
             {isVolleyball && match.volleyballConfig && (
               <View style={styles.configBadges}>
-                <View style={styles.configBadge}>
-                  <ThemedText style={styles.configBadgeText}>
+                <View style={[styles.configBadge, { backgroundColor: colors.accent + '20' }]}>
+                  <ThemedText style={[styles.configBadgeText, { color: colors.accent }]}>
                     Best of {match.volleyballConfig.setsToWin * 2 - 1}
                   </ThemedText>
                 </View>
-                <View style={styles.configBadge}>
-                  <ThemedText style={styles.configBadgeText}>
+                <View style={[styles.configBadge, { backgroundColor: colors.accent + '20' }]}>
+                  <ThemedText style={[styles.configBadgeText, { color: colors.accent }]}>
                     Sets to {match.volleyballConfig.pointsPerSet}
                   </ThemedText>
                 </View>
@@ -576,42 +576,44 @@ export default function MatchScoreScreen() {
               <AnimatedPressable
                 style={[
                   styles.serverOption,
-                  selectedFirstServer === 1 && styles.serverOptionSelected,
+                  { backgroundColor: colors.bgSecondary, borderColor: selectedFirstServer === 1 ? colors.success : colors.border },
+                  selectedFirstServer === 1 && { backgroundColor: colors.success + '10' },
                 ]}
                 onPress={() => setSelectedFirstServer(1)}>
-                <View style={[styles.serverAvatar, selectedFirstServer === 1 && styles.serverAvatarSelected]}>
-                  <ThemedText style={styles.serverAvatarText}>
+                <View style={[styles.serverAvatar, { backgroundColor: selectedFirstServer === 1 ? colors.success + '20' : colors.bgTertiary }]}>
+                  <ThemedText style={[styles.serverAvatarText, { color: colors.textSecondary }]}>
                     {match.participant1.displayName.charAt(0).toUpperCase()}
                   </ThemedText>
                 </View>
                 <ThemedText
-                  style={[styles.serverName, selectedFirstServer === 1 && styles.serverNameSelected]}
+                  style={[styles.serverName, selectedFirstServer === 1 && { color: colors.success }]}
                   numberOfLines={1}>
                   {match.participant1.displayName}
                 </ThemedText>
                 {selectedFirstServer === 1 && (
-                  <IconSymbol name="checkmark.circle.fill" size={24} color={Colors.success} />
+                  <IconSymbol name="checkmark.circle.fill" size={24} color={colors.success} />
                 )}
               </AnimatedPressable>
 
               <AnimatedPressable
                 style={[
                   styles.serverOption,
-                  selectedFirstServer === 2 && styles.serverOptionSelected,
+                  { backgroundColor: colors.bgSecondary, borderColor: selectedFirstServer === 2 ? colors.success : colors.border },
+                  selectedFirstServer === 2 && { backgroundColor: colors.success + '10' },
                 ]}
                 onPress={() => setSelectedFirstServer(2)}>
-                <View style={[styles.serverAvatar, selectedFirstServer === 2 && styles.serverAvatarSelected]}>
-                  <ThemedText style={styles.serverAvatarText}>
+                <View style={[styles.serverAvatar, { backgroundColor: selectedFirstServer === 2 ? colors.success + '20' : colors.bgTertiary }]}>
+                  <ThemedText style={[styles.serverAvatarText, { color: colors.textSecondary }]}>
                     {match.participant2.displayName.charAt(0).toUpperCase()}
                   </ThemedText>
                 </View>
                 <ThemedText
-                  style={[styles.serverName, selectedFirstServer === 2 && styles.serverNameSelected]}
+                  style={[styles.serverName, selectedFirstServer === 2 && { color: colors.success }]}
                   numberOfLines={1}>
                   {match.participant2.displayName}
                 </ThemedText>
                 {selectedFirstServer === 2 && (
-                  <IconSymbol name="checkmark.circle.fill" size={24} color={Colors.success} />
+                  <IconSymbol name="checkmark.circle.fill" size={24} color={colors.success} />
                 )}
               </AnimatedPressable>
             </View>
@@ -620,10 +622,10 @@ export default function MatchScoreScreen() {
 
         {/* Completed Match Summary */}
         {!isByeMatch && match.status === 'completed' && (match.tennisState || match.volleyballState) && (
-          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.completedCard}>
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={[styles.completedCard, { backgroundColor: colors.bgCard, borderColor: colors.accent + '30' }]}>
             <View style={styles.winnerBanner}>
-              <IconSymbol name="trophy.fill" size={32} color={Colors.accent} />
-              <ThemedText style={styles.winnerText}>
+              <IconSymbol name="trophy.fill" size={32} color={colors.accent} />
+              <ThemedText style={[styles.winnerText, { color: colors.accent }]}>
                 {match.winnerId === match.participant1?._id
                   ? match.participant1?.displayName
                   : match.participant2?.displayName}{' '}
@@ -632,28 +634,28 @@ export default function MatchScoreScreen() {
             </View>
 
             {/* Final Score */}
-            <View style={styles.finalScoreTable}>
+            <View style={[styles.finalScoreTable, { backgroundColor: colors.bgSecondary }]}>
               {isTennis && match.tennisState && (
                 <>
-                  <View style={styles.finalScoreRow}>
+                  <View style={[styles.finalScoreRow, { borderBottomColor: colors.border }]}>
                     <ThemedText style={styles.finalScoreName} numberOfLines={1}>
                       {match.participant1?.displayName}
                     </ThemedText>
                     {match.tennisState.sets.map((set, idx) => (
                       <View key={idx} style={styles.finalScoreCell}>
-                        <ThemedText style={[styles.finalScoreText, (set[0] ?? 0) > (set[1] ?? 0) && styles.finalScoreWinner]}>
+                        <ThemedText style={[styles.finalScoreText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
                           {set[0]}
                         </ThemedText>
                       </View>
                     ))}
                   </View>
-                  <View style={styles.finalScoreRow}>
+                  <View style={[styles.finalScoreRow, { borderBottomColor: colors.border }]}>
                     <ThemedText style={styles.finalScoreName} numberOfLines={1}>
                       {match.participant2?.displayName}
                     </ThemedText>
                     {match.tennisState.sets.map((set, idx) => (
                       <View key={idx} style={styles.finalScoreCell}>
-                        <ThemedText style={[styles.finalScoreText, (set[1] ?? 0) > (set[0] ?? 0) && styles.finalScoreWinner]}>
+                        <ThemedText style={[styles.finalScoreText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
                           {set[1]}
                         </ThemedText>
                       </View>
@@ -663,25 +665,25 @@ export default function MatchScoreScreen() {
               )}
               {isVolleyball && match.volleyballState && (
                 <>
-                  <View style={styles.finalScoreRow}>
+                  <View style={[styles.finalScoreRow, { borderBottomColor: colors.border }]}>
                     <ThemedText style={styles.finalScoreName} numberOfLines={1}>
                       {match.participant1?.displayName}
                     </ThemedText>
                     {match.volleyballState.sets.map((set, idx) => (
                       <View key={idx} style={styles.finalScoreCell}>
-                        <ThemedText style={[styles.finalScoreText, (set[0] ?? 0) > (set[1] ?? 0) && styles.finalScoreWinner]}>
+                        <ThemedText style={[styles.finalScoreText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
                           {set[0]}
                         </ThemedText>
                       </View>
                     ))}
                   </View>
-                  <View style={styles.finalScoreRow}>
+                  <View style={[styles.finalScoreRow, { borderBottomColor: colors.border }]}>
                     <ThemedText style={styles.finalScoreName} numberOfLines={1}>
                       {match.participant2?.displayName}
                     </ThemedText>
                     {match.volleyballState.sets.map((set, idx) => (
                       <View key={idx} style={styles.finalScoreCell}>
-                        <ThemedText style={[styles.finalScoreText, (set[1] ?? 0) > (set[0] ?? 0) && styles.finalScoreWinner]}>
+                        <ThemedText style={[styles.finalScoreText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
                           {set[1]}
                         </ThemedText>
                       </View>
@@ -697,11 +699,11 @@ export default function MatchScoreScreen() {
         {!isByeMatch && needsSetup && canStart && match.participant1 && match.participant2 && (
           <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.actions}>
             <AnimatedPressable
-              style={styles.startButton}
+              style={[styles.startButton, { backgroundColor: colors.success }]}
               onPress={handleStartMatch}
               disabled={isUpdating}>
-              <IconSymbol name="play.fill" size={20} color={Colors.bgPrimary} />
-              <ThemedText style={styles.startButtonText}>
+              <IconSymbol name="play.fill" size={20} color={colors.bgPrimary} />
+              <ThemedText style={[styles.startButtonText, { color: colors.bgPrimary }]}>
                 {isUpdating ? 'Starting...' : `Start ${isTennis ? 'Tennis' : 'Volleyball'} Match`}
               </ThemedText>
             </AnimatedPressable>
@@ -776,7 +778,6 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: Colors.success,
   },
 
   centerScoreboard: {
@@ -798,9 +799,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.bgCard,
     borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -808,7 +807,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.success + '20',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.full,
@@ -817,20 +815,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.success,
   },
   liveText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.success,
   },
   undoButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.bgCard,
     borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -858,7 +852,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   configBadgeSmall: {
-    backgroundColor: Colors.accent + '20',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.full,
@@ -866,7 +859,6 @@ const styles = StyleSheet.create({
   configBadgeTextSmall: {
     fontSize: 10,
     fontWeight: '600',
-    color: Colors.accent,
   },
   scoreTable: {
     borderRadius: Radius.lg,
@@ -893,14 +885,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 28,
     fontWeight: '600',
-    color: Colors.textPrimary,
     includeFontPadding: false,
   },
   servingDotSmall: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.success,
   },
   setCell: {
     width: 28,
@@ -909,24 +899,17 @@ const styles = StyleSheet.create({
   setCellText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  setCellWinner: {
-    color: Colors.accent,
   },
   currentSetCell: {
-    backgroundColor: Colors.accent + '20',
     borderRadius: Radius.sm,
     paddingVertical: 2,
   },
   currentSetCellText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.accent,
   },
   pointsCell: {
     width: 40,
-    backgroundColor: Colors.bgTertiary,
     borderRadius: Radius.sm,
     paddingVertical: 4,
     marginLeft: Spacing.sm,
@@ -935,11 +918,9 @@ const styles = StyleSheet.create({
   pointsCellText: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.accent,
   },
   pointsCellLarge: {
     width: 50,
-    backgroundColor: Colors.accent + '20',
     borderRadius: Radius.sm,
     paddingVertical: 6,
     marginLeft: Spacing.sm,
@@ -948,7 +929,6 @@ const styles = StyleSheet.create({
   pointsCellTextLarge: {
     fontSize: 22,
     fontWeight: '800',
-    color: Colors.accent,
   },
 
   // Regular view styles
@@ -963,10 +943,8 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   headerCenter: {
     alignItems: 'center',
@@ -1004,10 +982,8 @@ const styles = StyleSheet.create({
 
   // Bye Match styles
   byeCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
     alignItems: 'center',
@@ -1032,7 +1008,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.success + '15',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.lg,
@@ -1040,21 +1015,17 @@ const styles = StyleSheet.create({
   byeAdvancesDot: {
     width: 8,
     height: 8,
-    backgroundColor: Colors.success,
     borderRadius: Radius.full,
   },
   byeAdvancesText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.success,
   },
 
   // Setup Card styles
   setupCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
     alignItems: 'center',
@@ -1077,7 +1048,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   configBadge: {
-    backgroundColor: Colors.accent + '20',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.full,
@@ -1085,7 +1055,6 @@ const styles = StyleSheet.create({
   configBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.accent,
   },
   serverOptions: {
     width: '100%',
@@ -1096,46 +1065,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     padding: Spacing.lg,
-    backgroundColor: Colors.bgSecondary,
     borderRadius: Radius.lg,
     borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  serverOptionSelected: {
-    borderColor: Colors.success,
-    backgroundColor: Colors.success + '10',
   },
   serverAvatar: {
     width: 44,
     height: 44,
-    backgroundColor: Colors.bgTertiary,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  serverAvatarSelected: {
-    backgroundColor: Colors.success + '20',
-  },
   serverAvatarText: {
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.textSecondary,
   },
   serverName: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
   },
-  serverNameSelected: {
-    color: Colors.success,
-  },
 
   // Completed match styles
   completedCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: Colors.borderAccent,
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
   },
@@ -1149,10 +1102,8 @@ const styles = StyleSheet.create({
   winnerText: {
     fontSize: 22,
     fontWeight: '700',
-    color: Colors.accent,
   },
   finalScoreTable: {
-    backgroundColor: Colors.bgSecondary,
     borderRadius: Radius.lg,
     overflow: 'hidden',
   },
@@ -1161,7 +1112,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   finalScoreName: {
     flex: 1,
@@ -1175,10 +1125,6 @@ const styles = StyleSheet.create({
   finalScoreText: {
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  finalScoreWinner: {
-    color: Colors.accent,
   },
 
   // Action styles
@@ -1191,13 +1137,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.success,
     borderRadius: Radius.md,
     paddingVertical: Spacing.lg,
     ...Shadows.sm,
   },
   startButtonText: {
-    color: Colors.bgPrimary,
     fontWeight: '700',
     fontSize: 16,
   },
