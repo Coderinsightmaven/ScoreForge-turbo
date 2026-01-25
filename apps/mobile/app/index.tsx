@@ -5,20 +5,25 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors, Spacing, Shadows } from "@/constants/theme";
+import { Spacing, Shadows } from "@/constants/theme";
+import { useThemeColors } from "@/hooks/use-theme-color";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Index() {
+  const colors = useThemeColors();
+  const { isDark } = useTheme();
+
   return (
     <ThemedView style={styles.container}>
       <AuthLoading>
         <View style={styles.loadingContainer}>
-          <View style={styles.logoIcon}>
-            <IconSymbol name="bolt.fill" size={32} color={Colors.bgPrimary} />
+          <View style={[styles.logoIcon, { backgroundColor: colors.accent }]}>
+            <IconSymbol name="bolt.fill" size={32} color={isDark ? colors.bgPrimary : "#ffffff"} />
           </View>
           <ThemedText type="headline" style={styles.logoText}>
             SCOREFORGE
           </ThemedText>
-          <ActivityIndicator color={Colors.accent} size="large" style={styles.spinner} />
+          <ActivityIndicator color={colors.accent} size="large" style={styles.spinner} />
         </View>
       </AuthLoading>
 
@@ -45,7 +50,6 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 80,
     height: 80,
-    backgroundColor: Colors.accent,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",

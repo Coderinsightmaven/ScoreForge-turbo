@@ -2,10 +2,18 @@
 
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
+import { ThemeProvider } from "next-themes";
 import { ReactNode } from "react";
+import { ThemeSyncProvider } from "./components/ThemeSyncProvider";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export function Providers({ children }: { children: ReactNode }) {
-  return <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>;
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ConvexAuthProvider client={convex}>
+        <ThemeSyncProvider>{children}</ThemeSyncProvider>
+      </ConvexAuthProvider>
+    </ThemeProvider>
+  );
 }

@@ -9,12 +9,14 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, Spacing, Radius } from '@/constants/theme';
+import { Spacing, Radius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/use-theme-color';
 
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const rotation = useSharedValue(0);
   const height = useSharedValue(0);
+  const colors = useThemeColors();
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -32,17 +34,17 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
   };
 
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.heading} onPress={toggle} android_ripple={{ color: Colors.bgCard }}>
+    <View style={[styles.container, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+      <Pressable style={styles.heading} onPress={toggle} android_ripple={{ color: colors.bgCard }}>
         <Animated.View style={iconStyle}>
-          <IconSymbol name="chevron.right" size={16} weight="semibold" color={Colors.accent} />
+          <IconSymbol name="chevron.right" size={16} weight="semibold" color={colors.accent} />
         </Animated.View>
         <ThemedText type="subtitle" style={styles.title}>
           {title}
         </ThemedText>
       </Pressable>
       {isOpen && (
-        <Animated.View style={[styles.content, contentStyle]}>
+        <Animated.View style={[styles.content, { borderTopColor: colors.border }, contentStyle]}>
           <View style={styles.contentInner}>{children}</View>
         </Animated.View>
       )}
@@ -52,10 +54,8 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     overflow: 'hidden',
     marginBottom: Spacing.md,
   },
@@ -71,7 +71,6 @@ const styles = StyleSheet.create({
   },
   content: {
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
   contentInner: {
     padding: Spacing.md,

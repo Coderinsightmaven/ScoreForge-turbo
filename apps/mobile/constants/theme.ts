@@ -12,55 +12,117 @@ import { Platform } from 'react-native';
 // ============================================
 
 export const Colors = {
-  // Primary backgrounds
-  bgPrimary: '#0a0a0c',
-  bgSecondary: '#111115',
-  bgTertiary: '#18181d',
-  bgCard: '#1c1c22',
-  bgCardHover: '#242430',
+  // ============================================
+  // Light Theme - Refined Paper
+  // Clean whites, warm shadows, terracotta accent
+  // ============================================
+  light: {
+    // Backgrounds
+    bgPrimary: '#f8f7f4',
+    bgSecondary: '#ffffff',
+    bgTertiary: '#f3f2ef',
+    bgCard: '#ffffff',
+    bgCardHover: '#fdfcfa',
 
-  // Text hierarchy
-  textPrimary: '#fafafa',
+    // Text
+    text: '#1a1a1a',
+    textPrimary: '#1a1a1a',
+    textSecondary: '#5c5c5c',
+    textMuted: '#8a8a8a',
+
+    // Accent - Terracotta (matches web)
+    tint: '#c45d4a',
+    accent: '#c45d4a',
+    accentBright: '#d4705f',
+    accentDim: '#a84d3c',
+    accentGlow: 'rgba(196, 93, 74, 0.15)',
+
+    // Navigation
+    background: '#f8f7f4',
+    card: '#ffffff',
+    border: 'rgba(0, 0, 0, 0.08)',
+    icon: '#5c5c5c',
+    tabIconDefault: '#8a8a8a',
+    tabIconSelected: '#c45d4a',
+
+    // Status
+    success: '#4a9960',
+    error: '#c45a5a',
+    warning: '#c49a4a',
+    info: '#4a7dc4',
+  },
+
+  // ============================================
+  // Dark Theme - Refined Night
+  // Warm dark grays, brightened terracotta
+  // ============================================
+  dark: {
+    // Backgrounds
+    bgPrimary: '#0f0f12',
+    bgSecondary: '#1a1a1f',
+    bgTertiary: '#1f1f24',
+    bgCard: '#1c1c21',
+    bgCardHover: '#242429',
+
+    // Text
+    text: '#f5f5f5',
+    textPrimary: '#f5f5f5',
+    textSecondary: '#a0a0a8',
+    textMuted: '#6b6b73',
+
+    // Accent - Brightened Terracotta (matches web dark)
+    tint: '#d4705f',
+    accent: '#d4705f',
+    accentBright: '#e5857a',
+    accentDim: '#b85c4d',
+    accentGlow: 'rgba(212, 112, 95, 0.2)',
+
+    // Navigation
+    background: '#0f0f12',
+    card: '#1c1c21',
+    border: 'rgba(255, 255, 255, 0.08)',
+    icon: '#a0a0a8',
+    tabIconDefault: '#6b6b73',
+    tabIconSelected: '#d4705f',
+
+    // Status
+    success: '#5aaa70',
+    error: '#d46a6a',
+    warning: '#d4aa5a',
+    info: '#5a8dd4',
+  },
+
+  // ============================================
+  // Shared/Legacy exports (use light/dark instead)
+  // ============================================
+
+  // Primary backgrounds (dark theme defaults for legacy code)
+  bgPrimary: '#0f0f12',
+  bgSecondary: '#1a1a1f',
+  bgTertiary: '#1f1f24',
+  bgCard: '#1c1c21',
+  bgCardHover: '#242429',
+
+  // Text hierarchy (dark theme defaults)
+  textPrimary: '#f5f5f5',
   textSecondary: '#a0a0a8',
-  textMuted: '#606068',
+  textMuted: '#6b6b73',
 
-  // Accent - electric amber/gold
-  accent: '#f5a623',
-  accentBright: '#ffc247',
-  accentDim: '#c88a1a',
-  accentGlow: 'rgba(245, 166, 35, 0.15)',
+  // Accent - terracotta
+  accent: '#d4705f',
+  accentBright: '#e5857a',
+  accentDim: '#b85c4d',
+  accentGlow: 'rgba(212, 112, 95, 0.2)',
 
   // Supporting colors
-  success: '#22c55e',
-  error: '#ef4444',
-  warning: '#eab308',
-  info: '#3b82f6',
+  success: '#5aaa70',
+  error: '#d46a6a',
+  warning: '#d4aa5a',
+  info: '#5a8dd4',
 
   // Borders
   border: 'rgba(255, 255, 255, 0.08)',
-  borderAccent: 'rgba(245, 166, 35, 0.3)',
-
-  // Theme-specific mappings (for backwards compatibility)
-  light: {
-    text: '#fafafa',
-    background: '#0a0a0c',
-    tint: '#f5a623',
-    icon: '#a0a0a8',
-    tabIconDefault: '#606068',
-    tabIconSelected: '#f5a623',
-    card: '#1c1c22',
-    border: 'rgba(255, 255, 255, 0.08)',
-  },
-  dark: {
-    text: '#fafafa',
-    background: '#0a0a0c',
-    tint: '#f5a623',
-    icon: '#a0a0a8',
-    tabIconDefault: '#606068',
-    tabIconSelected: '#f5a623',
-    card: '#1c1c22',
-    border: 'rgba(255, 255, 255, 0.08)',
-  },
+  borderAccent: 'rgba(212, 112, 95, 0.3)',
 } as const;
 
 // ============================================
@@ -156,7 +218,7 @@ export const Shadows = {
     elevation: 8,
   },
   accent: {
-    shadowColor: '#f5a623',
+    shadowColor: '#d4705f',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 20,

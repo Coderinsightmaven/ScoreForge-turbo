@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { themePreference } from "./schema";
 
 export const currentUser = query({
   args: {},
@@ -112,5 +113,62 @@ export const getOnboardingState = query({
       organizationCount: validOrganizations.length,
       organizations: validOrganizations,
     };
+  },
+});
+
+/**
+ * Get the user's theme preference
+ */
+export const getThemePreference = query({
+  args: {},
+  returns: v.union(themePreference, v.null()),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return null;
+    }
+
+    const preferences = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    return preferences?.themePreference ?? null;
+  },
+});
+
+/**
+ * Set the user's theme preference
+ */
+export const setThemePreference = mutation({
+  args: {
+    theme: themePreference,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        themePreference: args.theme,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId,
+        themePreference: args.theme,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return null;
   },
 });

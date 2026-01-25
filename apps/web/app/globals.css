@@ -115,6 +115,95 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   REFINED NIGHT - Dark Theme
+   Warm dark grays, brightened terracotta accent
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root.dark {
+  /* Core Backgrounds - Warm Dark */
+  --color-bg-page: #0f0f12;
+  --color-bg-primary: #1a1a1f;
+  --color-bg-secondary: #141418;
+  --color-bg-tertiary: #1f1f24;
+  --color-bg-elevated: #242429;
+  --color-bg-card: #1c1c21;
+  --color-bg-card-hover: #242429;
+  --color-bg-field: #141418;
+  --color-bg-inset: #0f0f12;
+
+  /* Text Colors - Soft White */
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a0a0a8;
+  --color-text-muted: #6b6b73;
+  --color-text-faint: #4a4a52;
+  --color-text-inverse: #1a1a1f;
+
+  /* Primary Accent - Brightened Terracotta */
+  --color-accent: #d4705f;
+  --color-accent-bright: #e5857a;
+  --color-accent-dim: #b85c4d;
+  --color-accent-pale: #2a1f1d;
+  --color-accent-glow: rgba(212, 112, 95, 0.2);
+  --color-accent-subtle: rgba(212, 112, 95, 0.1);
+
+  /* Secondary - Sage Green (adjusted for dark) */
+  --color-sage: #7da383;
+  --color-sage-bright: #8fb595;
+  --color-sage-dim: #6b8f71;
+  --color-sage-pale: #1a2a1c;
+  --color-sage-glow: rgba(125, 163, 131, 0.2);
+
+  /* Tertiary - Warm Sand (adjusted for dark) */
+  --color-sand: #d4b57d;
+  --color-sand-bright: #e0c48f;
+  --color-sand-dim: #c4a56d;
+  --color-sand-pale: #2a251a;
+
+  /* Status Colors - Brightened for dark backgrounds */
+  --color-success: #5aaa70;
+  --color-success-pale: #1a2a1c;
+  --color-success-glow: rgba(90, 170, 112, 0.15);
+  --color-warning: #d4aa5a;
+  --color-warning-pale: #2a251a;
+  --color-error: #d46a6a;
+  --color-error-pale: #2a1a1a;
+  --color-info: #5a8dd4;
+  --color-info-pale: #1a1f2a;
+  --color-live: #d46a6a;
+
+  /* Legacy aliases */
+  --color-gold: var(--color-sand);
+  --color-gold-bright: var(--color-sand-bright);
+  --color-gold-dim: var(--color-sand-dim);
+  --color-gold-glow: rgba(212, 181, 125, 0.2);
+  --color-purple: #9b8dc5;
+  --color-purple-dim: #8a7db4;
+  --color-purple-glow: rgba(155, 141, 197, 0.15);
+  --color-red: var(--color-error);
+  --color-red-dim: #b85a5a;
+  --color-red-glow: rgba(212, 106, 106, 0.15);
+  --color-void: #0f0f12;
+
+  /* Borders & Surfaces */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.05);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-border-accent: rgba(212, 112, 95, 0.3);
+  --color-divider: rgba(255, 255, 255, 0.06);
+
+  /* Shadows - Darker with subtle glow */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.45), 0 8px 16px rgba(0, 0, 0, 0.4);
+  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 30px var(--color-accent-glow);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -163,6 +252,19 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
+}
+
+:root.dark ::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--color-bg-secondary);
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Links */
@@ -327,6 +429,10 @@ input, textarea, select {
   -webkit-backdrop-filter: blur(12px) saturate(150%);
 }
 
+:root.dark .glass {
+  background: rgba(26, 26, 31, 0.85);
+}
+
 .grid-bg {
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.015) 1px, transparent 1px),
@@ -334,9 +440,19 @@ input, textarea, select {
   background-size: 40px 40px;
 }
 
+:root.dark .grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
 .dot-bg {
   background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+:root.dark .dot-bg {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

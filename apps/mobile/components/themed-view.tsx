@@ -1,20 +1,22 @@
 import { View, type ViewProps } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/use-theme-color';
 
 export type ThemedViewProps = ViewProps & {
   variant?: 'primary' | 'secondary' | 'tertiary' | 'card';
 };
 
 export function ThemedView({ style, variant = 'primary', ...otherProps }: ThemedViewProps) {
+  const colors = useThemeColors();
+
   const backgroundColor =
     variant === 'primary'
-      ? Colors.bgPrimary
+      ? colors.bgPrimary
       : variant === 'secondary'
-        ? Colors.bgSecondary
+        ? colors.bgSecondary
         : variant === 'tertiary'
-          ? Colors.bgTertiary
-          : Colors.bgCard;
+          ? colors.bgTertiary
+          : colors.bgCard;
 
   return <View style={[{ backgroundColor }, style]} {...otherProps} />;
 }

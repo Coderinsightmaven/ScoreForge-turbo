@@ -17,7 +17,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors, Spacing, Radius, Shadows } from "@/constants/theme";
+import { Spacing, Radius, Shadows } from "@/constants/theme";
+import { useThemeColors } from "@/hooks/use-theme-color";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +31,8 @@ export default function SignUpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const colors = useThemeColors();
+  const { isDark } = useTheme();
 
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -82,29 +86,29 @@ export default function SignUpScreen() {
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
             <View style={styles.logoContainer}>
-              <View style={styles.logoIcon}>
-                <IconSymbol name="bolt.fill" size={28} color={Colors.bgPrimary} />
+              <View style={[styles.logoIcon, { backgroundColor: colors.accent }]}>
+                <IconSymbol name="bolt.fill" size={28} color={isDark ? colors.bgPrimary : "#ffffff"} />
               </View>
             </View>
             <ThemedText type="headline" style={styles.title}>
               CREATE ACCOUNT
             </ThemedText>
-            <ThemedText style={styles.subtitle}>Join ScoreForge and start competing</ThemedText>
+            <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>Join ScoreForge and start competing</ThemedText>
           </Animated.View>
 
           {/* Form */}
           <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.form}>
             {/* Name Input */}
             <View style={styles.inputGroup}>
-              <ThemedText type="label" style={styles.inputLabel}>
+              <ThemedText type="label" style={[styles.inputLabel, { color: colors.textSecondary }]}>
                 FULL NAME (OPTIONAL)
               </ThemedText>
-              <View style={styles.inputContainer}>
-                <IconSymbol name="person.fill" size={18} color={Colors.textMuted} />
+              <View style={[styles.inputContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+                <IconSymbol name="person.fill" size={18} color={colors.textMuted} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.textPrimary }]}
                   placeholder="John Doe"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={name}
                   onChangeText={setName}
                   autoComplete="name"
@@ -115,15 +119,15 @@ export default function SignUpScreen() {
 
             {/* Email Input */}
             <View style={styles.inputGroup}>
-              <ThemedText type="label" style={styles.inputLabel}>
+              <ThemedText type="label" style={[styles.inputLabel, { color: colors.textSecondary }]}>
                 EMAIL ADDRESS
               </ThemedText>
-              <View style={styles.inputContainer}>
-                <IconSymbol name="envelope.fill" size={18} color={Colors.textMuted} />
+              <View style={[styles.inputContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+                <IconSymbol name="envelope.fill" size={18} color={colors.textMuted} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.textPrimary }]}
                   placeholder="you@example.com"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -136,15 +140,15 @@ export default function SignUpScreen() {
 
             {/* Password Input */}
             <View style={styles.inputGroup}>
-              <ThemedText type="label" style={styles.inputLabel}>
+              <ThemedText type="label" style={[styles.inputLabel, { color: colors.textSecondary }]}>
                 PASSWORD
               </ThemedText>
-              <View style={styles.inputContainer}>
-                <IconSymbol name="lock.fill" size={18} color={Colors.textMuted} />
+              <View style={[styles.inputContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+                <IconSymbol name="lock.fill" size={18} color={colors.textMuted} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.textPrimary }]}
                   placeholder="Min 8 characters"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -155,7 +159,7 @@ export default function SignUpScreen() {
                   <IconSymbol
                     name={showPassword ? "eye.slash.fill" : "eye.fill"}
                     size={18}
-                    color={Colors.textMuted}
+                    color={colors.textMuted}
                   />
                 </Pressable>
               </View>
@@ -163,15 +167,15 @@ export default function SignUpScreen() {
 
             {/* Confirm Password Input */}
             <View style={styles.inputGroup}>
-              <ThemedText type="label" style={styles.inputLabel}>
+              <ThemedText type="label" style={[styles.inputLabel, { color: colors.textSecondary }]}>
                 CONFIRM PASSWORD
               </ThemedText>
-              <View style={styles.inputContainer}>
-                <IconSymbol name="lock.fill" size={18} color={Colors.textMuted} />
+              <View style={[styles.inputContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+                <IconSymbol name="lock.fill" size={18} color={colors.textMuted} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.textPrimary }]}
                   placeholder="Repeat password"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
@@ -183,23 +187,23 @@ export default function SignUpScreen() {
 
             {/* Error Message */}
             {error && (
-              <Animated.View entering={FadeInDown.duration(300)} style={styles.errorContainer}>
-                <IconSymbol name="exclamationmark.circle.fill" size={16} color={Colors.error} />
-                <ThemedText style={styles.errorText}>{error}</ThemedText>
+              <Animated.View entering={FadeInDown.duration(300)} style={[styles.errorContainer, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
+                <IconSymbol name="exclamationmark.circle.fill" size={16} color={colors.error} />
+                <ThemedText style={[styles.errorText, { color: colors.error }]}>{error}</ThemedText>
               </Animated.View>
             )}
 
             {/* Sign Up Button */}
             <Pressable
-              style={({ pressed }) => [styles.signUpButton, pressed && styles.buttonPressed]}
+              style={({ pressed }) => [styles.signUpButton, { backgroundColor: colors.accent }, pressed && styles.buttonPressed]}
               onPress={handleSignUp}
               disabled={loading}>
               {loading ? (
-                <ActivityIndicator color={Colors.bgPrimary} />
+                <ActivityIndicator color={isDark ? colors.bgPrimary : "#ffffff"} />
               ) : (
                 <>
-                  <ThemedText style={styles.signUpButtonText}>CREATE ACCOUNT</ThemedText>
-                  <IconSymbol name="arrow.right" size={18} color={Colors.bgPrimary} />
+                  <ThemedText style={[styles.signUpButtonText, { color: isDark ? colors.bgPrimary : "#ffffff" }]}>CREATE ACCOUNT</ThemedText>
+                  <IconSymbol name="arrow.right" size={18} color={isDark ? colors.bgPrimary : "#ffffff"} />
                 </>
               )}
             </Pressable>
@@ -207,10 +211,10 @@ export default function SignUpScreen() {
 
           {/* Footer */}
           <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.footer}>
-            <ThemedText style={styles.footerText}>Already have an account?</ThemedText>
+            <ThemedText style={[styles.footerText, { color: colors.textSecondary }]}>Already have an account?</ThemedText>
             <Link href="/(auth)/sign-in" asChild>
               <Pressable>
-                <ThemedText style={styles.footerLink}>Sign In</ThemedText>
+                <ThemedText style={[styles.footerLink, { color: colors.accent }]}>Sign In</ThemedText>
               </Pressable>
             </Link>
           </Animated.View>
@@ -241,7 +245,6 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 64,
     height: 64,
-    backgroundColor: Colors.accent,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
@@ -253,7 +256,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     textAlign: "center",
-    color: Colors.textSecondary,
     fontSize: 15,
   },
   form: {
@@ -262,42 +264,33 @@ const styles = StyleSheet.create({
   inputGroup: {
     gap: Spacing.sm,
   },
-  inputLabel: {
-    color: Colors.textSecondary,
-  },
+  inputLabel: {},
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    backgroundColor: Colors.bgCard,
     borderWidth: 1,
-    borderColor: Colors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
   },
   input: {
     flex: 1,
-    color: Colors.textPrimary,
     fontSize: 16,
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
     borderRadius: Radius.md,
     padding: Spacing.md,
   },
   errorText: {
-    color: Colors.error,
     fontSize: 14,
     flex: 1,
   },
   signUpButton: {
-    backgroundColor: Colors.accent,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.md,
     flexDirection: "row",
@@ -312,7 +305,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   signUpButtonText: {
-    color: Colors.bgPrimary,
     fontSize: 14,
     fontWeight: "700",
     letterSpacing: 1,
@@ -325,11 +317,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   footerText: {
-    color: Colors.textSecondary,
     fontSize: 14,
   },
   footerLink: {
-    color: Colors.accent,
     fontSize: 14,
     fontWeight: "600",
   },

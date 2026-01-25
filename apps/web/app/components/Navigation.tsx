@@ -7,6 +7,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { useState, useEffect, useRef } from "react";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Navigation() {
   const pathname = usePathname();
@@ -62,8 +63,8 @@ export function Navigation() {
       <nav
         className={`fixed top-0 left-0 right-0 z-[1000] transition-all duration-200 ${
           isScrolled
-            ? "bg-white shadow-sm"
-            : "bg-white/80 backdrop-blur-md"
+            ? "bg-bg-primary shadow-sm"
+            : "glass"
         }`}
       >
         <div className="flex items-center justify-between h-[var(--nav-height)] px-5 lg:px-8 max-w-[1400px] mx-auto">
@@ -95,7 +96,7 @@ export function Navigation() {
                   href={link.href}
                   className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
                     isActive(link.href)
-                      ? "bg-white text-text-primary shadow-sm"
+                      ? "bg-bg-primary text-text-primary shadow-sm"
                       : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
@@ -107,6 +108,8 @@ export function Navigation() {
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
+
             <AuthLoading>
               <div className="w-9 h-9 rounded-full bg-bg-tertiary animate-pulse" />
             </AuthLoading>
@@ -158,7 +161,7 @@ export function Navigation() {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-border overflow-hidden animate-fadeInDown">
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-bg-primary rounded-2xl shadow-lg border border-border overflow-hidden animate-fadeInDown">
                     <div className="p-4 bg-bg-secondary">
                       <p className="font-medium text-text-primary truncate">{user?.name || "User"}</p>
                       <p className="text-sm text-text-muted truncate">{user?.email}</p>
@@ -216,7 +219,7 @@ export function Navigation() {
               onClick={() => setMobileMenuOpen(false)}
             />
             <div className="fixed top-[var(--nav-height)] left-0 right-0 z-[950] lg:hidden animate-fadeInDown p-4">
-              <div className="bg-white rounded-2xl shadow-lg border border-border overflow-hidden">
+              <div className="bg-bg-primary rounded-2xl shadow-lg border border-border overflow-hidden">
                 <div className="p-2">
                   {navLinks.map((link) => (
                     <Link

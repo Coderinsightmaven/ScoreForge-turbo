@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Shadows, Spacing, Radius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/use-theme-color';
 
 function AnimatedPressable({
   children,
@@ -51,14 +52,6 @@ const SPORT_ICONS: Record<string, any> = {
   volleyball: 'volleyball.fill',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: Colors.textMuted,
-  registration: Colors.info,
-  active: Colors.success,
-  completed: Colors.accent,
-  cancelled: Colors.error,
-};
-
 // Tennis point display helper
 function getTennisPointDisplay(
   points: number[],
@@ -90,8 +83,8 @@ function getTennisPointDisplay(
   return pointLabels[Math.min(myPoints, 3)] ?? '40';
 }
 
-function getStatusBadgeStyle(status: string) {
-  const color = STATUS_COLORS[status] || Colors.textMuted;
+function getStatusBadgeStyle(status: string, statusColors: Record<string, string>, fallbackColor: string) {
+  const color = statusColors[status] || fallbackColor;
   return {
     backgroundColor: color + '20',
     borderColor: color + '40',
@@ -102,6 +95,16 @@ export default function TournamentDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const tournamentId = id as Id<'tournaments'>;
+  const colors = useThemeColors();
+
+  // Dynamic status colors based on theme
+  const statusColors: Record<string, string> = {
+    draft: colors.textMuted,
+    registration: colors.info,
+    active: colors.success,
+    completed: colors.accent,
+    cancelled: colors.error,
+  };
 
   const tournament = useQuery(api.tournaments.getTournament, { tournamentId });
   const bracket = useQuery(api.tournaments.getBracket, { tournamentId });
@@ -141,15 +144,15 @@ export default function TournamentDetailScreen() {
         showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol name="chevron.left" size={20} color={Colors.textPrimary} />
+          <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+            <IconSymbol name="chevron.left" size={20} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerContent}>
-            <View style={styles.sportIcon}>
+            <View style={[styles.sportIcon, { backgroundColor: colors.accentGlow, borderColor: colors.accent + '40' }]}>
               <IconSymbol
                 name={SPORT_ICONS[tournament.sport] || 'sportscourt'}
                 size={24}
-                color={Colors.accent}
+                color={colors.accent}
               />
             </View>
             <View style={styles.titleContainer}>
@@ -168,8 +171,8 @@ export default function TournamentDetailScreen() {
 
         {/* Status Badge */}
         <Animated.View entering={FadeInDown.duration(600).delay(150)} style={styles.statusRow}>
-          <View style={[styles.statusBadge, getStatusBadgeStyle(tournament.status)]}>
-            <ThemedText style={[styles.statusText, { color: STATUS_COLORS[tournament.status] }]}>
+          <View style={[styles.statusBadge, getStatusBadgeStyle(tournament.status, statusColors, colors.textMuted)]}>
+            <ThemedText style={[styles.statusText, { color: statusColors[tournament.status] }]}>
               {tournament.status.toUpperCase()}
             </ThemedText>
           </View>

@@ -171,8 +171,24 @@ export const volleyballState = v.object({
   history: v.optional(v.array(volleyballStateSnapshot)),
 });
 
+/**
+ * Theme preference values
+ */
+export const themePreference = v.union(
+  v.literal("light"),
+  v.literal("dark"),
+  v.literal("system")
+);
+
 export default defineSchema({
   ...authTables,
+
+  // User preferences - stores user settings like theme
+  userPreferences: defineTable({
+    userId: v.id("users"),
+    themePreference: themePreference,
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 
   // API keys for external access to public endpoints
   apiKeys: defineTable({

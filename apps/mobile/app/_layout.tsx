@@ -1,48 +1,62 @@
-import { Theme, ThemeProvider } from "@react-navigation/native";
+import { Theme, ThemeProvider as NavigationThemeProvider } from "@react-navigation/native";
 import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { ConvexProvider } from "@/providers/ConvexProvider";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { Colors } from "@/constants/theme";
 
-// ScoreForge Athletic Precision Theme
-const ScoreForgeTheme: Theme = {
-  dark: true,
-  colors: {
-    primary: Colors.accent,
-    background: Colors.bgPrimary,
-    card: Colors.bgCard,
-    text: Colors.textPrimary,
-    border: Colors.border,
-    notification: Colors.accent,
-  },
-  fonts: {
-    regular: {
-      fontFamily: "System",
-      fontWeight: "400",
+function createNavigationTheme(isDark: boolean): Theme {
+  const colors = isDark ? Colors.dark : Colors.light;
+  return {
+    dark: isDark,
+    colors: {
+      primary: colors.tint,
+      background: colors.background,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.tint,
     },
-    medium: {
-      fontFamily: "System",
-      fontWeight: "500",
+    fonts: {
+      regular: {
+        fontFamily: "System",
+        fontWeight: "400",
+      },
+      medium: {
+        fontFamily: "System",
+        fontWeight: "500",
+      },
+      bold: {
+        fontFamily: "System",
+        fontWeight: "700",
+      },
+      heavy: {
+        fontFamily: "System",
+        fontWeight: "800",
+      },
     },
-    bold: {
-      fontFamily: "System",
-      fontWeight: "700",
-    },
-    heavy: {
-      fontFamily: "System",
-      fontWeight: "800",
-    },
-  },
-};
+  };
+}
+
+function AppContent() {
+  const { isDark } = useTheme();
+  const navigationTheme = createNavigationTheme(isDark);
+
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <Slot />
+      <StatusBar style={isDark ? "light" : "dark"} />
+    </NavigationThemeProvider>
+  );
+}
 
 export default function RootLayout() {
   return (
     <ConvexProvider>
-      <ThemeProvider value={ScoreForgeTheme}>
-        <Slot />
-        <StatusBar style="light" />
+      <ThemeProvider>
+        <AppContent />
       </ThemeProvider>
     </ConvexProvider>
   );

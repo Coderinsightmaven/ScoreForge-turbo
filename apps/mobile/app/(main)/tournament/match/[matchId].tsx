@@ -19,6 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Shadows, Spacing, Radius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/use-theme-color';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -133,22 +134,24 @@ function ScoringZone({
   );
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: Colors.textMuted,
-  scheduled: Colors.info,
-  live: Colors.success,
-  completed: Colors.accent,
-  bye: Colors.textMuted,
-};
-
 export default function MatchScoreScreen() {
   const insets = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const id = matchId as Id<'matches'>;
+  const colors = useThemeColors();
 
   const match = useQuery(api.matches.getMatch, { matchId: id });
 
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Dynamic status colors based on theme
+  const statusColors: Record<string, string> = {
+    pending: colors.textMuted,
+    scheduled: colors.info,
+    live: colors.success,
+    completed: colors.accent,
+    bye: colors.textMuted,
+  };
 
   const startMatch = useMutation(api.matches.startMatch);
 
@@ -281,12 +284,12 @@ export default function MatchScoreScreen() {
         <View style={[styles.centerScoreboard, { paddingTop: insets.top }]}>
           {/* Mini Header - Back left, Live right */}
           <View style={styles.miniHeader}>
-            <Pressable onPress={() => router.back()} style={styles.miniBackButton}>
-              <IconSymbol name="chevron.left" size={18} color={Colors.textPrimary} />
+            <Pressable onPress={() => router.back()} style={[styles.miniBackButton, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+              <IconSymbol name="chevron.left" size={18} color={colors.textPrimary} />
             </Pressable>
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <ThemedText style={styles.liveText}>LIVE</ThemedText>
+            <View style={[styles.liveBadge, { backgroundColor: colors.success + '20' }]}>
+              <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+              <ThemedText style={[styles.liveText, { color: colors.success }]}>LIVE</ThemedText>
             </View>
           </View>
 
@@ -439,10 +442,10 @@ export default function MatchScoreScreen() {
         {/* Undo Button - Bottom Left */}
         <Pressable
           onPress={handleUndo}
-          style={[styles.cornerUndoButton, { bottom: insets.bottom + Spacing.lg }]}
+          style={[styles.cornerUndoButton, { bottom: insets.bottom + Spacing.lg, backgroundColor: colors.bgCard, borderColor: colors.border }]}
           disabled={isUpdating}>
-          <IconSymbol name="arrow.uturn.backward" size={20} color={Colors.textPrimary} />
-          <ThemedText style={styles.cornerUndoText}>Undo</ThemedText>
+          <IconSymbol name="arrow.uturn.backward" size={20} color={colors.textPrimary} />
+          <ThemedText style={[styles.cornerUndoText, { color: colors.textPrimary }]}>Undo</ThemedText>
         </Pressable>
       </ThemedView>
     );
@@ -457,8 +460,8 @@ export default function MatchScoreScreen() {
         showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol name="chevron.left" size={20} color={Colors.textPrimary} />
+          <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+            <IconSymbol name="chevron.left" size={20} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerCenter}>
             <ThemedText type="muted" style={styles.matchInfo}>
@@ -474,19 +477,19 @@ export default function MatchScoreScreen() {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: STATUS_COLORS[match.status] + '20' },
+              { backgroundColor: statusColors[match.status] + '20' },
             ]}>
             <View
-              style={[styles.statusDot, { backgroundColor: STATUS_COLORS[match.status] }]}
+              style={[styles.statusDot, { backgroundColor: statusColors[match.status] }]}
             />
             <ThemedText
-              style={[styles.statusText, { color: STATUS_COLORS[match.status] }]}>
+              style={[styles.statusText, { color: statusColors[match.status] }]}>
               {match.status === 'live' ? 'LIVE' : match.status.toUpperCase()}
             </ThemedText>
           </View>
           {isSportSpecific && (
-            <View style={[styles.statusBadge, { backgroundColor: Colors.accent + '20' }]}>
-              <ThemedText style={[styles.statusText, { color: Colors.accent }]}>
+            <View style={[styles.statusBadge, { backgroundColor: colors.accent + '20' }]}>
+              <ThemedText style={[styles.statusText, { color: colors.accent }]}>
                 {isTennis ? '🎾 Tennis' : '🏐 Volleyball'}
               </ThemedText>
             </View>

@@ -16,20 +16,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, Shadows, Spacing, Radius } from '@/constants/theme';
+import { ThemeToggleWithLabel } from '@/components/ui/theme-toggle';
+import { Shadows, Spacing, Radius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/use-theme-color';
 
 const SPORT_ICONS: Record<string, any> = {
   tennis: 'tennisball.fill',
   volleyball: 'volleyball.fill',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: Colors.textMuted,
-  registration: Colors.info,
-  active: Colors.success,
-  completed: Colors.accent,
-  cancelled: Colors.error,
-};
 
 // Tennis point display helper
 function getTennisPointDisplay(
@@ -95,6 +90,16 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuthActions();
   const [signingOut, setSigningOut] = useState(false);
+  const colors = useThemeColors();
+
+  // Dynamic status colors based on theme
+  const statusColors: Record<string, string> = {
+    draft: colors.textMuted,
+    registration: colors.info,
+    active: colors.success,
+    completed: colors.accent,
+    cancelled: colors.error,
+  };
 
   const user = useQuery(api.users.currentUser);
   const tournaments = useQuery(api.tournaments.listMyTournaments, {});
@@ -144,28 +149,31 @@ export default function HomeScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoIcon}>
-              <IconSymbol name="bolt.fill" size={20} color={Colors.bgPrimary} />
+            <View style={[styles.logoIcon, { backgroundColor: colors.accent }]}>
+              <IconSymbol name="bolt.fill" size={20} color="#ffffff" />
             </View>
-            <ThemedText style={styles.logoText}>SCOREFORGE</ThemedText>
+            <ThemedText style={[styles.logoText, { color: colors.textPrimary }]}>SCOREFORGE</ThemedText>
           </View>
-          <Pressable onPress={handleSignOut} disabled={signingOut}>
-            {signingOut ? (
-              <ActivityIndicator color={Colors.accent} size="small" />
-            ) : (
-              <View style={styles.avatar}>
-                <ThemedText style={styles.avatarText}>{initials}</ThemedText>
-              </View>
-            )}
-          </Pressable>
+          <View style={styles.headerRight}>
+            <ThemeToggleWithLabel />
+            <Pressable onPress={handleSignOut} disabled={signingOut}>
+              {signingOut ? (
+                <ActivityIndicator color={colors.accent} size="small" />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.accentGlow, borderColor: colors.accent }]}>
+                  <ThemedText style={[styles.avatarText, { color: colors.accent }]}>{initials}</ThemedText>
+                </View>
+              )}
+            </Pressable>
+          </View>
         </Animated.View>
 
         {/* Live Matches Section */}
         <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <ThemedText type="label" style={styles.liveLabel}>
+              <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+              <ThemedText type="label" style={[styles.liveLabel, { color: colors.success }]}>
                 LIVE MATCHES
               </ThemedText>
             </View>
@@ -175,12 +183,12 @@ export default function HomeScreen() {
           </View>
 
           {liveMatches === undefined ? (
-            <View style={styles.loadingCard}>
-              <ActivityIndicator color={Colors.accent} />
+            <View style={[styles.loadingCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+              <ActivityIndicator color={colors.accent} />
             </View>
           ) : liveMatches.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <IconSymbol name="sportscourt" size={32} color={Colors.textMuted} />
+            <View style={[styles.emptyCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+              <IconSymbol name="sportscourt" size={32} color={colors.textMuted} />
               <ThemedText type="muted" style={styles.emptyText}>
                 No live matches right now
               </ThemedText>
@@ -206,32 +214,32 @@ export default function HomeScreen() {
                     key={match._id}
                     entering={FadeInRight.duration(400).delay(index * 50)}>
                     <AnimatedPressable
-                      style={styles.liveMatchCard}
+                      style={[styles.liveMatchCard, { backgroundColor: colors.bgCard, borderColor: colors.success + '50' }]}
                       onPress={() => router.push(`/(main)/tournament/match/${match._id}`)}>
                       {/* Header with tournament name and live badge */}
-                      <View style={styles.matchCardHeader}>
+                      <View style={[styles.matchCardHeader, { backgroundColor: colors.bgTertiary, borderBottomColor: colors.border }]}>
                         <View style={styles.matchCardHeaderLeft}>
                           <IconSymbol
                             name={SPORT_ICONS[match.sport] || 'sportscourt'}
                             size={14}
-                            color={Colors.textMuted}
+                            color={colors.textMuted}
                           />
-                          <ThemedText style={styles.matchTournamentName} numberOfLines={1}>
+                          <ThemedText style={[styles.matchTournamentName, { color: colors.textMuted }]} numberOfLines={1}>
                             {match.tournamentName}
                           </ThemedText>
                         </View>
                         <View style={styles.liveBadge}>
-                          <View style={styles.liveDotSmall} />
+                          <View style={[styles.liveDotSmall, { backgroundColor: colors.success }]} />
                         </View>
                       </View>
 
                       {/* Scoreboard */}
                       <View style={styles.scoreboard}>
                         {/* Player 1 Row */}
-                        <View style={styles.scoreboardRow}>
+                        <View style={[styles.scoreboardRow, { borderBottomColor: colors.border + '50' }]}>
                           <View style={styles.playerInfo}>
-                            {isServing1 && <View style={styles.servingDot} />}
-                            <ThemedText style={styles.playerName} numberOfLines={1}>
+                            {isServing1 && <View style={[styles.servingDot, { backgroundColor: colors.success }]} />}
+                            <ThemedText style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
                               {match.participant1?.displayName || 'TBD'}
                             </ThemedText>
                           </View>
@@ -239,19 +247,19 @@ export default function HomeScreen() {
                             {hasTennis && match.tennisState ? (
                               <>
                                 {match.tennisState.sets.map((set: number[], i: number) => (
-                                  <View key={i} style={styles.setScore}>
-                                    <ThemedText style={styles.setScoreText}>
+                                  <View key={i} style={[styles.setScore, { backgroundColor: colors.bgTertiary }]}>
+                                    <ThemedText style={[styles.setScoreText, { color: colors.textSecondary }]}>
                                       {set[0] ?? 0}
                                     </ThemedText>
                                   </View>
                                 ))}
-                                <View style={[styles.setScore, styles.currentSet]}>
-                                  <ThemedText style={styles.currentSetText}>
+                                <View style={[styles.setScore, styles.currentSet, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '40' }]}>
+                                  <ThemedText style={[styles.currentSetText, { color: colors.accent }]}>
                                     {match.tennisState.currentSetGames[0] ?? 0}
                                   </ThemedText>
                                 </View>
-                                <View style={styles.gameScore}>
-                                  <ThemedText style={styles.gameScoreText}>
+                                <View style={[styles.gameScore, { backgroundColor: colors.success + '15' }]}>
+                                  <ThemedText style={[styles.gameScoreText, { color: colors.success }]}>
                                     {getTennisPointDisplay(
                                       match.tennisState.currentGamePoints,
                                       0,
@@ -264,21 +272,21 @@ export default function HomeScreen() {
                             ) : hasVolleyball && match.volleyballState ? (
                               <>
                                 {match.volleyballState.sets.map((set: number[], i: number) => (
-                                  <View key={i} style={styles.setScore}>
-                                    <ThemedText style={styles.setScoreText}>
+                                  <View key={i} style={[styles.setScore, { backgroundColor: colors.bgTertiary }]}>
+                                    <ThemedText style={[styles.setScoreText, { color: colors.textSecondary }]}>
                                       {set[0] ?? 0}
                                     </ThemedText>
                                   </View>
                                 ))}
-                                <View style={[styles.setScore, styles.currentSet]}>
-                                  <ThemedText style={styles.currentSetText}>
+                                <View style={[styles.setScore, styles.currentSet, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '40' }]}>
+                                  <ThemedText style={[styles.currentSetText, { color: colors.accent }]}>
                                     {match.volleyballState.currentSetPoints[0] ?? 0}
                                   </ThemedText>
                                 </View>
                               </>
                             ) : (
-                              <View style={styles.simpleScore}>
-                                <ThemedText style={styles.simpleScoreText}>
+                              <View style={[styles.simpleScore, { backgroundColor: colors.accent + '20' }]}>
+                                <ThemedText style={[styles.simpleScoreText, { color: colors.accent }]}>
                                   {match.participant1Score}
                                 </ThemedText>
                               </View>
@@ -289,8 +297,8 @@ export default function HomeScreen() {
                         {/* Player 2 Row */}
                         <View style={[styles.scoreboardRow, styles.scoreboardRowBottom]}>
                           <View style={styles.playerInfo}>
-                            {isServing2 && <View style={styles.servingDot} />}
-                            <ThemedText style={styles.playerName} numberOfLines={1}>
+                            {isServing2 && <View style={[styles.servingDot, { backgroundColor: colors.success }]} />}
+                            <ThemedText style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
                               {match.participant2?.displayName || 'TBD'}
                             </ThemedText>
                           </View>
@@ -298,19 +306,19 @@ export default function HomeScreen() {
                             {hasTennis && match.tennisState ? (
                               <>
                                 {match.tennisState.sets.map((set: number[], i: number) => (
-                                  <View key={i} style={styles.setScore}>
-                                    <ThemedText style={styles.setScoreText}>
+                                  <View key={i} style={[styles.setScore, { backgroundColor: colors.bgTertiary }]}>
+                                    <ThemedText style={[styles.setScoreText, { color: colors.textSecondary }]}>
                                       {set[1] ?? 0}
                                     </ThemedText>
                                   </View>
                                 ))}
-                                <View style={[styles.setScore, styles.currentSet]}>
-                                  <ThemedText style={styles.currentSetText}>
+                                <View style={[styles.setScore, styles.currentSet, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '40' }]}>
+                                  <ThemedText style={[styles.currentSetText, { color: colors.accent }]}>
                                     {match.tennisState.currentSetGames[1] ?? 0}
                                   </ThemedText>
                                 </View>
-                                <View style={styles.gameScore}>
-                                  <ThemedText style={styles.gameScoreText}>
+                                <View style={[styles.gameScore, { backgroundColor: colors.success + '15' }]}>
+                                  <ThemedText style={[styles.gameScoreText, { color: colors.success }]}>
                                     {getTennisPointDisplay(
                                       match.tennisState.currentGamePoints,
                                       1,
@@ -323,21 +331,21 @@ export default function HomeScreen() {
                             ) : hasVolleyball && match.volleyballState ? (
                               <>
                                 {match.volleyballState.sets.map((set: number[], i: number) => (
-                                  <View key={i} style={styles.setScore}>
-                                    <ThemedText style={styles.setScoreText}>
+                                  <View key={i} style={[styles.setScore, { backgroundColor: colors.bgTertiary }]}>
+                                    <ThemedText style={[styles.setScoreText, { color: colors.textSecondary }]}>
                                       {set[1] ?? 0}
                                     </ThemedText>
                                   </View>
                                 ))}
-                                <View style={[styles.setScore, styles.currentSet]}>
-                                  <ThemedText style={styles.currentSetText}>
+                                <View style={[styles.setScore, styles.currentSet, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '40' }]}>
+                                  <ThemedText style={[styles.currentSetText, { color: colors.accent }]}>
                                     {match.volleyballState.currentSetPoints[1] ?? 0}
                                   </ThemedText>
                                 </View>
                               </>
                             ) : (
-                              <View style={styles.simpleScore}>
-                                <ThemedText style={styles.simpleScoreText}>
+                              <View style={[styles.simpleScore, { backgroundColor: colors.accent + '20' }]}>
+                                <ThemedText style={[styles.simpleScoreText, { color: colors.accent }]}>
                                   {match.participant2Score}
                                 </ThemedText>
                               </View>
@@ -356,7 +364,7 @@ export default function HomeScreen() {
         {/* My Tournaments Section */}
         <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <ThemedText type="label" style={styles.sectionLabel}>
+            <ThemedText type="label" style={[styles.sectionLabel, { color: colors.accent }]}>
               MY TOURNAMENTS
             </ThemedText>
             {activeTournaments && activeTournaments.length > 0 && (
@@ -365,12 +373,12 @@ export default function HomeScreen() {
           </View>
 
           {tournaments === undefined ? (
-            <View style={styles.loadingCard}>
-              <ActivityIndicator color={Colors.accent} />
+            <View style={[styles.loadingCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+              <ActivityIndicator color={colors.accent} />
             </View>
           ) : activeTournaments && activeTournaments.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <IconSymbol name="trophy" size={32} color={Colors.textMuted} />
+            <View style={[styles.emptyCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+              <IconSymbol name="trophy" size={32} color={colors.textMuted} />
               <ThemedText type="muted" style={styles.emptyText}>
                 No active tournaments
               </ThemedText>
@@ -385,14 +393,14 @@ export default function HomeScreen() {
                   key={tournament._id}
                   entering={FadeInRight.duration(400).delay(index * 50)}>
                   <AnimatedPressable
-                    style={styles.tournamentCard}
+                    style={[styles.tournamentCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
                     onPress={() => router.push(`/(main)/tournament/${tournament._id}`)}>
                     <View style={styles.tournamentCardLeft}>
-                      <View style={styles.sportIconContainer}>
+                      <View style={[styles.sportIconContainer, { backgroundColor: colors.accentGlow, borderColor: colors.accent + '40' }]}>
                         <IconSymbol
                           name={SPORT_ICONS[tournament.sport] || 'sportscourt'}
                           size={24}
-                          color={Colors.accent}
+                          color={colors.accent}
                         />
                       </View>
                       <View style={styles.tournamentInfo}>
@@ -408,15 +416,15 @@ export default function HomeScreen() {
                       <View
                         style={[
                           styles.statusBadge,
-                          { backgroundColor: STATUS_COLORS[tournament.status] + '20' },
+                          { backgroundColor: statusColors[tournament.status] + '20' },
                         ]}>
                         <ThemedText
-                          style={[styles.statusText, { color: STATUS_COLORS[tournament.status] }]}>
+                          style={[styles.statusText, { color: statusColors[tournament.status] }]}>
                           {tournament.status === 'active' ? 'LIVE' : tournament.status.toUpperCase()}
                         </ThemedText>
                       </View>
                       {tournament.liveMatchCount > 0 && (
-                        <ThemedText style={styles.matchCount}>
+                        <ThemedText style={[styles.matchCount, { color: colors.success }]}>
                           {tournament.liveMatchCount} live
                         </ThemedText>
                       )}
@@ -431,7 +439,7 @@ export default function HomeScreen() {
         {/* All Tournaments (including completed) */}
         {tournaments && tournaments.length > (activeTournaments?.length || 0) && (
           <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.section}>
-            <ThemedText type="label" style={styles.sectionLabel}>
+            <ThemedText type="label" style={[styles.sectionLabel, { color: colors.accent }]}>
               PAST TOURNAMENTS
             </ThemedText>
             <View style={styles.tournamentsList}>
@@ -442,20 +450,20 @@ export default function HomeScreen() {
                     key={tournament._id}
                     entering={FadeInRight.duration(400).delay(index * 50)}>
                     <AnimatedPressable
-                      style={[styles.tournamentCard, styles.tournamentCardPast]}
+                      style={[styles.tournamentCard, styles.tournamentCardPast, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
                       onPress={() => router.push(`/(main)/tournament/${tournament._id}`)}>
                       <View style={styles.tournamentCardLeft}>
-                        <View style={[styles.sportIconContainer, styles.sportIconPast]}>
+                        <View style={[styles.sportIconContainer, styles.sportIconPast, { backgroundColor: colors.bgTertiary, borderColor: colors.border }]}>
                           <IconSymbol
                             name={SPORT_ICONS[tournament.sport] || 'sportscourt'}
                             size={24}
-                            color={Colors.textMuted}
+                            color={colors.textMuted}
                           />
                         </View>
                         <View style={styles.tournamentInfo}>
                           <ThemedText
                             type="subtitle"
-                            style={[styles.tournamentTitle, styles.tournamentTitlePast]}
+                            style={[styles.tournamentTitle, styles.tournamentTitlePast, { color: colors.textSecondary }]}
                             numberOfLines={1}>
                             {tournament.name}
                           </ThemedText>
@@ -467,10 +475,10 @@ export default function HomeScreen() {
                       <View
                         style={[
                           styles.statusBadge,
-                          { backgroundColor: STATUS_COLORS[tournament.status] + '20' },
+                          { backgroundColor: statusColors[tournament.status] + '20' },
                         ]}>
                         <ThemedText
-                          style={[styles.statusText, { color: STATUS_COLORS[tournament.status] }]}>
+                          style={[styles.statusText, { color: statusColors[tournament.status] }]}>
                           {tournament.status.toUpperCase()}
                         </ThemedText>
                       </View>
@@ -504,6 +512,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -512,7 +525,6 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 36,
     height: 36,
-    backgroundColor: Colors.accent,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -521,22 +533,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 2,
-    color: Colors.textPrimary,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.accentGlow,
     borderWidth: 2,
-    borderColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.accent,
   },
   section: {
     marginBottom: Spacing.xl,
@@ -547,9 +555,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  sectionLabel: {
-    color: Colors.accent,
-  },
+  sectionLabel: {},
   liveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -559,24 +565,17 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.success,
   },
-  liveLabel: {
-    color: Colors.success,
-  },
+  liveLabel: {},
   loadingCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
   },
   emptyCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
@@ -592,10 +591,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   liveMatchCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.success + '50',
     overflow: 'hidden',
     ...Shadows.sm,
   },
@@ -605,9 +602,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
-    backgroundColor: Colors.bgTertiary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   matchCardHeaderLeft: {
     flexDirection: 'row',
@@ -617,7 +612,6 @@ const styles = StyleSheet.create({
   },
   matchTournamentName: {
     fontSize: 11,
-    color: Colors.textMuted,
     fontWeight: '500',
   },
   liveBadge: {
@@ -629,7 +623,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.success,
   },
   scoreboard: {
     paddingHorizontal: Spacing.sm,
@@ -640,7 +633,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border + '50',
   },
   scoreboardRowBottom: {
     borderBottomWidth: 0,
@@ -655,12 +647,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.success,
   },
   playerName: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textPrimary,
     flex: 1,
   },
   scoreSection: {
@@ -673,59 +663,48 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.bgTertiary,
     borderRadius: 4,
   },
   setScoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   currentSet: {
-    backgroundColor: Colors.accent + '20',
     borderWidth: 1,
-    borderColor: Colors.accent + '40',
   },
   currentSetText: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.accent,
   },
   gameScore: {
     width: 32,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.success + '15',
     borderRadius: 4,
     marginLeft: 4,
   },
   gameScoreText: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.success,
   },
   simpleScore: {
     width: 36,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.accent + '20',
     borderRadius: 4,
   },
   simpleScoreText: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.accent,
   },
   tournamentsList: {
     gap: Spacing.sm,
   },
   tournamentCard: {
-    backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -744,17 +723,12 @@ const styles = StyleSheet.create({
   sportIconContainer: {
     width: 44,
     height: 44,
-    backgroundColor: Colors.accentGlow,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.borderAccent,
   },
-  sportIconPast: {
-    backgroundColor: Colors.bgTertiary,
-    borderColor: Colors.border,
-  },
+  sportIconPast: {},
   tournamentInfo: {
     flex: 1,
   },
@@ -762,9 +736,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 2,
   },
-  tournamentTitlePast: {
-    color: Colors.textSecondary,
-  },
+  tournamentTitlePast: {},
   tournamentMeta: {
     fontSize: 12,
   },
@@ -784,7 +756,6 @@ const styles = StyleSheet.create({
   },
   matchCount: {
     fontSize: 11,
-    color: Colors.success,
     fontWeight: '600',
   },
 });
