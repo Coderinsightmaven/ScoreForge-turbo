@@ -95,7 +95,6 @@ export default function HomeScreen() {
   // Dynamic status colors based on theme
   const statusColors: Record<string, string> = {
     draft: colors.textMuted,
-    registration: colors.info,
     active: colors.success,
     completed: colors.accent,
     cancelled: colors.error,
@@ -137,7 +136,7 @@ export default function HomeScreen() {
 
   // Filter tournaments to show active ones with matches to score
   const activeTournaments = tournaments?.filter(
-    (t) => t.status === 'active' || t.status === 'registration'
+    (t) => t.status === 'active'
   );
 
   return (
@@ -168,32 +167,94 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Live Matches Section */}
+        {/* My Tournaments Section */}
         <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.liveIndicator}>
-              <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
-              <ThemedText type="label" style={[styles.liveLabel, { color: colors.success }]}>
-                LIVE MATCHES
-              </ThemedText>
-            </View>
-            {liveMatches && liveMatches.length > 0 && (
-              <ThemedText type="muted">{liveMatches.length} active</ThemedText>
+            <ThemedText type="label" style={[styles.sectionLabel, { color: colors.accent }]}>
+              MY TOURNAMENTS
+            </ThemedText>
+            {activeTournaments && activeTournaments.length > 0 && (
+              <ThemedText type="muted">{activeTournaments.length} active</ThemedText>
             )}
           </View>
 
-          {liveMatches === undefined ? (
+          {tournaments === undefined ? (
             <View style={[styles.loadingCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
               <ActivityIndicator color={colors.accent} />
             </View>
-          ) : liveMatches.length === 0 ? (
+          ) : activeTournaments && activeTournaments.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-              <IconSymbol name="sportscourt" size={32} color={colors.textMuted} />
+              <IconSymbol name="trophy" size={32} color={colors.textMuted} />
               <ThemedText type="muted" style={styles.emptyText}>
-                No live matches right now
+                No active tournaments
+              </ThemedText>
+              <ThemedText type="muted" style={styles.emptySubtext}>
+                Join an organization to see tournaments
               </ThemedText>
             </View>
           ) : (
+            <View style={styles.tournamentsList}>
+              {activeTournaments?.map((tournament, index) => (
+                <Animated.View
+                  key={tournament._id}
+                  entering={FadeInRight.duration(400).delay(index * 50)}>
+                  <AnimatedPressable
+                    style={[styles.tournamentCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+                    onPress={() => router.push(`/(main)/tournament/${tournament._id}`)}>
+                    <View style={styles.tournamentCardLeft}>
+                      <View style={[styles.sportIconContainer, { backgroundColor: colors.accentGlow, borderColor: colors.accent + '40' }]}>
+                        <IconSymbol
+                          name={SPORT_ICONS[tournament.sport] || 'sportscourt'}
+                          size={24}
+                          color={colors.accent}
+                        />
+                      </View>
+                      <View style={styles.tournamentInfo}>
+                        <ThemedText type="subtitle" style={styles.tournamentTitle} numberOfLines={1}>
+                          {tournament.name}
+                        </ThemedText>
+                        <ThemedText type="muted" style={styles.tournamentMeta}>
+                          {tournament.organizationName}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    <View style={styles.tournamentCardRight}>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          { backgroundColor: statusColors[tournament.status] + '20' },
+                        ]}>
+                        <ThemedText
+                          style={[styles.statusText, { color: statusColors[tournament.status] }]}>
+                          {tournament.status === 'active' ? 'LIVE' : tournament.status.toUpperCase()}
+                        </ThemedText>
+                      </View>
+                      {tournament.liveMatchCount > 0 && (
+                        <ThemedText style={[styles.matchCount, { color: colors.success }]}>
+                          {tournament.liveMatchCount} live
+                        </ThemedText>
+                      )}
+                    </View>
+                  </AnimatedPressable>
+                </Animated.View>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Live Matches Section - only show if there are live matches */}
+        {liveMatches && liveMatches.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.liveIndicator}>
+                <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                <ThemedText type="label" style={[styles.liveLabel, { color: colors.success }]}>
+                  LIVE MATCHES
+                </ThemedText>
+              </View>
+              <ThemedText type="muted">{liveMatches.length} active</ThemedText>
+            </View>
+
             <View style={styles.matchesList}>
               {liveMatches.map((match, index) => {
                 const hasTennis = match.sport === 'tennis' && match.tennisState;
@@ -358,83 +419,8 @@ export default function HomeScreen() {
                 );
               })}
             </View>
-          )}
-        </Animated.View>
-
-        {/* My Tournaments Section */}
-        <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="label" style={[styles.sectionLabel, { color: colors.accent }]}>
-              MY TOURNAMENTS
-            </ThemedText>
-            {activeTournaments && activeTournaments.length > 0 && (
-              <ThemedText type="muted">{activeTournaments.length} active</ThemedText>
-            )}
-          </View>
-
-          {tournaments === undefined ? (
-            <View style={[styles.loadingCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-              <ActivityIndicator color={colors.accent} />
-            </View>
-          ) : activeTournaments && activeTournaments.length === 0 ? (
-            <View style={[styles.emptyCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-              <IconSymbol name="trophy" size={32} color={colors.textMuted} />
-              <ThemedText type="muted" style={styles.emptyText}>
-                No active tournaments
-              </ThemedText>
-              <ThemedText type="muted" style={styles.emptySubtext}>
-                Join an organization to see tournaments
-              </ThemedText>
-            </View>
-          ) : (
-            <View style={styles.tournamentsList}>
-              {activeTournaments?.map((tournament, index) => (
-                <Animated.View
-                  key={tournament._id}
-                  entering={FadeInRight.duration(400).delay(index * 50)}>
-                  <AnimatedPressable
-                    style={[styles.tournamentCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
-                    onPress={() => router.push(`/(main)/tournament/${tournament._id}`)}>
-                    <View style={styles.tournamentCardLeft}>
-                      <View style={[styles.sportIconContainer, { backgroundColor: colors.accentGlow, borderColor: colors.accent + '40' }]}>
-                        <IconSymbol
-                          name={SPORT_ICONS[tournament.sport] || 'sportscourt'}
-                          size={24}
-                          color={colors.accent}
-                        />
-                      </View>
-                      <View style={styles.tournamentInfo}>
-                        <ThemedText type="subtitle" style={styles.tournamentTitle} numberOfLines={1}>
-                          {tournament.name}
-                        </ThemedText>
-                        <ThemedText type="muted" style={styles.tournamentMeta}>
-                          {tournament.organizationName}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.tournamentCardRight}>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          { backgroundColor: statusColors[tournament.status] + '20' },
-                        ]}>
-                        <ThemedText
-                          style={[styles.statusText, { color: statusColors[tournament.status] }]}>
-                          {tournament.status === 'active' ? 'LIVE' : tournament.status.toUpperCase()}
-                        </ThemedText>
-                      </View>
-                      {tournament.liveMatchCount > 0 && (
-                        <ThemedText style={[styles.matchCount, { color: colors.success }]}>
-                          {tournament.liveMatchCount} live
-                        </ThemedText>
-                      )}
-                    </View>
-                  </AnimatedPressable>
-                </Animated.View>
-              ))}
-            </View>
-          )}
-        </Animated.View>
+          </Animated.View>
+        )}
 
         {/* All Tournaments (including completed) */}
         {tournaments && tournaments.length > (activeTournaments?.length || 0) && (

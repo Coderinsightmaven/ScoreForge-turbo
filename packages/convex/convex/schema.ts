@@ -28,7 +28,6 @@ export const tournamentFormats = v.union(
  */
 export const tournamentStatus = v.union(
   v.literal("draft"),
-  v.literal("registration"),
   v.literal("active"),
   v.literal("completed"),
   v.literal("cancelled")
@@ -260,8 +259,6 @@ export default defineSchema({
     maxParticipants: v.number(),
     status: tournamentStatus,
     // Dates
-    registrationStartDate: v.optional(v.number()),
-    registrationEndDate: v.optional(v.number()),
     startDate: v.optional(v.number()),
     endDate: v.optional(v.number()),
     // Scoring configuration (for round robin points)

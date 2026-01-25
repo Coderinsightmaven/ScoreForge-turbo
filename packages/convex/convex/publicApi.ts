@@ -361,7 +361,6 @@ export const listTournaments = query({
     status: v.optional(
       v.union(
         v.literal("draft"),
-        v.literal("registration"),
         v.literal("active"),
         v.literal("completed"),
         v.literal("cancelled")
@@ -379,7 +378,6 @@ export const listTournaments = query({
           format: tournamentFormats,
           status: v.union(
             v.literal("draft"),
-            v.literal("registration"),
             v.literal("active"),
             v.literal("completed"),
             v.literal("cancelled")

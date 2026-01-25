@@ -1,11 +1,27 @@
 import { Theme, ThemeProvider as NavigationThemeProvider } from "@react-navigation/native";
 import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
+import { useFonts } from "expo-font";
+import {
+  DMSerifDisplay_400Regular,
+} from "@expo-google-fonts/dm-serif-display";
+import {
+  Outfit_300Light,
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from "@expo-google-fonts/outfit";
+import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { ConvexProvider } from "@/providers/ConvexProvider";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
+
+// Prevent splash screen from auto-hiding until fonts are loaded
+SplashScreen.preventAutoHideAsync();
 
 function createNavigationTheme(isDark: boolean): Theme {
   const colors = isDark ? Colors.dark : Colors.light;
@@ -21,19 +37,19 @@ function createNavigationTheme(isDark: boolean): Theme {
     },
     fonts: {
       regular: {
-        fontFamily: "System",
+        fontFamily: Fonts.body,
         fontWeight: "400",
       },
       medium: {
-        fontFamily: "System",
+        fontFamily: Fonts.bodyMedium,
         fontWeight: "500",
       },
       bold: {
-        fontFamily: "System",
+        fontFamily: Fonts.bodyBold,
         fontWeight: "700",
       },
       heavy: {
-        fontFamily: "System",
+        fontFamily: Fonts.bodyBold,
         fontWeight: "800",
       },
     },
@@ -53,6 +69,26 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    DMSerifDisplay_400Regular,
+    Outfit_300Light,
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Wait for fonts to load before rendering
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <ConvexProvider>
       <ThemeProvider>

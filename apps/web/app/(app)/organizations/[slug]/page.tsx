@@ -186,7 +186,6 @@ function TournamentsTab({
 
   const statusColors: Record<string, string> = {
     draft: "text-text-muted bg-bg-elevated border-border",
-    registration: "text-info bg-info/10 border-info/30",
     active: "text-success bg-success/10 border-success/30",
     completed: "text-text-secondary bg-bg-card border-border",
     cancelled: "text-red bg-red/10 border-red/30",

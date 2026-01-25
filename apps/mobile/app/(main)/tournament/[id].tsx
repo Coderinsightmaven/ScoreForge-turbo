@@ -100,7 +100,6 @@ export default function TournamentDetailScreen() {
   // Dynamic status colors based on theme
   const statusColors: Record<string, string> = {
     draft: colors.textMuted,
-    registration: colors.info,
     active: colors.success,
     completed: colors.accent,
     cancelled: colors.error,
@@ -596,8 +595,8 @@ export default function TournamentDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Empty state for draft/registration */}
-        {(tournament.status === 'draft' || tournament.status === 'registration') && (
+        {/* Empty state for draft */}
+        {tournament.status === 'draft' && (
           <Animated.View entering={FadeInDown.duration(600).delay(250)} style={styles.emptyState}>
             <IconSymbol name="sportscourt" size={48} color={Colors.textMuted} />
             <ThemedText type="muted" style={styles.emptyText}>

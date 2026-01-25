@@ -7,6 +7,26 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { use } from "react";
 
+/**
+ * Format a full name to abbreviated format (e.g., "Joe Berry" -> "J. Berry")
+ */
+function formatNameAbbreviated(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return fullName; // Single name, return as-is
+  }
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(" ");
+  return `${firstName?.[0]?.toUpperCase() ?? ""}. ${lastName}`;
+}
+
+/**
+ * Format doubles display name (e.g., "J. Berry / M. Lorenz")
+ */
+function formatDoublesDisplayName(player1: string, player2: string): string {
+  return `${formatNameAbbreviated(player1)} / ${formatNameAbbreviated(player2)}`;
+}
+
 export default function AddParticipantPage({
   params,
 }: {
@@ -44,9 +64,9 @@ export default function AddParticipantPage({
     return <NotAuthorized tournamentId={tournamentId} />;
   }
 
-  const canRegister = tournament.status === "draft" || tournament.status === "registration";
+  const canRegister = tournament.status === "draft";
   if (!canRegister) {
-    return <RegistrationClosed tournamentId={tournamentId} />;
+    return <TournamentNotDraft tournamentId={tournamentId} />;
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -250,7 +270,7 @@ export default function AddParticipantPage({
                     <div className="px-4 py-3 bg-accent/5 border border-accent/20 rounded-lg">
                       <span className="text-xs text-text-muted block mb-1">Display Name Preview</span>
                       <span className="text-sm font-medium text-accent">
-                        {player1Name.trim()} & {player2Name.trim()}
+                        {formatDoublesDisplayName(player1Name.trim(), player2Name.trim())}
                       </span>
                     </div>
                   )}
@@ -398,13 +418,13 @@ function NotAuthorized({ tournamentId }: { tournamentId: string }) {
   );
 }
 
-function RegistrationClosed({ tournamentId }: { tournamentId: string }) {
+function TournamentNotDraft({ tournamentId }: { tournamentId: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
       <div className="text-6xl text-text-muted mb-6">🚫</div>
-      <h1 className="font-display text-3xl text-text-primary mb-3">Registration Closed</h1>
+      <h1 className="font-display text-3xl text-text-primary mb-3">Cannot Add Participants</h1>
       <p className="text-text-secondary mb-8">
-        This tournament is no longer accepting new participants.
+        This tournament has already started and is no longer accepting new participants.
       </p>
       <Link
         href={`/tournaments/${tournamentId}`}

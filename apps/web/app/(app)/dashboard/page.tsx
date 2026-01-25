@@ -20,7 +20,7 @@ export default function DashboardPage() {
       return;
     }
     if (onboardingState.organizationCount === 0) {
-      router.push("/onboarding");
+      router.push("/organizations/new");
     }
   }, [onboardingState, router]);
 

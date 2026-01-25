@@ -35,7 +35,6 @@ export default function TournamentDetailPage({
 
   const statusStyles: Record<string, string> = {
     draft: "text-text-muted bg-bg-elevated",
-    registration: "text-info bg-info/10",
     active: "text-success bg-success/10",
     completed: "text-gold bg-gold/10",
     cancelled: "text-error bg-error/10",
@@ -151,9 +150,9 @@ export default function TournamentDetailPage({
       {/* Content */}
       <main className="py-8 px-6 max-w-[var(--content-max)] mx-auto">
         {activeTab === "bracket" && (
-          <BracketTab tournamentId={id} format={tournament.format} />
+          <BracketTab tournamentId={id} format={tournament.format} status={tournament.status} />
         )}
-        {activeTab === "matches" && <MatchesTab tournamentId={id} />}
+        {activeTab === "matches" && <MatchesTab tournamentId={id} status={tournament.status} />}
         {activeTab === "participants" && (
           <ParticipantsTab
             tournamentId={id}
@@ -184,21 +183,22 @@ function TournamentActions({
     myRole: string;
   };
 }) {
-  const openRegistration = useMutation(api.tournaments.openRegistration);
+  const generateBracket = useMutation(api.tournaments.generateBracket);
   const startTournament = useMutation(api.tournaments.startTournament);
   const cancelTournament = useMutation(api.tournaments.cancelTournament);
   const deleteTournament = useMutation(api.tournaments.deleteTournament);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleOpenRegistration = async () => {
-    setLoading(true);
+  const handleGenerateBracket = async () => {
+    setGenerating(true);
     try {
-      await openRegistration({ tournamentId: tournament._id as any });
+      await generateBracket({ tournamentId: tournament._id as any });
     } catch (err) {
       console.error(err);
     }
-    setLoading(false);
+    setGenerating(false);
   };
 
   const handleStart = async () => {
@@ -238,14 +238,14 @@ function TournamentActions({
     <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
       {tournament.status === "draft" && (
         <button
-          onClick={handleOpenRegistration}
-          disabled={loading}
-          className="px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all disabled:opacity-50"
+          onClick={handleGenerateBracket}
+          disabled={generating || tournament.participantCount < 2}
+          className="px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Open Registration
+          {generating ? "..." : "Generate Bracket"}
         </button>
       )}
-      {(tournament.status === "draft" || tournament.status === "registration") && (
+      {tournament.status === "draft" && (
         <button
           onClick={handleStart}
           disabled={loading || tournament.participantCount < 2}
@@ -316,9 +316,11 @@ function formatVolleyballScoreForBracket(
 function BracketTab({
   tournamentId,
   format,
+  status,
 }: {
   tournamentId: string;
   format: string;
+  status: string;
 }) {
   const bracket = useQuery(api.tournaments.getBracket, {
     tournamentId: tournamentId as any,
@@ -475,8 +477,10 @@ function BracketTab({
                     </>
                   );
 
-                  // If match is scoreable, make it a link; otherwise just a div
-                  if (isScoreable || match.status === "live" || match.status === "completed") {
+                  // Only allow clicking matches when tournament is active (not draft)
+                  const isClickable = status !== "draft" && (isScoreable || match.status === "live" || match.status === "completed");
+
+                  if (isClickable) {
                     return (
                       <Link
                         key={match._id}
@@ -494,11 +498,13 @@ function BracketTab({
                     );
                   }
 
-                  // Bye match - not clickable
+                  // Not clickable (draft mode or bye match)
                   return (
                     <div
                       key={match._id}
-                      className="relative flex flex-col bg-bg-card border border-border rounded-lg overflow-hidden opacity-60"
+                      className={`relative flex flex-col bg-bg-card border border-border rounded-lg overflow-hidden ${
+                        isByeMatch ? "opacity-60" : ""
+                      }`}
                     >
                       {matchContent}
                     </div>
@@ -513,7 +519,7 @@ function BracketTab({
   );
 }
 
-function MatchesTab({ tournamentId }: { tournamentId: string }) {
+function MatchesTab({ tournamentId, status }: { tournamentId: string; status: string }) {
   const matches = useQuery(api.matches.listMatches, {
     tournamentId: tournamentId as any,
   });
@@ -554,73 +560,95 @@ function MatchesTab({ tournamentId }: { tournamentId: string }) {
     bye: "text-text-muted bg-bg-elevated",
   };
 
+  const isClickable = status !== "draft";
+
   return (
     <div className="animate-fadeIn">
       <div className="flex flex-col gap-2">
-        {sortedMatches.map((match, index) => (
-          <Link
-            key={match._id}
-            href={`/matches/${match._id}`}
-            className="flex flex-col p-4 bg-bg-card border border-border rounded-xl hover:bg-bg-card-hover hover:border-accent/30 transition-all animate-fadeInUp"
-            style={{ animationDelay: `${index * 0.03}s` }}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-xs font-semibold text-text-muted">
-                Round {match.round}
-              </span>
-              <span className="text-xs text-text-muted">
-                Match {match.matchNumber}
-              </span>
-              <span
-                className={`flex items-center gap-1 ml-auto px-2 py-0.5 text-[10px] font-semibold uppercase rounded ${matchStatusStyles[match.status]}`}
-              >
-                {match.status === "live" && (
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-pulse" />
-                )}
-                {match.status}
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div
-                className={`flex-1 flex items-center gap-2 ${
-                  match.winnerId === match.participant1?._id ? "" : ""
-                }`}
-              >
-                <span
-                  className={`font-medium ${match.winnerId === match.participant1?._id ? "text-accent" : "text-text-primary"}`}
-                >
-                  {match.participant1?.displayName || "TBD"}
+        {sortedMatches.map((match, index) => {
+          const content = (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xs font-semibold text-text-muted">
+                  Round {match.round}
                 </span>
-                <span className="font-display text-base font-bold text-text-primary">
-                  {match.participant1Score}
-                </span>
-              </div>
-              <span className="text-xs font-semibold text-text-muted flex-shrink-0">
-                vs
-              </span>
-              <div className="flex-1 flex items-center justify-end gap-2">
-                <span className="font-display text-base font-bold text-text-primary">
-                  {match.participant2Score}
+                <span className="text-xs text-text-muted">
+                  Match {match.matchNumber}
                 </span>
                 <span
-                  className={`font-medium ${match.winnerId === match.participant2?._id ? "text-accent" : "text-text-primary"}`}
+                  className={`flex items-center gap-1 ml-auto px-2 py-0.5 text-[10px] font-semibold uppercase rounded ${matchStatusStyles[match.status]}`}
                 >
-                  {match.participant2?.displayName || "TBD"}
+                  {match.status === "live" && (
+                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-pulse" />
+                  )}
+                  {match.status}
                 </span>
               </div>
-            </div>
-            {match.scheduledTime && (
-              <div className="text-xs text-text-muted mt-2 pt-2 border-t border-border">
-                {new Date(match.scheduledTime).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex-1 flex items-center gap-2 ${
+                    match.winnerId === match.participant1?._id ? "" : ""
+                  }`}
+                >
+                  <span
+                    className={`font-medium ${match.winnerId === match.participant1?._id ? "text-accent" : "text-text-primary"}`}
+                  >
+                    {match.participant1?.displayName || "TBD"}
+                  </span>
+                  <span className="font-display text-base font-bold text-text-primary">
+                    {match.participant1Score}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-text-muted flex-shrink-0">
+                  vs
+                </span>
+                <div className="flex-1 flex items-center justify-end gap-2">
+                  <span className="font-display text-base font-bold text-text-primary">
+                    {match.participant2Score}
+                  </span>
+                  <span
+                    className={`font-medium ${match.winnerId === match.participant2?._id ? "text-accent" : "text-text-primary"}`}
+                  >
+                    {match.participant2?.displayName || "TBD"}
+                  </span>
+                </div>
               </div>
-            )}
-          </Link>
-        ))}
+              {match.scheduledTime && (
+                <div className="text-xs text-text-muted mt-2 pt-2 border-t border-border">
+                  {new Date(match.scheduledTime).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
+              )}
+            </>
+          );
+
+          if (isClickable) {
+            return (
+              <Link
+                key={match._id}
+                href={`/matches/${match._id}`}
+                className="flex flex-col p-4 bg-bg-card border border-border rounded-xl hover:bg-bg-card-hover hover:border-accent/30 transition-all animate-fadeInUp"
+                style={{ animationDelay: `${index * 0.03}s` }}
+              >
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <div
+              key={match._id}
+              className="flex flex-col p-4 bg-bg-card border border-border rounded-xl animate-fadeInUp"
+              style={{ animationDelay: `${index * 0.03}s` }}
+            >
+              {content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -645,14 +673,14 @@ function ParticipantsTab({
     return <TabSkeleton />;
   }
 
-  const canAdd = canManage && (status === "draft" || status === "registration");
+  const canAdd = canManage && status === "draft";
 
-  const getParticipantSubtext = (participant: (typeof participants)[0]) => {
-    // For doubles, show both player names if available
+  const getParticipantDisplayName = (participant: (typeof participants)[0]) => {
+    // For doubles, show full names instead of abbreviated displayName
     if (participant.type === "doubles" && participant.player1Name && participant.player2Name) {
-      return `${participant.player1Name} + ${participant.player2Name}`;
+      return `${participant.player1Name} / ${participant.player2Name}`;
     }
-    return null;
+    return participant.displayName;
   };
 
   const getParticipantIcon = () => {
@@ -698,7 +726,6 @@ function ParticipantsTab({
       ) : (
         <div className="flex flex-col gap-2">
           {participants.map((participant, index) => {
-            const subtext = getParticipantSubtext(participant);
             return (
               <div
                 key={participant._id}
@@ -710,22 +737,8 @@ function ParticipantsTab({
                 </div>
                 <div className="flex-1">
                   <span className="block font-medium text-text-primary">
-                    {participant.displayName}
+                    {getParticipantDisplayName(participant)}
                   </span>
-                  {subtext && (
-                    <span className="block text-xs text-text-muted mb-0.5">
-                      {subtext}
-                    </span>
-                  )}
-                  <span className="block text-sm text-text-muted">
-                    {participant.wins}W - {participant.losses}L
-                    {participant.draws > 0 && ` - ${participant.draws}D`}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 font-display text-base">
-                  <span className="text-success">{participant.pointsFor}</span>
-                  <span className="text-text-muted">-</span>
-                  <span className="text-red">{participant.pointsAgainst}</span>
                 </div>
               </div>
             );

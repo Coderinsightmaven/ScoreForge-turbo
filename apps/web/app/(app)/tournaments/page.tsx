@@ -103,7 +103,7 @@ function OrgTournaments({
   const filteredTournaments = tournaments?.filter((t) => {
     if (filter === "all") return true;
     if (filter === "active") return t.status === "active";
-    if (filter === "upcoming") return t.status === "draft" || t.status === "registration";
+    if (filter === "upcoming") return t.status === "draft";
     if (filter === "completed") return t.status === "completed" || t.status === "cancelled";
     return true;
   });
@@ -119,7 +119,6 @@ function OrgTournaments({
 
   const statusStyles: Record<string, string> = {
     draft: "text-text-muted bg-bg-elevated",
-    registration: "text-info bg-info/10",
     active: "text-success bg-success/10",
     completed: "text-text-secondary bg-bg-elevated",
     cancelled: "text-error bg-error/10",

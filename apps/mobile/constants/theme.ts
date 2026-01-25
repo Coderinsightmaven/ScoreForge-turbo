@@ -129,39 +129,20 @@ export const Colors = {
 // Typography
 // ============================================
 
-export const Fonts = Platform.select({
-  ios: {
-    // Display font - bold condensed for headlines
-    display: 'System',
-    displayWeight: '800' as const,
-    // Body font - clean readable
-    body: 'System',
-    bodyWeight: '400' as const,
-    // Monospace for stats/numbers
-    mono: 'Menlo',
-  },
-  android: {
-    display: 'sans-serif-condensed',
-    displayWeight: '800' as const,
-    body: 'sans-serif',
-    bodyWeight: '400' as const,
-    mono: 'monospace',
-  },
-  default: {
-    display: 'System',
-    displayWeight: '800' as const,
-    body: 'System',
-    bodyWeight: '400' as const,
-    mono: 'monospace',
-  },
-  web: {
-    display: "'Bebas Neue', Impact, sans-serif",
-    displayWeight: '400' as const,
-    body: "'DM Sans', system-ui, sans-serif",
-    bodyWeight: '400' as const,
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-  },
-})!;
+// Custom fonts loaded via expo-font in _layout.tsx
+// These match the web app's DM Serif Display (display) and Outfit (body)
+export const Fonts = {
+  // Display font - DM Serif Display for headlines
+  display: 'DMSerifDisplay_400Regular',
+  // Body font variants - Outfit with all weights
+  body: 'Outfit_400Regular',
+  bodyLight: 'Outfit_300Light',
+  bodyMedium: 'Outfit_500Medium',
+  bodySemiBold: 'Outfit_600SemiBold',
+  bodyBold: 'Outfit_700Bold',
+  // Monospace for stats/numbers
+  mono: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+} as const;
 
 // ============================================
 // Spacing Scale
@@ -179,15 +160,16 @@ export const Spacing = {
 } as const;
 
 // ============================================
-// Border Radius
+// Border Radius (aligned with web)
 // ============================================
 
 export const Radius = {
-  none: 0,
-  sm: 2,
-  md: 4,
-  lg: 8,
-  xl: 12,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  '2xl': 28,
   full: 9999,
 } as const;
 

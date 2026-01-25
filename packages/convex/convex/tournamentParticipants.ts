@@ -4,6 +4,30 @@ import { v } from "convex/values";
 import { participantTypes } from "./schema";
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * Format a full name to abbreviated format (e.g., "Joe Berry" -> "J. Berry")
+ */
+function formatNameAbbreviated(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return fullName; // Single name, return as-is
+  }
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(" ");
+  return `${firstName?.[0]?.toUpperCase() ?? ""}. ${lastName}`;
+}
+
+/**
+ * Format doubles display name (e.g., "J. Berry / M. Lorenz")
+ */
+function formatDoublesDisplayName(player1: string, player2: string): string {
+  return `${formatNameAbbreviated(player1)} / ${formatNameAbbreviated(player2)}`;
+}
+
+// ============================================
 // Queries
 // ============================================
 
@@ -204,8 +228,8 @@ export const addParticipant = mutation({
     }
 
     // Check tournament status
-    if (tournament.status !== "draft" && tournament.status !== "registration") {
-      throw new Error("Tournament is not open for registration");
+    if (tournament.status !== "draft") {
+      throw new Error("Tournament is not in draft status");
     }
 
     // Check max participants
@@ -242,7 +266,7 @@ export const addParticipant = mutation({
         }
         const p1 = args.player1Name.trim();
         const p2 = args.player2Name.trim();
-        displayName = `${p1} & ${p2}`;
+        displayName = formatDoublesDisplayName(p1, p2);
         participantData.player1Name = p1;
         participantData.player2Name = p2;
         break;
@@ -321,7 +345,7 @@ export const updateParticipant = mutation({
     }
 
     // Can only update before tournament starts
-    if (tournament.status !== "draft" && tournament.status !== "registration") {
+    if (tournament.status !== "draft") {
       throw new Error("Cannot update participants after tournament has started");
     }
 
@@ -343,12 +367,12 @@ export const updateParticipant = mutation({
         break;
 
       case "doubles":
-        const p1 = args.player1Name?.trim() || participant.player1Name;
-        const p2 = args.player2Name?.trim() || participant.player2Name;
+        const updatedP1 = args.player1Name?.trim() || participant.player1Name;
+        const updatedP2 = args.player2Name?.trim() || participant.player2Name;
         if (args.player1Name !== undefined || args.player2Name !== undefined) {
-          updates.player1Name = p1;
-          updates.player2Name = p2;
-          updates.displayName = `${p1} & ${p2}`;
+          updates.player1Name = updatedP1;
+          updates.player2Name = updatedP2;
+          updates.displayName = formatDoublesDisplayName(updatedP1 ?? "", updatedP2 ?? "");
         }
         break;
 
@@ -403,7 +427,7 @@ export const removeParticipant = mutation({
     }
 
     // Can only remove before tournament starts
-    if (tournament.status !== "draft" && tournament.status !== "registration") {
+    if (tournament.status !== "draft") {
       throw new Error("Cannot remove participants after tournament has started");
     }
 
@@ -453,7 +477,7 @@ export const updateSeeding = mutation({
     }
 
     // Can only update seeding before tournament starts
-    if (tournament.status !== "draft" && tournament.status !== "registration") {
+    if (tournament.status !== "draft") {
       throw new Error("Cannot update seeding after tournament has started");
     }
 
@@ -503,7 +527,7 @@ export const updateSeedingBatch = mutation({
     }
 
     // Can only update seeding before tournament starts
-    if (tournament.status !== "draft" && tournament.status !== "registration") {
+    if (tournament.status !== "draft") {
       throw new Error("Cannot update seeding after tournament has started");
     }
 
