@@ -83,37 +83,57 @@ export default function AddParticipantPage({
           setLoading(false);
           return;
         }
-        await addParticipant({
-          tournamentId: tournamentId as any,
-          playerName: playerName.trim(),
-          seed: seedValue,
-        });
+        // Split by comma to support multiple participants
+        const names = playerName.split(",").map(n => n.trim()).filter(n => n.length > 0);
+        for (let i = 0; i < names.length; i++) {
+          await addParticipant({
+            tournamentId: tournamentId as any,
+            playerName: names[i],
+            seed: names.length === 1 ? seedValue : undefined, // Only use seed for single participant
+          });
+        }
       } else if (tournament.participantType === "doubles") {
         if (!player1Name.trim() || !player2Name.trim()) {
           setError("Please enter both player names");
           setLoading(false);
           return;
         }
-        await addParticipant({
-          tournamentId: tournamentId as any,
-          player1Name: player1Name.trim(),
-          player2Name: player2Name.trim(),
-          seed: seedValue,
-        });
+        // Split by comma to support multiple pairs (must have same number in each field)
+        const players1 = player1Name.split(",").map(n => n.trim()).filter(n => n.length > 0);
+        const players2 = player2Name.split(",").map(n => n.trim()).filter(n => n.length > 0);
+
+        if (players1.length !== players2.length) {
+          setError("Number of Player 1 names must match number of Player 2 names");
+          setLoading(false);
+          return;
+        }
+
+        for (let i = 0; i < players1.length; i++) {
+          await addParticipant({
+            tournamentId: tournamentId as any,
+            player1Name: players1[i],
+            player2Name: players2[i],
+            seed: players1.length === 1 ? seedValue : undefined,
+          });
+        }
       } else if (tournament.participantType === "team") {
         if (!teamName.trim()) {
           setError("Please enter a team name");
           setLoading(false);
           return;
         }
-        await addParticipant({
-          tournamentId: tournamentId as any,
-          teamName: teamName.trim(),
-          seed: seedValue,
-        });
+        // Split by comma to support multiple teams
+        const names = teamName.split(",").map(n => n.trim()).filter(n => n.length > 0);
+        for (let i = 0; i < names.length; i++) {
+          await addParticipant({
+            tournamentId: tournamentId as any,
+            teamName: names[i],
+            seed: names.length === 1 ? seedValue : undefined,
+          });
+        }
       }
 
-      router.push(`/tournaments/${tournamentId}`);
+      router.push(`/tournaments/${tournamentId}?tab=participants`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add participant");
       setLoading(false);
@@ -209,7 +229,7 @@ export default function AddParticipantPage({
                     htmlFor="playerName"
                     className="block text-sm font-medium text-text-primary"
                   >
-                    Player Name
+                    Player Name(s)
                   </label>
                   <input
                     id="playerName"
@@ -218,10 +238,13 @@ export default function AddParticipantPage({
                     required
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="Enter player name"
+                    placeholder="e.g., John Doe, Jane Smith, Bob Wilson"
                     className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
                     autoFocus
                   />
+                  <span className="block text-xs text-text-muted">
+                    Separate multiple names with commas to add them all at once
+                  </span>
                 </div>
               )}
 
@@ -233,7 +256,7 @@ export default function AddParticipantPage({
                       htmlFor="player1Name"
                       className="block text-sm font-medium text-text-primary"
                     >
-                      Player 1 Name
+                      Player 1 Name(s)
                     </label>
                     <input
                       id="player1Name"
@@ -242,7 +265,7 @@ export default function AddParticipantPage({
                       required
                       value={player1Name}
                       onChange={(e) => setPlayer1Name(e.target.value)}
-                      placeholder="Enter first player name"
+                      placeholder="e.g., John Doe, Jane Smith"
                       className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
                       autoFocus
                     />
@@ -252,7 +275,7 @@ export default function AddParticipantPage({
                       htmlFor="player2Name"
                       className="block text-sm font-medium text-text-primary"
                     >
-                      Player 2 Name
+                      Player 2 Name(s)
                     </label>
                     <input
                       id="player2Name"
@@ -261,16 +284,20 @@ export default function AddParticipantPage({
                       required
                       value={player2Name}
                       onChange={(e) => setPlayer2Name(e.target.value)}
-                      placeholder="Enter second player name"
+                      placeholder="e.g., Bob Wilson, Alice Brown"
                       className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
                     />
+                    <span className="block text-xs text-text-muted">
+                      For multiple pairs, separate names with commas (same order in both fields)
+                    </span>
                   </div>
                   {/* Preview of display name */}
                   {player1Name.trim() && player2Name.trim() && (
                     <div className="px-4 py-3 bg-accent/5 border border-accent/20 rounded-lg">
                       <span className="text-xs text-text-muted block mb-1">Display Name Preview</span>
                       <span className="text-sm font-medium text-accent">
-                        {formatDoublesDisplayName(player1Name.trim(), player2Name.trim())}
+                        {formatDoublesDisplayName(player1Name.split(",")[0]?.trim() || "", player2Name.split(",")[0]?.trim() || "")}
+                        {player1Name.includes(",") && " (+ more)"}
                       </span>
                     </div>
                   )}
@@ -284,7 +311,7 @@ export default function AddParticipantPage({
                     htmlFor="teamName"
                     className="block text-sm font-medium text-text-primary"
                   >
-                    Team Name
+                    Team Name(s)
                   </label>
                   <input
                     id="teamName"
@@ -293,10 +320,13 @@ export default function AddParticipantPage({
                     required
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Enter team name"
+                    placeholder="e.g., Team Alpha, Team Beta, Team Gamma"
                     className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
                     autoFocus
                   />
+                  <span className="block text-xs text-text-muted">
+                    Separate multiple team names with commas to add them all at once
+                  </span>
                 </div>
               )}
 
@@ -348,7 +378,7 @@ export default function AddParticipantPage({
                     <span className="w-5 h-5 border-2 border-text-inverse/30 border-t-text-inverse rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Add Participant</span>
+                      <span>Add Participant(s)</span>
                       <span>→</span>
                     </>
                   )}

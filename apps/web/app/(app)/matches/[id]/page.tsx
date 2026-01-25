@@ -6,8 +6,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { use } from "react";
 import { Skeleton, SkeletonScoreboard } from "@/app/components/Skeleton";
-import { TennisScoreboard, TennisMatchSetup } from "@/app/components/TennisScoreboard";
-import { VolleyballScoreboard, VolleyballMatchSetup } from "@/app/components/VolleyballScoreboard";
+import { TennisScoreboard } from "@/app/components/TennisScoreboard";
+import { VolleyballScoreboard } from "@/app/components/VolleyballScoreboard";
 import { FullScreenScoring, FirstServerSetup, MatchCompleteScreen } from "@/app/components/FullScreenScoring";
 
 export default function MatchDetailPage({
@@ -156,20 +156,10 @@ export default function MatchDetailPage({
                 status={match.status}
               />
             ) : (
-              canScore && match.status !== "completed" ? (
-                <TennisMatchSetup
-                  matchId={match._id}
-                  participant1Name={match.participant1?.displayName || "Player 1"}
-                  participant2Name={match.participant2?.displayName || "Player 2"}
-                  matchStatus={match.status}
-                  tennisConfig={match.tennisConfig}
-                  onSetupComplete={() => {}}
-                />
-              ) : (
-                <div className="p-8 text-center text-text-muted">
-                  Tennis match not yet configured
-                </div>
-              )
+              <MatchPreview
+                participant1={match.participant1}
+                participant2={match.participant2}
+              />
             )
           ) : match.sport === "volleyball" ? (
             match.volleyballState ? (
@@ -182,20 +172,10 @@ export default function MatchDetailPage({
                 status={match.status}
               />
             ) : (
-              canScore && match.status !== "completed" ? (
-                <VolleyballMatchSetup
-                  matchId={match._id}
-                  participant1Name={match.participant1?.displayName || "Team 1"}
-                  participant2Name={match.participant2?.displayName || "Team 2"}
-                  matchStatus={match.status}
-                  volleyballConfig={match.volleyballConfig}
-                  onSetupComplete={() => {}}
-                />
-              ) : (
-                <div className="p-8 text-center text-text-muted">
-                  Volleyball match not yet configured
-                </div>
-              )
+              <MatchPreview
+                participant1={match.participant1}
+                participant2={match.participant2}
+              />
             )
           ) : (
             <Scoreboard
@@ -211,7 +191,8 @@ export default function MatchDetailPage({
 
           {/* First Server Setup - For tennis/volleyball matches that need setup */}
           {needsSetup && canScore && !isByeMatch && match.participant1 && match.participant2 &&
-            (match.status === "pending" || match.status === "scheduled") && (
+            (match.status === "pending" || match.status === "scheduled") &&
+            match.tournamentStatus === "active" && (
             <InlineFirstServerSetup
               matchId={match._id}
               participant1Name={match.participant1.displayName}
@@ -220,9 +201,24 @@ export default function MatchDetailPage({
               tennisConfig={match.tennisConfig}
               volleyballConfig={match.volleyballConfig}
               matchStatus={match.status}
-              currentCourt={match.court}
-              availableCourts={match.availableCourts}
             />
+          )}
+
+          {/* Draft mode notice */}
+          {match.tournamentStatus === "draft" && canScore && !isByeMatch &&
+            match.participant1 && match.participant2 &&
+            (match.status === "pending" || match.status === "scheduled") && (
+            <div className="bg-bg-card border border-border rounded-2xl p-6 text-center">
+              <div className="w-12 h-12 mx-auto flex items-center justify-center bg-warning/10 rounded-xl mb-4">
+                <svg className="w-6 h-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              </div>
+              <h3 className="font-display text-lg font-semibold text-text-primary mb-2">Tournament Not Started</h3>
+              <p className="text-text-secondary text-sm">
+                This tournament is still in draft mode. Start the tournament to begin scoring matches.
+              </p>
+            </div>
           )}
 
           {/* Match Actions - For generic sports (not tennis or volleyball with state) */}
@@ -231,7 +227,7 @@ export default function MatchDetailPage({
             (match.sport !== "tennis" || !match.tennisState) &&
             (match.sport !== "volleyball" || !match.volleyballState) &&
             !needsSetup && (
-            <MatchActions match={match} />
+            <MatchActions match={match} tournamentStatus={match.tournamentStatus} />
           )}
 
           {/* Match Info */}
@@ -492,6 +488,7 @@ function Scoreboard({
 
 function MatchActions({
   match,
+  tournamentStatus,
 }: {
   match: {
     _id: string;
@@ -501,6 +498,7 @@ function MatchActions({
     participant1Score: number;
     participant2Score: number;
   };
+  tournamentStatus: string;
 }) {
   const startMatch = useMutation(api.matches.startMatch);
   const completeMatch = useMutation(api.matches.completeMatch);
@@ -535,7 +533,8 @@ function MatchActions({
   const canStart =
     (match.status === "pending" || match.status === "scheduled") &&
     match.participant1 &&
-    match.participant2;
+    match.participant2 &&
+    tournamentStatus === "active";
 
   const canComplete = match.status === "live";
 
@@ -563,6 +562,55 @@ function MatchActions({
   );
 }
 
+function MatchPreview({
+  participant1,
+  participant2,
+}: {
+  participant1?: {
+    _id: string;
+    displayName: string;
+    seed?: number;
+  };
+  participant2?: {
+    _id: string;
+    displayName: string;
+    seed?: number;
+  };
+}) {
+  return (
+    <div className="flex items-center justify-center gap-6 p-8">
+      {/* Participant 1 */}
+      <div className="flex-1 flex flex-col items-center gap-2 p-6 rounded-xl bg-bg-secondary border border-border">
+        {participant1?.seed && (
+          <span className="text-xs font-semibold text-accent">
+            #{participant1.seed}
+          </span>
+        )}
+        <span className="font-display text-xl font-bold text-text-primary text-center">
+          {participant1?.displayName || "TBD"}
+        </span>
+      </div>
+
+      {/* VS */}
+      <div className="flex-shrink-0">
+        <span className="font-display text-2xl font-bold text-text-muted">VS</span>
+      </div>
+
+      {/* Participant 2 */}
+      <div className="flex-1 flex flex-col items-center gap-2 p-6 rounded-xl bg-bg-secondary border border-border">
+        {participant2?.seed && (
+          <span className="text-xs font-semibold text-accent">
+            #{participant2.seed}
+          </span>
+        )}
+        <span className="font-display text-xl font-bold text-text-primary text-center">
+          {participant2?.displayName || "TBD"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function InlineFirstServerSetup({
   matchId,
   participant1Name,
@@ -571,8 +619,6 @@ function InlineFirstServerSetup({
   tennisConfig,
   volleyballConfig,
   matchStatus,
-  currentCourt,
-  availableCourts,
 }: {
   matchId: string;
   participant1Name: string;
@@ -585,27 +631,19 @@ function InlineFirstServerSetup({
     pointsPerDecidingSet: number;
   };
   matchStatus?: string;
-  currentCourt?: string;
-  availableCourts?: string[];
 }) {
   const [selectedServer, setSelectedServer] = useState<1 | 2>(1);
-  const [court, setCourt] = useState(currentCourt || "");
   const [loading, setLoading] = useState(false);
 
   const initTennisMatch = useMutation(api.tennis.initTennisMatch);
   const initVolleyballMatch = useMutation(api.volleyball.initVolleyballMatch);
   const startMatch = useMutation(api.matches.startMatch);
-  const updateMatchCourt = useMutation(api.matches.updateMatchCourt);
 
   const isTennis = sport === "tennis";
 
   const handleStart = async () => {
     setLoading(true);
     try {
-      // Save court if changed
-      if (court !== currentCourt) {
-        await updateMatchCourt({ matchId: matchId as any, court: court.trim() || undefined });
-      }
       if (isTennis) {
         await initTennisMatch({ matchId: matchId as any, firstServer: selectedServer });
       } else {
@@ -619,14 +657,6 @@ function InlineFirstServerSetup({
       alert(err instanceof Error ? err.message : "Failed to start match");
     }
     setLoading(false);
-  };
-
-  const handleSaveCourt = async () => {
-    try {
-      await updateMatchCourt({ matchId: matchId as any, court: court.trim() || undefined });
-    } catch (err) {
-      console.error(err);
-    }
   };
 
   return (
@@ -661,62 +691,6 @@ function InlineFirstServerSetup({
               Sets to {volleyballConfig.pointsPerSet}
             </span>
           </>
-        )}
-      </div>
-
-      {/* Court Assignment */}
-      <div className="mb-6">
-        <label className="block text-xs font-medium uppercase tracking-wide text-text-muted mb-2">
-          Court Assignment
-        </label>
-        {availableCourts && availableCourts.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {availableCourts.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCourt(c)}
-                className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
-                  court === c
-                    ? "border-accent bg-accent text-white font-semibold"
-                    : "border-border bg-bg-secondary text-text-secondary hover:border-text-muted"
-                }`}
-              >
-                {court === c && <span className="mr-1">✓</span>}
-                {c}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setCourt("")}
-              className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
-                court === ""
-                  ? "border-accent bg-accent text-white font-semibold"
-                  : "border-border bg-bg-secondary text-text-secondary hover:border-text-muted"
-              }`}
-            >
-              {court === "" && <span className="mr-1">✓</span>}
-              None
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={court}
-              onChange={(e) => setCourt(e.target.value)}
-              placeholder="e.g. Court 1, Stadium Court"
-              className="flex-1 px-3 py-2 text-sm bg-bg-secondary border border-border rounded-lg focus:border-accent focus:outline-none text-text-primary placeholder:text-text-muted"
-            />
-          </div>
-        )}
-        {court !== currentCourt && (
-          <button
-            onClick={handleSaveCourt}
-            className="mt-2 px-3 py-2 text-xs font-medium text-accent bg-accent/10 rounded-lg hover:bg-accent/20 transition-colors"
-          >
-            Save Court
-          </button>
         )}
       </div>
 

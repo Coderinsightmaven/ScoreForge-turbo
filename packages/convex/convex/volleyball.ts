@@ -252,6 +252,11 @@ export const initVolleyballMatch = mutation({
       throw new Error("Tournament not found");
     }
 
+    // Tournament must be active to initialize matches
+    if (tournament.status !== "active") {
+      throw new Error("Tournament must be started before matches can begin");
+    }
+
     // Check user's role
     const membership = await ctx.db
       .query("organizationMembers")

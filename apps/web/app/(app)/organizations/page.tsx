@@ -135,19 +135,19 @@ function OrganizationCard({
   };
   index: number;
 }) {
-  const roleConfig: Record<string, { text: string; bg: string; border: string; label: string }> = {
-    owner: { text: "text-accent", bg: "bg-accent/10", border: "border-l-accent", label: "Owner" },
-    admin: { text: "text-info", bg: "bg-info/10", border: "border-l-info", label: "Admin" },
-    scorer: { text: "text-success", bg: "bg-success/10", border: "border-l-success", label: "Scorer" },
+  const roleConfig: Record<string, { text: string; bg: string; border: string; hoverBg: string; label: string }> = {
+    owner: { text: "text-accent", bg: "bg-accent/10", border: "border-l-accent border-r-accent", hoverBg: "group-hover:bg-accent", label: "Owner" },
+    admin: { text: "text-info", bg: "bg-info/10", border: "border-l-info border-r-info", hoverBg: "group-hover:bg-info", label: "Admin" },
+    scorer: { text: "text-success", bg: "bg-success/10", border: "border-l-success border-r-success", hoverBg: "group-hover:bg-success", label: "Scorer" },
   };
 
-  const config = roleConfig[organization.role] || { text: "text-text-muted", bg: "bg-bg-elevated", border: "border-l-border", label: organization.role };
+  const config = roleConfig[organization.role] || { text: "text-text-muted", bg: "bg-bg-elevated", border: "border-l-border border-r-border", hoverBg: "group-hover:bg-accent", label: organization.role };
   const hasLive = (organization.liveTournamentCount || 0) > 0;
 
   return (
     <Link
       href={`/organizations/${organization.slug}`}
-      className={`group relative flex flex-col p-6 bg-bg-card border border-border border-l-4 ${config.border} rounded-2xl hover:bg-bg-card-hover hover:shadow-xl hover:shadow-black/5 hover:-translate-y-1 transition-all duration-300 animate-fadeInUp overflow-hidden`}
+      className={`group relative flex flex-col p-6 bg-bg-card border border-border border-l-4 border-r-4 ${config.border} rounded-2xl hover:bg-bg-card-hover hover:shadow-xl hover:shadow-black/5 hover:-translate-y-1 transition-all duration-300 animate-fadeInUp overflow-hidden`}
       style={{ animationDelay: `${index * 0.03}s` }}
     >
       {/* Background decoration */}
@@ -181,7 +181,7 @@ function OrganizationCard({
             </span>
           )}
         </div>
-        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-elevated group-hover:bg-accent group-hover:text-white transition-all duration-300">
+        <div className={`w-8 h-8 flex items-center justify-center rounded-full bg-bg-elevated ${config.hoverBg} group-hover:text-white transition-all duration-300`}>
           <svg
             className="w-4 h-4 text-text-muted group-hover:text-white transition-colors"
             fill="none"
@@ -226,7 +226,7 @@ function EmptyState() {
 
 function OrganizationCardSkeleton() {
   return (
-    <div className="flex flex-col p-6 bg-bg-card border border-border border-l-4 border-l-border rounded-2xl">
+    <div className="flex flex-col p-6 bg-bg-card border border-border border-l-4 border-r-4 border-l-border border-r-border rounded-2xl">
       <div className="flex-1">
         <Skeleton className="h-7 w-48 mb-2" />
         <Skeleton className="h-4 w-28" />

@@ -211,6 +211,12 @@ export const getMatch = query({
         v.literal("scorer")
       ),
       sport: v.string(),
+      tournamentStatus: v.union(
+        v.literal("draft"),
+        v.literal("active"),
+        v.literal("completed"),
+        v.literal("cancelled")
+      ),
       tennisState: v.optional(tennisState),
       tennisConfig: v.optional(tennisConfig),
       volleyballState: v.optional(volleyballState),
@@ -297,6 +303,7 @@ export const getMatch = query({
       nextMatchId: match.nextMatchId,
       myRole: membership.role,
       sport: tournament.sport,
+      tournamentStatus: tournament.status,
       tennisState: match.tennisState,
       tennisConfig: tournament.tennisConfig,
       volleyballState: match.volleyballState,
@@ -543,6 +550,11 @@ export const startMatch = mutation({
     const tournament = await ctx.db.get("tournaments", match.tournamentId);
     if (!tournament) {
       throw new Error("Tournament not found");
+    }
+
+    // Tournament must be active to start matches
+    if (tournament.status !== "active") {
+      throw new Error("Tournament must be started before matches can begin");
     }
 
     // Check user's role (all roles can start matches)

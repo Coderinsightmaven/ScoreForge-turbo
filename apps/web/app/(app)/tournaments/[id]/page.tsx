@@ -2,12 +2,15 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/convex";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { use } from "react";
+import { useSearchParams } from "next/navigation";
 import { Skeleton, SkeletonBracket, SkeletonTabs } from "@/app/components/Skeleton";
 
 type Tab = "bracket" | "matches" | "participants" | "standings" | "scorers";
+
+const validTabs: Tab[] = ["bracket", "matches", "participants", "standings", "scorers"];
 
 export default function TournamentDetailPage({
   params,
@@ -15,7 +18,16 @@ export default function TournamentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [activeTab, setActiveTab] = useState<Tab>("bracket");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam && validTabs.includes(tabParam as Tab) ? (tabParam as Tab) : "bracket";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+
+  useEffect(() => {
+    if (tabParam && validTabs.includes(tabParam as Tab)) {
+      setActiveTab(tabParam as Tab);
+    }
+  }, [tabParam]);
   const tournament = useQuery(api.tournaments.getTournament, {
     tournamentId: id as any,
   });
