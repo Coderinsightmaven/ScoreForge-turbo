@@ -3,6 +3,7 @@ import { Link, router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -71,9 +72,11 @@ export default function SignInScreen() {
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
             <View style={styles.logoContainer}>
-              <View style={[styles.logoIcon, { backgroundColor: colors.accent }]}>
-                <IconSymbol name="bolt.fill" size={28} color={isDark ? colors.bgPrimary : "#ffffff"} />
-              </View>
+              <Image
+                source={require('@/assets/images/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <ThemedText type="headline" style={styles.title}>
               WELCOME BACK
@@ -189,13 +192,9 @@ const styles = StyleSheet.create({
   logoContainer: {
     marginBottom: Spacing.lg,
   },
-  logoIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    ...Shadows.accent,
+  logoImage: {
+    width: 80,
+    height: 80,
   },
   title: {
     textAlign: "center",

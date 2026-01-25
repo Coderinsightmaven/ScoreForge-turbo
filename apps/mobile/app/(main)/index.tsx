@@ -3,7 +3,7 @@ import { useQuery } from 'convex/react';
 import { api } from '@repo/convex';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeInRight,
@@ -148,9 +148,11 @@ export default function HomeScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
           <View style={styles.logoContainer}>
-            <View style={[styles.logoIcon, { backgroundColor: colors.accent }]}>
-              <IconSymbol name="bolt.fill" size={20} color="#ffffff" />
-            </View>
+            <Image
+              source={require('@/assets/images/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <ThemedText style={[styles.logoText, { color: colors.textPrimary }]}>SCOREFORGE</ThemedText>
           </View>
           <View style={styles.headerRight}>
@@ -508,12 +510,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  logoIcon: {
+  logoImage: {
     width: 36,
     height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   logoText: {
     fontSize: 18,

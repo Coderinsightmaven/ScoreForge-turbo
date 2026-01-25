@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   description:
     "The definitive platform for managing sports tournaments and tracking scores in real-time. From local leagues to major competitions.",
   keywords: ["tournament", "sports", "scoring", "brackets", "competition", "league"],
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -76,11 +76,7 @@ export default function SignUpPage() {
     <div className="w-full max-w-sm animate-fadeInUp">
       <div className="text-center mb-8">
         <Link href="/" className="inline-flex items-center gap-2 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
-            <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M13 3L4 14h7v7l9-11h-7V3z" />
-            </svg>
-          </div>
+          <img src="/logo.png" alt="ScoreForge" className="w-10 h-10 object-contain" />
           <span className="font-display text-lg font-semibold tracking-tight">ScoreForge</span>
         </Link>
         <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary mb-2">

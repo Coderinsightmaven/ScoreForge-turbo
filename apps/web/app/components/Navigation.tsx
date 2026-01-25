@@ -69,19 +69,15 @@ export function Navigation() {
       >
         <div className="flex items-center justify-between h-[var(--nav-height)] px-5 lg:px-8 max-w-[1400px] mx-auto">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-              hasLiveActivity
-                ? "bg-success-pale"
-                : "bg-accent-pale group-hover:bg-accent/10"
-            }`}>
-              <svg className={`w-5 h-5 ${hasLiveActivity ? "text-success" : "text-accent"}`} viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 3L4 14h7v7l9-11h-7V3z" />
-              </svg>
-              {hasLiveActivity && (
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full animate-pulse" />
-              )}
-            </div>
+          <Link href="/" className="flex items-center gap-3 group relative">
+            <img
+              src="/logo.png"
+              alt="ScoreForge"
+              className="w-9 h-9 object-contain"
+            />
+            {hasLiveActivity && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full animate-pulse" />
+            )}
             <span className="font-display text-xl text-text-primary hidden sm:block">
               ScoreForge
             </span>
