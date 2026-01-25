@@ -436,9 +436,29 @@ export default function TournamentDetailScreen() {
                               <ThemedText style={styles.bracketName} numberOfLines={1}>
                                 {match.participant1?.displayName || 'TBD'}
                               </ThemedText>
-                              <ThemedText style={styles.bracketScore}>
-                                {match.participant1Score}
-                              </ThemedText>
+                              <View style={styles.bracketScoreSection}>
+                                {match.tennisState ? (
+                                  match.tennisState.sets.map((set: number[], i: number) => (
+                                    <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
+                                      <ThemedText style={[styles.bracketSetScoreText, (set[0] ?? 0) > (set[1] ?? 0) && { color: colors.accent }]}>
+                                        {set[0] ?? 0}
+                                      </ThemedText>
+                                    </View>
+                                  ))
+                                ) : match.volleyballState ? (
+                                  match.volleyballState.sets.map((set: number[], i: number) => (
+                                    <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
+                                      <ThemedText style={[styles.bracketSetScoreText, (set[0] ?? 0) > (set[1] ?? 0) && { color: colors.accent }]}>
+                                        {set[0] ?? 0}
+                                      </ThemedText>
+                                    </View>
+                                  ))
+                                ) : (
+                                  <ThemedText style={styles.bracketScore}>
+                                    {match.participant1Score}
+                                  </ThemedText>
+                                )}
+                              </View>
                             </View>
                             <View style={[styles.bracketDivider, { backgroundColor: colors.border }]} />
                             <View
@@ -449,9 +469,29 @@ export default function TournamentDetailScreen() {
                               <ThemedText style={styles.bracketName} numberOfLines={1}>
                                 {match.participant2?.displayName || 'TBD'}
                               </ThemedText>
-                              <ThemedText style={styles.bracketScore}>
-                                {match.participant2Score}
-                              </ThemedText>
+                              <View style={styles.bracketScoreSection}>
+                                {match.tennisState ? (
+                                  match.tennisState.sets.map((set: number[], i: number) => (
+                                    <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
+                                      <ThemedText style={[styles.bracketSetScoreText, (set[1] ?? 0) > (set[0] ?? 0) && { color: colors.accent }]}>
+                                        {set[1] ?? 0}
+                                      </ThemedText>
+                                    </View>
+                                  ))
+                                ) : match.volleyballState ? (
+                                  match.volleyballState.sets.map((set: number[], i: number) => (
+                                    <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
+                                      <ThemedText style={[styles.bracketSetScoreText, (set[1] ?? 0) > (set[0] ?? 0) && { color: colors.accent }]}>
+                                        {set[1] ?? 0}
+                                      </ThemedText>
+                                    </View>
+                                  ))
+                                ) : (
+                                  <ThemedText style={styles.bracketScore}>
+                                    {match.participant2Score}
+                                  </ThemedText>
+                                )}
+                              </View>
                             </View>
                             {match.status !== 'completed' && match.status !== 'bye' && (
                               <View style={[styles.matchStatusBadge, { backgroundColor: colors.success + '20' }]}>
@@ -954,6 +994,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginLeft: Spacing.md,
+  },
+  bracketScoreSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bracketSetScore: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 4,
+  },
+  bracketSetScoreText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   bracketDivider: {
     height: 1,
