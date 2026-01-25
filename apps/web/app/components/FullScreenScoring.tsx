@@ -5,6 +5,17 @@ import { api } from "@repo/convex";
 import { useState, useCallback } from "react";
 import Link from "next/link";
 
+// Check if name is a doubles format (contains " / ")
+function isDoublesName(name: string): boolean {
+  return name.includes(" / ");
+}
+
+// Split doubles name into two player names
+function splitDoublesName(name: string): [string, string] {
+  const parts = name.split(" / ");
+  return [parts[0] ?? "", parts[1] ?? ""];
+}
+
 type TennisState = {
   sets: number[][];
   currentSetGames: number[];
@@ -85,14 +96,12 @@ function ScoringZone({
   playerName,
   onPress,
   disabled,
-  isTop,
-  isServing,
+  isLeft,
 }: {
   playerName: string;
   onPress: () => void;
   disabled: boolean;
-  isTop: boolean;
-  isServing: boolean;
+  isLeft: boolean;
 }) {
   const [isFlashing, setIsFlashing] = useState(false);
 
@@ -103,13 +112,17 @@ function ScoringZone({
     onPress();
   }, [disabled, onPress]);
 
+  // Check if this is a doubles name that needs stacking
+  const isDoubles = isDoublesName(playerName);
+  const [player1, player2] = isDoubles ? splitDoublesName(playerName) : ["", ""];
+
   return (
     <button
       onClick={handleClick}
       disabled={disabled}
       className={`
         flex-1 flex items-center justify-center relative overflow-hidden transition-all
-        ${isTop ? "border-b border-border" : "border-t border-border"}
+        ${isLeft ? "border-r border-border" : "border-l border-border"}
         ${disabled ? "cursor-default" : "cursor-pointer hover:bg-accent/5 active:bg-accent/10"}
       `}
     >
@@ -122,14 +135,23 @@ function ScoringZone({
       />
 
       <div className="relative flex flex-col items-center gap-2">
-        <div className="flex items-center gap-3">
-          {isServing && (
-            <span className="w-3 h-3 bg-success rounded-full animate-pulse" />
-          )}
+        {isDoubles ? (
+          // Stacked layout for doubles names
+          <div className="flex flex-col items-center gap-1">
+            <span className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary">
+              {player1}
+            </span>
+            <span className="text-2xl text-text-muted">/</span>
+            <span className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-text-primary">
+              {player2}
+            </span>
+          </div>
+        ) : (
+          // Single line layout for singles/teams
           <span className="font-display text-4xl sm:text-5xl md:text-6xl font-bold text-text-primary">
             {playerName}
           </span>
-        </div>
+        )}
         <span className="text-sm uppercase tracking-widest text-text-muted">
           Tap to score
         </span>
@@ -208,38 +230,34 @@ export function FullScreenScoring({
   const p1Name = participant1?.displayName || "Player 1";
   const p2Name = participant2?.displayName || "Player 2";
 
+  // Check if this is a doubles match
+  const isDoubles = isDoublesName(p1Name) || isDoublesName(p2Name);
+
   return (
-    <div className="fixed inset-0 flex flex-col bg-bg-primary z-50">
-      {/* Player 1 Scoring Zone (Top) */}
+    <div className="fixed inset-0 flex flex-row bg-bg-primary z-50">
+      {/* Player 1 Scoring Zone (Left) */}
       <ScoringZone
         playerName={p1Name}
         onPress={() => handleScorePoint(1)}
         disabled={isUpdating || !canScore || isMatchComplete === true}
-        isTop={true}
-        isServing={serving1 ?? false}
+        isLeft={true}
       />
 
+      {/* Back Button - Top Left */}
+      <Link
+        href={`/tournaments/${tournamentId}`}
+        className="absolute top-4 left-4 z-20 w-12 h-12 flex items-center justify-center bg-bg-card border border-border rounded-full hover:bg-bg-secondary transition-colors"
+      >
+        <svg className="w-6 h-6 text-text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+      </Link>
+
       {/* Center Scoreboard Overlay */}
-      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 z-10 px-4 pointer-events-none">
-        <div className="max-w-lg mx-auto pointer-events-auto">
-          {/* Mini Header */}
-          <div className="flex items-center justify-between mb-4">
-            <Link
-              href={`/tournaments/${tournamentId}`}
-              className="w-10 h-10 flex items-center justify-center bg-bg-card border border-border rounded-full hover:bg-bg-secondary transition-colors"
-            >
-              <svg className="w-5 h-5 text-text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </Link>
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 px-4 pointer-events-none">
+        <div className="w-[400px] max-w-[90vw] pointer-events-auto">
 
-            <div className="flex items-center gap-2 px-4 py-2 bg-success/20 rounded-full">
-              <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
-              <span className="text-xs font-bold text-success tracking-wider">LIVE</span>
-            </div>
-          </div>
-
-          {/* Tennis Scoreboard */}
+          {/* Tennis Scoreboard - Unified layout for all match types */}
           {isTennis && tennisState && (
             <div className="bg-bg-card border border-border rounded-2xl p-4 shadow-lg">
               {/* Tiebreak indicator */}
@@ -251,31 +269,15 @@ export function FullScreenScoring({
                 </div>
               )}
 
-              {/* Score Table */}
-              <div className="bg-bg-secondary rounded-xl overflow-hidden">
-                {/* Player 1 Row */}
-                <div className="flex items-center px-4 py-3 border-b border-border">
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-text-primary truncate">{p1Name}</span>
-                    {serving1 && <span className="w-2 h-2 bg-success rounded-full flex-shrink-0" />}
-                  </div>
-                  {/* Completed Sets */}
-                  {tennisState.sets.map((set, idx) => (
-                    <div key={idx} className="w-8 text-center">
-                      <span className={`font-display text-lg font-bold ${(set[0] ?? 0) > (set[1] ?? 0) ? "text-accent" : "text-text-muted"}`}>
-                        {set[0]}
-                      </span>
+              {/* Large Game Points Display */}
+              <div className="flex items-center justify-between py-4">
+                {/* Player 1 Score */}
+                <div className="w-[100px] flex items-center justify-center">
+                  <div className="flex items-center">
+                    <div className="w-[18px] flex items-center justify-center">
+                      {serving1 && <span className="w-3 h-3 bg-success rounded-full" />}
                     </div>
-                  ))}
-                  {/* Current Set Games */}
-                  <div className="w-10 text-center bg-accent/20 rounded-md py-1">
-                    <span className="font-display text-lg font-bold text-accent">
-                      {tennisState.currentSetGames[0]}
-                    </span>
-                  </div>
-                  {/* Current Game Points */}
-                  <div className="w-12 text-center bg-bg-tertiary rounded-md py-1 ml-2">
-                    <span className="font-display text-lg font-bold text-accent">
+                    <span className="font-display text-6xl font-bold text-accent min-w-[60px] text-center">
                       {getTennisPointDisplay(
                         tennisState.isTiebreak ? tennisState.tiebreakPoints : tennisState.currentGamePoints,
                         0,
@@ -286,29 +288,20 @@ export function FullScreenScoring({
                   </div>
                 </div>
 
-                {/* Player 2 Row */}
-                <div className="flex items-center px-4 py-3">
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-text-primary truncate">{p2Name}</span>
-                    {serving2 && <span className="w-2 h-2 bg-success rounded-full flex-shrink-0" />}
-                  </div>
-                  {/* Completed Sets */}
-                  {tennisState.sets.map((set, idx) => (
-                    <div key={idx} className="w-8 text-center">
-                      <span className={`font-display text-lg font-bold ${(set[1] ?? 0) > (set[0] ?? 0) ? "text-accent" : "text-text-muted"}`}>
-                        {set[1]}
-                      </span>
+                {/* Divider with current games */}
+                <div className="px-4 py-2 bg-bg-tertiary rounded-lg">
+                  <span className="font-display text-xl font-bold text-text-primary">
+                    {tennisState.currentSetGames[0]} - {tennisState.currentSetGames[1]}
+                  </span>
+                </div>
+
+                {/* Player 2 Score */}
+                <div className="w-[100px] flex items-center justify-center">
+                  <div className="flex items-center">
+                    <div className="w-[18px] flex items-center justify-center">
+                      {serving2 && <span className="w-3 h-3 bg-success rounded-full" />}
                     </div>
-                  ))}
-                  {/* Current Set Games */}
-                  <div className="w-10 text-center bg-accent/20 rounded-md py-1">
-                    <span className="font-display text-lg font-bold text-accent">
-                      {tennisState.currentSetGames[1]}
-                    </span>
-                  </div>
-                  {/* Current Game Points */}
-                  <div className="w-12 text-center bg-bg-tertiary rounded-md py-1 ml-2">
-                    <span className="font-display text-lg font-bold text-accent">
+                    <span className="font-display text-6xl font-bold text-accent min-w-[60px] text-center">
                       {getTennisPointDisplay(
                         tennisState.isTiebreak ? tennisState.tiebreakPoints : tennisState.currentGamePoints,
                         1,
@@ -319,78 +312,78 @@ export function FullScreenScoring({
                   </div>
                 </div>
               </div>
+
+              {/* Set scores - simple inline */}
+              {tennisState.sets.length > 0 && (
+                <p className="text-center text-sm text-text-muted mt-2 tracking-wider">
+                  {tennisState.sets.map((set) => `${set[0]}-${set[1]}`).join("  ")}
+                </p>
+              )}
             </div>
           )}
 
-          {/* Volleyball Scoreboard */}
+          {/* Volleyball Scoreboard - Unified layout for all match types */}
           {isVolleyball && volleyballState && (
             <div className="bg-bg-card border border-border rounded-2xl p-4 shadow-lg">
-              {/* Score Table */}
-              <div className="bg-bg-secondary rounded-xl overflow-hidden">
-                {/* Team 1 Row */}
-                <div className="flex items-center px-4 py-3 border-b border-border">
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-text-primary truncate">{p1Name}</span>
-                    {serving1 && <span className="w-2 h-2 bg-success rounded-full flex-shrink-0" />}
-                  </div>
-                  {/* Completed Sets */}
-                  {volleyballState.sets.map((set, idx) => (
-                    <div key={idx} className="w-8 text-center">
-                      <span className={`font-display text-lg font-bold ${(set[0] ?? 0) > (set[1] ?? 0) ? "text-accent" : "text-text-muted"}`}>
-                        {set[0]}
-                      </span>
+              {/* Large Points Display */}
+              <div className="flex items-center justify-between py-4">
+                {/* Team 1 Score */}
+                <div className="w-[100px] flex items-center justify-center">
+                  <div className="flex items-center">
+                    <div className="w-[18px] flex items-center justify-center">
+                      {serving1 && <span className="w-3 h-3 bg-success rounded-full" />}
                     </div>
-                  ))}
-                  {/* Current Set Points */}
-                  <div className="w-14 text-center bg-accent/20 rounded-md py-1 ml-2">
-                    <span className="font-display text-2xl font-bold text-accent">
+                    <span className="font-display text-6xl font-bold text-accent min-w-[60px] text-center">
                       {volleyballState.currentSetPoints[0]}
                     </span>
                   </div>
                 </div>
 
-                {/* Team 2 Row */}
-                <div className="flex items-center px-4 py-3">
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-text-primary truncate">{p2Name}</span>
-                    {serving2 && <span className="w-2 h-2 bg-success rounded-full flex-shrink-0" />}
-                  </div>
-                  {/* Completed Sets */}
-                  {volleyballState.sets.map((set, idx) => (
-                    <div key={idx} className="w-8 text-center">
-                      <span className={`font-display text-lg font-bold ${(set[1] ?? 0) > (set[0] ?? 0) ? "text-accent" : "text-text-muted"}`}>
-                        {set[1]}
-                      </span>
+                {/* Divider with set count */}
+                <div className="px-4 py-2 bg-bg-tertiary rounded-lg">
+                  <span className="font-display text-xl font-bold text-text-primary">
+                    Set {volleyballState.sets.length + 1}
+                  </span>
+                </div>
+
+                {/* Team 2 Score */}
+                <div className="w-[100px] flex items-center justify-center">
+                  <div className="flex items-center">
+                    <div className="w-[18px] flex items-center justify-center">
+                      {serving2 && <span className="w-3 h-3 bg-success rounded-full" />}
                     </div>
-                  ))}
-                  {/* Current Set Points */}
-                  <div className="w-14 text-center bg-accent/20 rounded-md py-1 ml-2">
-                    <span className="font-display text-2xl font-bold text-accent">
+                    <span className="font-display text-6xl font-bold text-accent min-w-[60px] text-center">
                       {volleyballState.currentSetPoints[1]}
                     </span>
                   </div>
                 </div>
               </div>
+
+              {/* Set scores - simple inline */}
+              {volleyballState.sets.length > 0 && (
+                <p className="text-center text-sm text-text-muted mt-2 tracking-wider">
+                  {volleyballState.sets.map((set) => `${set[0]}-${set[1]}`).join("  ")}
+                </p>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Player 2 Scoring Zone (Bottom) */}
+      {/* Player 2 Scoring Zone (Right) */}
       <ScoringZone
         playerName={p2Name}
         onPress={() => handleScorePoint(2)}
         disabled={isUpdating || !canScore || isMatchComplete === true}
-        isTop={false}
-        isServing={serving2 ?? false}
+        isLeft={false}
       />
 
-      {/* Undo Button - Bottom Left */}
+      {/* Undo Button - Bottom Center */}
       {canScore && !isMatchComplete && (
         <button
           onClick={handleUndo}
           disabled={isUpdating}
-          className="absolute left-4 bottom-4 sm:left-6 sm:bottom-6 md:left-8 md:bottom-8 flex items-center gap-2 sm:gap-3 px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-bg-card border border-border rounded-xl sm:rounded-2xl shadow-md hover:bg-bg-secondary transition-colors disabled:opacity-50"
+          className="absolute left-1/2 -translate-x-1/2 bottom-4 sm:bottom-6 md:bottom-8 flex items-center gap-2 sm:gap-3 px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-bg-card border border-border rounded-xl sm:rounded-2xl shadow-md hover:bg-bg-secondary transition-colors disabled:opacity-50 z-20"
         >
           <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />

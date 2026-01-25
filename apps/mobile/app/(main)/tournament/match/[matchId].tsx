@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View, Alert, ScrollView, Dimensions } from 'react-native';
+import { Pressable, StyleSheet, View, Alert, ScrollView, useWindowDimensions, Dimensions } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -21,12 +21,6 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Shadows, Spacing, Radius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-color';
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Scale factor for larger screens (tablets)
-const isLargeScreen = SCREEN_WIDTH >= 768;
-const scale = isLargeScreen ? 1.5 : SCREEN_WIDTH >= 414 ? 1.2 : 1;
-
 // Check if name is a doubles format (contains " / ")
 function isDoublesName(name: string): boolean {
   return name.includes(' / ');
@@ -41,7 +35,8 @@ function splitDoublesName(name: string): [string, string] {
 // Determine if name is too long and needs stacking
 // Threshold based on screen width and font size (36px at ~0.5 chars per px)
 function needsStackedLayout(name: string): boolean {
-  const maxCharsPerLine = Math.floor((SCREEN_WIDTH - 80) / 20); // Approximate based on font size 36
+  const screenWidth = Dimensions.get('window').width;
+  const maxCharsPerLine = Math.floor((screenWidth - 80) / 20); // Approximate based on font size 36
   return name.length > maxCharsPerLine;
 }
 
@@ -119,15 +114,13 @@ function ScoringZone({
   playerName,
   onPress,
   disabled,
-  isTop,
-  isServing,
+  position,
   colors,
 }: {
   playerName: string;
   onPress: () => void;
   disabled: boolean;
-  isTop: boolean;
-  isServing: boolean;
+  position: 'left' | 'right' | 'top' | 'bottom';
   colors: ReturnType<typeof useThemeColors>;
 }) {
   const flash = useSharedValue(0);
@@ -144,39 +137,41 @@ function ScoringZone({
     onPress();
   };
 
-  // Check if we need stacked layout for long doubles names
-  const useStacked = isDoublesName(playerName) && needsStackedLayout(playerName);
+  // Check if we need stacked layout for doubles names
+  const useStacked = isDoublesName(playerName);
   const [player1, player2] = useStacked ? splitDoublesName(playerName) : ['', ''];
+
+  // Determine border style based on position
+  const positionStyles = {
+    left: [styles.scoringZoneLeft, { borderRightColor: colors.border }],
+    right: [styles.scoringZoneRight, { borderLeftColor: colors.border }],
+    top: [styles.scoringZoneTop, { borderBottomColor: colors.border }],
+    bottom: [styles.scoringZoneBottom, { borderTopColor: colors.border }],
+  };
 
   return (
     <Pressable
       onPress={disabled ? undefined : handlePress}
       disabled={disabled}
-      style={[styles.scoringZone, isTop ? styles.scoringZoneTop : styles.scoringZoneBottom, isTop ? { borderBottomColor: colors.border } : { borderTopColor: colors.border }]}>
+      style={[styles.scoringZone, ...positionStyles[position]]}>
       <Animated.View style={[styles.scoringZoneInner, animatedStyle]}>
         <View style={styles.scoringZoneContent}>
           {useStacked ? (
-            // Stacked layout for long doubles names
+            // Stacked layout for doubles names
             <View style={styles.scoringZoneNameStacked}>
-              <View style={styles.scoringZoneNameRow}>
-                {isServing && <View style={[styles.servingIndicatorLarge, { backgroundColor: colors.success }]} />}
-                <ThemedText style={[styles.scoringZoneName, { color: colors.textPrimary }]} numberOfLines={1}>
-                  {player1}
-                </ThemedText>
-              </View>
+              <ThemedText style={[styles.scoringZoneNameSmall, { color: colors.textPrimary }]} numberOfLines={1}>
+                {player1}
+              </ThemedText>
               <ThemedText style={[styles.scoringZoneSlash, { color: colors.textMuted }]}>/</ThemedText>
-              <ThemedText style={[styles.scoringZoneName, { color: colors.textPrimary }]} numberOfLines={1}>
+              <ThemedText style={[styles.scoringZoneNameSmall, { color: colors.textPrimary }]} numberOfLines={1}>
                 {player2}
               </ThemedText>
             </View>
           ) : (
             // Single line layout
-            <View style={styles.scoringZoneNameRow}>
-              {isServing && <View style={[styles.servingIndicatorLarge, { backgroundColor: colors.success }]} />}
-              <ThemedText style={[styles.scoringZoneName, { color: colors.textPrimary }]} numberOfLines={1}>
-                {playerName}
-              </ThemedText>
-            </View>
+            <ThemedText style={[styles.scoringZoneNameSmall, { color: colors.textPrimary }]} numberOfLines={1}>
+              {playerName}
+            </ThemedText>
           )}
           <ThemedText style={[styles.scoringZoneHint, { color: colors.textMuted }]}>Tap to score</ThemedText>
         </View>
@@ -190,6 +185,12 @@ export default function MatchScoreScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const id = matchId as Id<'matches'>;
   const colors = useThemeColors();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  // Determine layout orientation - portrait phones get vertical layout
+  const isPortrait = screenHeight > screenWidth;
+  const isLargeScreen = screenWidth >= 768;
+  const scale = isLargeScreen ? 1.5 : screenWidth >= 414 ? 1.2 : 1;
 
   const match = useQuery(api.matches.getMatch, { matchId: id });
 
@@ -328,35 +329,13 @@ export default function MatchScoreScreen() {
     // Check if this is a doubles match (names contain " / ")
     const isDoubles = isDoublesName(name1) || isDoublesName(name2);
 
-    return (
-      <ThemedView style={styles.container}>
-        {/* Player 1 Scoring Zone (Top) */}
-        <ScoringZone
-          playerName={name1}
-          onPress={() => handleScorePoint(1)}
-          disabled={isUpdating}
-          isTop={true}
-          isServing={serving1 ?? false}
-          colors={colors}
-        />
-
-        {/* Center Scoreboard */}
-        <View style={[styles.centerScoreboard, { paddingTop: insets.top }]}>
-          {/* Mini Header - Back left, Live right */}
-          <View style={styles.miniHeader}>
-            <Pressable onPress={() => router.back()} style={[styles.miniBackButton, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-              <IconSymbol name="chevron.left" size={18} color={colors.textPrimary} />
-            </Pressable>
-            <View style={[styles.liveBadge, { backgroundColor: colors.success + '20' }]}>
-              <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
-              <ThemedText style={[styles.liveText, { color: colors.success }]}>LIVE</ThemedText>
-            </View>
-          </View>
-
-          {/* Tennis Scoreboard */}
+    // Common scoreboard content - shared between portrait and landscape
+    const scoreboardContent = (
+      <>
+        {/* Tennis Scoreboard - Unified layout for all match types */}
           {showScoreboard && isTennis && match.tennisState && (
             <View style={[styles.fullScoreboard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-              {/* Tiebreak indicator only */}
+              {/* Tiebreak indicator */}
               {match.tennisState.isTiebreak && (
                 <View style={styles.configRow}>
                   <View style={[styles.configBadgeSmall, { backgroundColor: colors.warning + '30' }]}>
@@ -367,34 +346,15 @@ export default function MatchScoreScreen() {
                 </View>
               )}
 
-              {/* Score Table */}
-              <View style={[styles.scoreTable, { backgroundColor: colors.bgSecondary }]}>
-                {/* Player 1 Row */}
-                <View style={[styles.scoreRow, { borderBottomColor: colors.border }]}>
-                  {/* Show names only for singles/teams, not doubles */}
-                  {!isDoubles && (
-                    <View style={styles.playerCell}>
-                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {match.participant1?.displayName || 'P1'}
-                      </ThemedText>
-                      {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+              {/* Large Game Points Display */}
+              <View style={styles.doublesScoreContainer}>
+                {/* Player 1 Score */}
+                <View style={styles.doublesScoreSide}>
+                  <View style={styles.doublesPointsRow}>
+                    <View style={styles.servingDotContainer}>
+                      {serving1 && <View style={[styles.doublesServingDot, { backgroundColor: colors.success }]} />}
                     </View>
-                  )}
-                  {isDoubles && serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
-                  {match.tennisState.sets.map((set, idx) => (
-                    <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
-                        {set[0]}
-                      </ThemedText>
-                    </View>
-                  ))}
-                  <View style={[styles.setCell, styles.currentSetCell, { backgroundColor: colors.accent + '20' }]}>
-                    <ThemedText style={[styles.currentSetCellText, { color: colors.accent }]}>
-                      {match.tennisState.currentSetGames[0]}
-                    </ThemedText>
-                  </View>
-                  <View style={[styles.pointsCell, { backgroundColor: colors.bgTertiary }]}>
-                    <ThemedText style={[styles.pointsCellText, { color: colors.accent }]}>
+                    <ThemedText style={[styles.doublesGamePoints, { color: colors.accent }]}>
                       {getTennisPointDisplay(
                         match.tennisState.isTiebreak ? match.tennisState.tiebreakPoints : match.tennisState.currentGamePoints,
                         0,
@@ -405,32 +365,22 @@ export default function MatchScoreScreen() {
                   </View>
                 </View>
 
-                {/* Player 2 Row */}
-                <View style={[styles.scoreRow, styles.scoreRowLast]}>
-                  {/* Show names only for singles/teams, not doubles */}
-                  {!isDoubles && (
-                    <View style={styles.playerCell}>
-                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {match.participant2?.displayName || 'P2'}
-                      </ThemedText>
-                      {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
-                    </View>
-                  )}
-                  {isDoubles && serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
-                  {match.tennisState.sets.map((set, idx) => (
-                    <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
-                        {set[1]}
-                      </ThemedText>
-                    </View>
-                  ))}
-                  <View style={[styles.setCell, styles.currentSetCell, { backgroundColor: colors.accent + '20' }]}>
-                    <ThemedText style={[styles.currentSetCellText, { color: colors.accent }]}>
-                      {match.tennisState.currentSetGames[1]}
+                {/* Divider with current games */}
+                <View style={styles.doublesDivider}>
+                  <View style={[styles.doublesGamesContainer, { backgroundColor: colors.bgTertiary }]}>
+                    <ThemedText style={[styles.doublesGamesText, { color: colors.textPrimary }]}>
+                      {match.tennisState.currentSetGames[0]} - {match.tennisState.currentSetGames[1]}
                     </ThemedText>
                   </View>
-                  <View style={[styles.pointsCell, { backgroundColor: colors.bgTertiary }]}>
-                    <ThemedText style={[styles.pointsCellText, { color: colors.accent }]}>
+                </View>
+
+                {/* Player 2 Score */}
+                <View style={styles.doublesScoreSide}>
+                  <View style={styles.doublesPointsRow}>
+                    <View style={styles.servingDotContainer}>
+                      {serving2 && <View style={[styles.doublesServingDot, { backgroundColor: colors.success }]} />}
+                    </View>
+                    <ThemedText style={[styles.doublesGamePoints, { color: colors.accent }]}>
                       {getTennisPointDisplay(
                         match.tennisState.isTiebreak ? match.tennisState.tiebreakPoints : match.tennisState.currentGamePoints,
                         1,
@@ -441,89 +391,74 @@ export default function MatchScoreScreen() {
                   </View>
                 </View>
               </View>
+
+              {/* Set scores - simple inline */}
+              {match.tennisState.sets.length > 0 && (
+                <ThemedText style={[styles.doublesSetsSummary, { color: colors.textMuted }]}>
+                  {match.tennisState.sets.map((set, idx) => `${set[0]}-${set[1]}`).join('  ')}
+                </ThemedText>
+              )}
             </View>
           )}
 
-          {/* Volleyball Scoreboard */}
+          {/* Volleyball Scoreboard - Unified layout for all match types */}
           {showScoreboard && isVolleyball && match.volleyballState && (
             <View style={[styles.fullScoreboard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-
-              {/* Score Table */}
-              <View style={[styles.scoreTable, { backgroundColor: colors.bgSecondary }]}>
-                {/* Team 1 Row */}
-                <View style={[styles.scoreRow, { borderBottomColor: colors.border }]}>
-                  {/* Show names only for singles/teams, not doubles */}
-                  {!isDoubles && (
-                    <View style={styles.playerCell}>
-                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {match.participant1?.displayName || 'T1'}
-                      </ThemedText>
-                      {serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+              {/* Large Points Display */}
+              <View style={styles.doublesScoreContainer}>
+                {/* Team 1 Score */}
+                <View style={styles.doublesScoreSide}>
+                  <View style={styles.doublesPointsRow}>
+                    <View style={styles.servingDotContainer}>
+                      {serving1 && <View style={[styles.doublesServingDot, { backgroundColor: colors.success }]} />}
                     </View>
-                  )}
-                  {isDoubles && serving1 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
-                  {match.volleyballState.sets.map((set, idx) => (
-                    <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, { color: (set[0] ?? 0) > (set[1] ?? 0) ? colors.accent : colors.textMuted }]}>
-                        {set[0]}
-                      </ThemedText>
-                    </View>
-                  ))}
-                  <View style={[styles.pointsCellLarge, { backgroundColor: colors.accent + '20' }]}>
-                    <ThemedText style={[styles.pointsCellTextLarge, { color: colors.accent }]}>
+                    <ThemedText style={[styles.doublesGamePoints, { color: colors.accent }]}>
                       {match.volleyballState.currentSetPoints[0]}
                     </ThemedText>
                   </View>
                 </View>
 
-                {/* Team 2 Row */}
-                <View style={[styles.scoreRow, styles.scoreRowLast]}>
-                  {/* Show names only for singles/teams, not doubles */}
-                  {!isDoubles && (
-                    <View style={styles.playerCell}>
-                      <ThemedText style={[styles.playerNameFull, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {match.participant2?.displayName || 'T2'}
-                      </ThemedText>
-                      {serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success }]} />}
+                {/* Divider with set count */}
+                <View style={styles.doublesDivider}>
+                  <View style={[styles.doublesGamesContainer, { backgroundColor: colors.bgTertiary }]}>
+                    <ThemedText style={[styles.doublesGamesText, { color: colors.textPrimary }]}>
+                      Set {match.volleyballState.sets.length + 1}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {/* Team 2 Score */}
+                <View style={styles.doublesScoreSide}>
+                  <View style={styles.doublesPointsRow}>
+                    <View style={styles.servingDotContainer}>
+                      {serving2 && <View style={[styles.doublesServingDot, { backgroundColor: colors.success }]} />}
                     </View>
-                  )}
-                  {isDoubles && serving2 && <View style={[styles.servingDotSmall, { backgroundColor: colors.success, marginRight: Spacing.sm }]} />}
-                  {match.volleyballState.sets.map((set, idx) => (
-                    <View key={idx} style={styles.setCell}>
-                      <ThemedText style={[styles.setCellText, { color: (set[1] ?? 0) > (set[0] ?? 0) ? colors.accent : colors.textMuted }]}>
-                        {set[1]}
-                      </ThemedText>
-                    </View>
-                  ))}
-                  <View style={[styles.pointsCellLarge, { backgroundColor: colors.accent + '20' }]}>
-                    <ThemedText style={[styles.pointsCellTextLarge, { color: colors.accent }]}>
+                    <ThemedText style={[styles.doublesGamePoints, { color: colors.accent }]}>
                       {match.volleyballState.currentSetPoints[1]}
                     </ThemedText>
                   </View>
                 </View>
               </View>
+
+              {/* Set scores - simple inline */}
+              {match.volleyballState.sets.length > 0 && (
+                <ThemedText style={[styles.doublesSetsSummary, { color: colors.textMuted }]}>
+                  {match.volleyballState.sets.map((set, idx) => `${set[0]}-${set[1]}`).join('  ')}
+                </ThemedText>
+              )}
             </View>
           )}
-        </View>
+      </>
+    );
 
-        {/* Player 2 Scoring Zone (Bottom) */}
-        <ScoringZone
-          playerName={name2}
-          onPress={() => handleScorePoint(2)}
-          disabled={isUpdating}
-          isTop={false}
-          isServing={serving2 ?? false}
-          colors={colors}
-        />
-
-        {/* Undo Button - Bottom Left */}
+    // Undo button - shared between layouts
+    const undoButton = (
+      <View style={[styles.undoButtonContainer, { bottom: insets.bottom + Spacing.md * scale }]}>
         <Pressable
           onPress={handleUndo}
           style={[
-            styles.cornerUndoButton,
+            styles.undoButtonInner,
             {
-              bottom: insets.bottom + Spacing.lg * scale,
-              left: Spacing.lg * scale,
               paddingVertical: Spacing.sm * scale,
               paddingHorizontal: Spacing.md * scale,
               borderRadius: Radius.lg * scale,
@@ -536,6 +471,84 @@ export default function MatchScoreScreen() {
           <IconSymbol name="arrow.uturn.backward" size={20 * scale} color={colors.textPrimary} />
           <ThemedText style={[styles.cornerUndoText, { color: colors.textPrimary, fontSize: 14 * scale }]}>Undo</ThemedText>
         </Pressable>
+      </View>
+    );
+
+    // Back button - shared between layouts
+    const backButton = (
+      <Pressable
+        onPress={() => router.back()}
+        style={[styles.topLeftBackButton, { top: insets.top + Spacing.sm, backgroundColor: colors.bgCard, borderColor: colors.border }]}
+      >
+        <IconSymbol name="chevron.left" size={24} color={colors.textPrimary} />
+      </Pressable>
+    );
+
+    // Portrait layout - top/bottom scoring zones (for narrow phones)
+    if (isPortrait) {
+      return (
+        <ThemedView style={styles.containerVertical}>
+          {/* Player 1 Scoring Zone (Top) */}
+          <ScoringZone
+            playerName={name1}
+            onPress={() => handleScorePoint(1)}
+            disabled={isUpdating}
+            position="top"
+            colors={colors}
+          />
+
+          {backButton}
+
+          {/* Center Scoreboard */}
+          <View style={styles.centerScoreboardVertical} pointerEvents="box-none">
+            <View style={styles.scoreboardWrapper} pointerEvents="auto">
+              {scoreboardContent}
+            </View>
+          </View>
+
+          {/* Player 2 Scoring Zone (Bottom) */}
+          <ScoringZone
+            playerName={name2}
+            onPress={() => handleScorePoint(2)}
+            disabled={isUpdating}
+            position="bottom"
+            colors={colors}
+          />
+
+          {undoButton}
+        </ThemedView>
+      );
+    }
+
+    // Landscape layout - left/right scoring zones (for tablets and landscape)
+    return (
+      <ThemedView style={styles.containerHorizontal}>
+        {/* Player 1 Scoring Zone (Left) */}
+        <ScoringZone
+          playerName={name1}
+          onPress={() => handleScorePoint(1)}
+          disabled={isUpdating}
+          position="left"
+          colors={colors}
+        />
+
+        {backButton}
+
+        {/* Center Scoreboard */}
+        <View style={[styles.centerScoreboardHorizontal, { paddingTop: insets.top }]}>
+          {scoreboardContent}
+        </View>
+
+        {/* Player 2 Scoring Zone (Right) */}
+        <ScoringZone
+          playerName={name2}
+          onPress={() => handleScorePoint(2)}
+          disabled={isUpdating}
+          position="right"
+          colors={colors}
+        />
+
+        {undoButton}
       </ThemedView>
     );
   }
@@ -794,6 +807,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  containerHorizontal: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  containerVertical: {
+    flex: 1,
+    flexDirection: 'column',
+  },
   scrollView: {
     flex: 1,
   },
@@ -809,6 +830,12 @@ const styles = StyleSheet.create({
   // Full-screen scoring styles
   scoringZone: {
     flex: 1,
+  },
+  scoringZoneLeft: {
+    borderRightWidth: 1,
+  },
+  scoringZoneRight: {
+    borderLeftWidth: 1,
   },
   scoringZoneTop: {
     borderBottomWidth: 1,
@@ -838,23 +865,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingVertical: 4,
   },
+  scoringZoneNameSmall: {
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: '700',
+    paddingVertical: 2,
+  },
   scoringZoneNameStacked: {
     alignItems: 'center',
     gap: Spacing.xs,
   },
   scoringZoneSlash: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '400',
   },
   scoringZoneHint: {
-    fontSize: 14,
+    fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   servingIndicatorLarge: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 
   centerScoreboard: {
@@ -866,9 +899,37 @@ const styles = StyleSheet.create({
     zIndex: 10,
     paddingHorizontal: Spacing.md,
   },
+  centerScoreboardHorizontal: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    transform: [{ translateX: -160 }, { translateY: -120 }],
+    width: 320,
+    zIndex: 10,
+    paddingHorizontal: Spacing.sm,
+  },
+  centerScoreboardVertical: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    paddingHorizontal: Spacing.lg,
+  },
+  scoreboardWrapper: {
+    width: '100%',
+    maxWidth: 360,
+  },
   miniHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  miniHeaderCentered: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
@@ -879,6 +940,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topLeftBackButton: {
+    position: 'absolute',
+    left: Spacing.md,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
   },
   liveBadge: {
     flexDirection: 'row',
@@ -907,6 +979,27 @@ const styles = StyleSheet.create({
   },
   cornerUndoButton: {
     position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    ...Shadows.sm,
+  },
+  cornerUndoButtonCenter: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    ...Shadows.sm,
+  },
+  undoButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  undoButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
@@ -1228,5 +1321,58 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 12,
     textAlign: 'center',
+  },
+
+  // Doubles scoreboard styles - large, prominent layout
+  doublesScoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+  },
+  doublesScoreSide: {
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doublesPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  servingDotContainer: {
+    width: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doublesServingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  doublesGamePoints: {
+    fontSize: 56,
+    fontWeight: '800',
+    lineHeight: 64,
+    minWidth: 60,
+    textAlign: 'center',
+  },
+  doublesDivider: {
+    alignItems: 'center',
+  },
+  doublesGamesContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+  },
+  doublesGamesText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  doublesSetsSummary: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    letterSpacing: 1,
   },
 });
