@@ -28,7 +28,6 @@ export const useComponentDrag = () => {
     canvasSize,
     grid,
     selectedComponents,
-    alignmentGuides,
     alignmentSnapping,
     selectComponent,
     startDrag,
@@ -128,9 +127,9 @@ export const useComponentDrag = () => {
     const component = components.find(c => c.id === active.id);
     if (!component) return;
 
-    // Calculate new position from drag delta
-    let newX = component.position.x + delta.x;
-    let newY = component.position.y + delta.y;
+    // Calculate new position from drag delta (round to avoid sub-pixel issues)
+    let newX = Math.round(component.position.x + delta.x);
+    let newY = Math.round(component.position.y + delta.y);
 
     // Check for alignment snapping first (only if enabled)
     let alignmentSnapped = false;

@@ -1307,13 +1307,13 @@
             const element = document.createElement('div');
             element.className = 'image-component';
             element.style.position = 'absolute';
-            // Position component exactly as designed (no offset needed)
-            element.style.left = component.position.x + 'px';
-            element.style.top = component.position.y + 'px';
-            element.style.width = component.size.width + 'px';
-            element.style.height = component.size.height + 'px';
+            // Position component exactly as designed (round to avoid sub-pixel rendering issues)
+            element.style.left = Math.round(component.position.x) + 'px';
+            element.style.top = Math.round(component.position.y) + 'px';
+            element.style.width = Math.round(component.size.width) + 'px';
+            element.style.height = Math.round(component.size.height) + 'px';
             element.style.zIndex = component.zIndex || 1;
-            
+
             // Apply styling
             if (component.style) {
                 if (component.style.backgroundColor) {
@@ -1321,16 +1321,16 @@
                 }
                 if (component.style.borderWidth) {
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
-                    element.style.border = `${component.style.borderWidth}px solid ${borderColor}`;
+                    element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
                 if (component.style.borderRadius) {
-                    element.style.borderRadius = component.style.borderRadius + 'px';
+                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
                 }
                 if (component.style.opacity) {
                     element.style.opacity = component.style.opacity;
                 }
             }
-            
+
             // Load image if available
             if (component.data && component.data.imageId) {
                 try {
@@ -1389,13 +1389,13 @@
             const element = document.createElement('div');
             element.className = 'video-component';
             element.style.position = 'absolute';
-            // Position component exactly as designed (no offset needed)
-            element.style.left = component.position.x + 'px';
-            element.style.top = component.position.y + 'px';
-            element.style.width = component.size.width + 'px';
-            element.style.height = component.size.height + 'px';
+            // Position component exactly as designed (round to avoid sub-pixel rendering issues)
+            element.style.left = Math.round(component.position.x) + 'px';
+            element.style.top = Math.round(component.position.y) + 'px';
+            element.style.width = Math.round(component.size.width) + 'px';
+            element.style.height = Math.round(component.size.height) + 'px';
             element.style.zIndex = component.zIndex || 1;
-            
+
             // Apply styling
             if (component.style) {
                 if (component.style.backgroundColor) {
@@ -1403,16 +1403,16 @@
                 }
                 if (component.style.borderWidth) {
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
-                    element.style.border = `${component.style.borderWidth}px solid ${borderColor}`;
+                    element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
                 if (component.style.borderRadius) {
-                    element.style.borderRadius = component.style.borderRadius + 'px';
+                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
                 }
                 if (component.style.opacity) {
                     element.style.opacity = component.style.opacity;
                 }
             }
-            
+
             // Load video if available
             if (component.data && component.data.videoId) {
                 try {
@@ -1490,17 +1490,17 @@
 
         function renderTextComponent(component) {
             const container = document.getElementById('scoreboardContainer');
-            
+
             const element = document.createElement('div');
             element.className = 'text-component';
             element.style.position = 'absolute';
-            // Position component exactly as designed (no offset needed)
-            element.style.left = component.position.x + 'px';
-            element.style.top = component.position.y + 'px';
-            element.style.width = component.size.width + 'px';
-            element.style.height = component.size.height + 'px';
+            // Position component exactly as designed (round to avoid sub-pixel rendering issues)
+            element.style.left = Math.round(component.position.x) + 'px';
+            element.style.top = Math.round(component.position.y) + 'px';
+            element.style.width = Math.round(component.size.width) + 'px';
+            element.style.height = Math.round(component.size.height) + 'px';
             element.style.zIndex = component.zIndex || 1000; // Text always on top
-            
+
             // Apply flexbox layout (matching design canvas)
             element.style.display = 'flex';
             element.style.alignItems = 'center';
@@ -1509,7 +1509,7 @@
             element.style.whiteSpace = 'nowrap';
             element.style.overflow = 'hidden';
             element.style.textOverflow = 'ellipsis';
-            
+
             // Apply text alignment
             const textAlign = component.style ? component.style.textAlign || 'center' : 'center';
             switch (textAlign) {
@@ -1527,32 +1527,32 @@
                     element.style.textAlign = 'center';
                     break;
             }
-            
+
             // Apply text styling
             if (component.style) {
-                element.style.fontSize = (component.style.fontSize || 16) + 'px';
+                element.style.fontSize = Math.round(component.style.fontSize || 16) + 'px';
                 element.style.color = component.style.textColor || '#ffffff';
                 element.style.fontWeight = component.style.fontWeight || 'normal';
                 element.style.fontFamily = component.style.fontFamily || 'Arial, sans-serif';
-                
+
                 if (component.style.backgroundColor && component.style.backgroundColor !== 'transparent') {
                     element.style.backgroundColor = component.style.backgroundColor;
                 }
                 if (component.style.borderWidth) {
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
-                    element.style.border = `${component.style.borderWidth}px solid ${borderColor}`;
+                    element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
                 if (component.style.borderRadius) {
-                    element.style.borderRadius = component.style.borderRadius + 'px';
+                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
                 }
                 if (component.style.opacity !== undefined) {
                     element.style.opacity = component.style.opacity;
                 }
             }
-            
+
             // Set text content
             element.textContent = component.data.text || 'Sample Text';
-            
+
             container.appendChild(element);
         }
 
@@ -1633,17 +1633,17 @@
 
         function renderTennisComponent(component) {
             const container = document.getElementById('scoreboardContainer');
-            
+
             const element = document.createElement('div');
             element.className = 'text-component tennis-component score-change-base';
             element.style.position = 'absolute';
-            // Position component exactly as designed (no offset needed)
-            element.style.left = component.position.x + 'px';
-            element.style.top = component.position.y + 'px';
-            element.style.width = component.size.width + 'px';
-            element.style.height = component.size.height + 'px';
+            // Position component exactly as designed (round to avoid sub-pixel rendering issues)
+            element.style.left = Math.round(component.position.x) + 'px';
+            element.style.top = Math.round(component.position.y) + 'px';
+            element.style.width = Math.round(component.size.width) + 'px';
+            element.style.height = Math.round(component.size.height) + 'px';
             element.style.zIndex = component.zIndex || 1000;
-            
+
             // Apply flexbox layout (matching design canvas)
             element.style.display = 'flex';
             element.style.alignItems = 'center';
@@ -1651,7 +1651,7 @@
             element.style.paddingRight = '8px';
             element.style.wordWrap = 'break-word';
             element.style.overflow = 'hidden';
-            
+
             // Apply text alignment
             const textAlign = component.style ? component.style.textAlign || 'center' : 'center';
             switch (textAlign) {
@@ -1669,23 +1669,23 @@
                     element.style.textAlign = 'center';
                     break;
             }
-            
+
             // Apply text styling with tennis-specific defaults
             if (component.style) {
-                element.style.fontSize = (component.style.fontSize || 16) + 'px';
+                element.style.fontSize = Math.round(component.style.fontSize || 16) + 'px';
                 element.style.color = component.style.textColor || '#ffffff';
                 element.style.fontWeight = component.style.fontWeight || 'bold'; // Bold by default for tennis
                 element.style.fontFamily = component.style.fontFamily || 'Arial, sans-serif';
-                
+
                 if (component.style.backgroundColor && component.style.backgroundColor !== 'transparent') {
                     element.style.backgroundColor = component.style.backgroundColor;
                 }
                 if (component.style.borderWidth) {
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
-                    element.style.border = `${component.style.borderWidth}px solid ${borderColor}`;
+                    element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
                 if (component.style.borderRadius) {
-                    element.style.borderRadius = component.style.borderRadius + 'px';
+                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
                 }
                 if (component.style.opacity !== undefined) {
                     element.style.opacity = component.style.opacity;

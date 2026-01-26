@@ -198,9 +198,9 @@ export const useComponentResize = () => {
       newHeight = newBottom - newTop;
     }
 
-    // Update component with new position and size
-    updateComponentSize(resizeState.componentId, { width: newWidth, height: newHeight });
-    updateComponentPosition(resizeState.componentId, { x: newLeft, y: newTop });
+    // Update component with new position and size (round to avoid sub-pixel issues)
+    updateComponentSize(resizeState.componentId, { width: Math.round(newWidth), height: Math.round(newHeight) });
+    updateComponentPosition(resizeState.componentId, { x: Math.round(newLeft), y: Math.round(newTop) });
   }, [resizeState, canvasSize, updateComponentSize, updateComponentPosition]);
 
   /**
