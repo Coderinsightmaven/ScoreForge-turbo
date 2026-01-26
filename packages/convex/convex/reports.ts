@@ -48,6 +48,7 @@ const matchScoreResult = v.object({
       p2Games: v.number(),
     })
   ),
+  startedAt: v.number(),
   completedAt: v.number(),
 });
 
@@ -136,6 +137,7 @@ export const getTournamentMatchScores = query({
           setsWonP1: match.participant1Score,
           setsWonP2: match.participant2Score,
           sets,
+          startedAt: match.startedAt || 0,
           completedAt: match.completedAt || 0,
         };
       })
@@ -228,6 +230,7 @@ type MatchScore = {
   setsWonP1: number;
   setsWonP2: number;
   sets: Array<{ p1Games: number; p2Games: number }>;
+  startedAt: number;
   completedAt: number;
 };
 
@@ -279,12 +282,16 @@ export const generateMatchScoresCSV = action({
       "Set 3",
       "Set 4",
       "Set 5",
+      "Started",
       "Completed",
     ];
 
     // Build CSV rows
     const rows: string[][] = matches.map((m: MatchScore) => {
-      // Format completed timestamp
+      // Format timestamps
+      const startedDate: string = m.startedAt
+        ? new Date(m.startedAt).toISOString().replace("T", " ").slice(0, 19)
+        : "";
       const completedDate: string = m.completedAt
         ? new Date(m.completedAt).toISOString().replace("T", " ").slice(0, 19)
         : "";
@@ -302,6 +309,7 @@ export const generateMatchScoresCSV = action({
         m.sets[2] ? `${m.sets[2].p1Games}-${m.sets[2].p2Games}` : "",
         m.sets[3] ? `${m.sets[3].p1Games}-${m.sets[3].p2Games}` : "",
         m.sets[4] ? `${m.sets[4].p1Games}-${m.sets[4].p2Games}` : "",
+        startedDate,
         completedDate,
       ];
     });
