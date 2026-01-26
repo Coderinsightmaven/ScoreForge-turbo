@@ -203,6 +203,8 @@
             /* Simple text without shadow for cleaner look */
         }
     </style>
+    <!-- Convex Browser Bundle for real-time subscriptions -->
+    <script src="https://unpkg.com/convex@1.31.6/dist/browser.bundle.js"></script>
 </head>
 <body>
     <div class="scoreboard-container" id="scoreboardContainer">
@@ -223,6 +225,10 @@
         let debugInfo = document.getElementById('debugInfo');
         let initAttempts = 0;
         const maxInitAttempts = 30; // 30 seconds
+
+        // Convex real-time subscription state
+        let convexClient = null;
+        let unsubscribe = null;
 
         function updateDebug(message) {
             console.log(message);
@@ -449,7 +455,7 @@
                         convexUrl: scoreboardData.scoreForgeConfig.convexUrl
                     });
                     updateDebug(`ScoreForge: ${scoreboardData.scoreForgeConfig.matchId}`);
-                    startScoreForgePolling();
+                    startScoreForgeSubscription();
                     return;
                 }
 
@@ -461,67 +467,54 @@
             }
         }
 
-        // ScoreForge polling
-        let scoreForgeInterval = null;
-
-        async function startScoreForgePolling() {
+        // ScoreForge real-time subscription
+        function startScoreForgeSubscription() {
             const config = scoreboardData.scoreForgeConfig;
             if (!config) {
                 console.log('🎾 [SCOREBOARD] No ScoreForge config available');
                 return;
             }
 
-            console.log('🎾 [SCOREBOARD] Starting ScoreForge polling for match:', config.matchId);
+            console.log('🎾 [SCOREBOARD] Starting ScoreForge subscription for match:', config.matchId);
 
-            // Clear any existing interval
-            if (scoreForgeInterval) {
-                clearInterval(scoreForgeInterval);
+            // Clean up existing subscription
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
             }
 
-            // Fetch immediately
-            await fetchScoreForgeData();
-
-            // Poll every 2 seconds
-            scoreForgeInterval = setInterval(fetchScoreForgeData, 2000);
-        }
-
-        async function fetchScoreForgeData() {
-            const config = scoreboardData.scoreForgeConfig;
-            if (!config) return;
-
-            try {
-                // Call Convex API directly
+            // Create client if needed
+            if (!convexClient) {
                 const baseUrl = config.convexUrl.replace(/\/$/, '');
-                const response = await fetch(`${baseUrl}/api/query`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        path: 'publicApi:getMatch',
-                        args: { apiKey: config.apiKey, matchId: config.matchId },
-                        format: 'json'
-                    })
-                });
-
-                if (!response.ok) {
-                    console.error('🎾 [SCOREBOARD] ScoreForge API error:', response.status);
-                    return;
-                }
-
-                const result = await response.json();
-                if (result.status === 'error') {
-                    console.error('🎾 [SCOREBOARD] ScoreForge error:', result.errorMessage);
-                    return;
-                }
-
-                const match = result.value?.match;
-                if (match) {
-                    console.log('🎾 [SCOREBOARD] Received ScoreForge data:', match.id);
-                    const tennisData = transformScoreForgeToTennisData(match);
-                    updateTennisComponents(tennisData);
-                }
-            } catch (error) {
-                console.error('🎾 [SCOREBOARD] Failed to fetch ScoreForge data:', error);
+                console.log('🎾 [SCOREBOARD] Creating Convex client for:', baseUrl);
+                convexClient = new convex.ConvexClient(baseUrl);
             }
+
+            // Subscribe using string path for real-time updates
+            unsubscribe = convexClient.onUpdate(
+                "publicApi:getMatch",
+                { apiKey: config.apiKey, matchId: config.matchId },
+                (result) => {
+                    if (result === undefined) {
+                        // Initial loading state
+                        console.log('🎾 [SCOREBOARD] Waiting for ScoreForge data...');
+                        return;
+                    }
+
+                    if (result.error) {
+                        console.error('🎾 [SCOREBOARD] ScoreForge subscription error:', result.error);
+                        return;
+                    }
+
+                    if (result.match) {
+                        console.log('🎾 [SCOREBOARD] Received ScoreForge update:', result.match.id);
+                        const tennisData = transformScoreForgeToTennisData(result.match);
+                        updateTennisComponents(tennisData);
+                    }
+                }
+            );
+
+            console.log('🎾 [SCOREBOARD] ScoreForge subscription active');
         }
 
         function transformScoreForgeToTennisData(match) {
@@ -1282,18 +1275,30 @@
         }
         */
 
-        // Cleanup intervals and WebSocket when window is closed
+        // Cleanup subscriptions and intervals when window is closed
         window.addEventListener('beforeunload', () => {
             console.log('🎾 Cleaning up scoreboard window...');
 
-            // Clear polling intervals
+            // Clean up Convex subscription
+            if (unsubscribe) {
+                console.log('🎾 Unsubscribing from ScoreForge...');
+                unsubscribe();
+                unsubscribe = null;
+            }
+
+            // Close Convex client
+            if (convexClient) {
+                console.log('🎾 Closing Convex client...');
+                convexClient.close();
+                convexClient = null;
+            }
+
+            // Clear polling intervals (for any remaining component-level polling)
             Object.values(pollingIntervals).forEach(interval => {
                 clearInterval(interval);
             });
 
-            // WebSocket disconnect now handled by backend (Tauri)
-            // Frontend WebSocket disconnect disabled to prevent duplicate disconnects
-            console.log('🎾 WebSocket disconnect handled by backend - no frontend disconnect needed');
+            console.log('🎾 Scoreboard cleanup complete');
         });
 
         async function renderImageComponent(component) {
