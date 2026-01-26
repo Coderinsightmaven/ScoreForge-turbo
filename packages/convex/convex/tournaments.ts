@@ -183,6 +183,7 @@ export const getBracket = query({
             _id: v.id("tournamentParticipants"),
             displayName: v.string(),
             seed: v.optional(v.number()),
+            isPlaceholder: v.optional(v.boolean()),
           })
         ),
         participant2: v.optional(
@@ -190,6 +191,7 @@ export const getBracket = query({
             _id: v.id("tournamentParticipants"),
             displayName: v.string(),
             seed: v.optional(v.number()),
+            isPlaceholder: v.optional(v.boolean()),
           })
         ),
         participant1Score: v.number(),
@@ -246,6 +248,7 @@ export const getBracket = query({
               _id: p1._id,
               displayName: p1.displayName,
               seed: p1.seed,
+              isPlaceholder: p1.isPlaceholder,
             };
           }
         }
@@ -257,6 +260,7 @@ export const getBracket = query({
               _id: p2._id,
               displayName: p2.displayName,
               seed: p2.seed,
+              isPlaceholder: p2.isPlaceholder,
             };
           }
         }
@@ -1028,6 +1032,169 @@ export const startTournament = mutation({
       status: "active",
       startDate: Date.now(),
     });
+
+    return null;
+  },
+});
+
+/**
+ * Calculate the next power of 2 that is >= n
+ */
+function nextPowerOf2(n: number): number {
+  let power = 1;
+  while (power < n) {
+    power *= 2;
+  }
+  return power;
+}
+
+/**
+ * Generate a blank bracket with placeholder participants
+ * Creates placeholder participants ("Slot 1", "Slot 2", etc.) and generates the bracket structure
+ * Optionally accepts seed assignments to place existing participants at specific seeds
+ */
+export const generateBlankBracket = mutation({
+  args: {
+    tournamentId: v.id("tournaments"),
+    bracketSize: v.number(),
+    // Optional: assign existing participants to specific seeds
+    // Array of { participantId, seed } objects
+    seedAssignments: v.optional(
+      v.array(
+        v.object({
+          participantId: v.id("tournamentParticipants"),
+          seed: v.number(),
+        })
+      )
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const tournament = await ctx.db.get(args.tournamentId);
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+
+    // Only owner can generate blank bracket
+    if (tournament.createdBy !== userId) {
+      throw new Error("Not authorized. Only the tournament owner can generate a blank bracket.");
+    }
+
+    // Can only generate for draft tournaments
+    if (tournament.status !== "draft") {
+      throw new Error("Can only generate blank bracket for draft tournaments");
+    }
+
+    // Validate bracket size (must be power of 2 and between 2 and 128)
+    const validSizes = [2, 4, 8, 16, 32, 64, 128];
+    let actualSize = args.bracketSize;
+
+    // If not a valid power of 2, round up to next power of 2
+    if (!validSizes.includes(actualSize)) {
+      actualSize = nextPowerOf2(actualSize);
+      if (actualSize > 128) {
+        throw new Error("Bracket size must be 128 or less");
+      }
+    }
+
+    if (actualSize < 2) {
+      throw new Error("Bracket size must be at least 2");
+    }
+
+    // Get existing participants
+    const existingParticipants = await ctx.db
+      .query("tournamentParticipants")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+      .collect();
+
+    // Build a map of seed -> existing participant ID from assignments
+    const seedToParticipantId = new Map<number, Id<"tournamentParticipants">>();
+    const assignedParticipantIds = new Set<string>();
+
+    if (args.seedAssignments) {
+      for (const assignment of args.seedAssignments) {
+        if (assignment.seed >= 1 && assignment.seed <= actualSize) {
+          // Verify this participant exists and belongs to this tournament
+          const participant = existingParticipants.find(p => p._id === assignment.participantId);
+          if (participant) {
+            seedToParticipantId.set(assignment.seed, assignment.participantId);
+            assignedParticipantIds.add(assignment.participantId);
+          }
+        }
+      }
+    }
+
+    // Delete existing matches (for regeneration)
+    const existingMatches = await ctx.db
+      .query("matches")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+      .collect();
+
+    for (const match of existingMatches) {
+      await ctx.db.delete(match._id);
+    }
+
+    // Delete participants that are not assigned to a seed
+    for (const participant of existingParticipants) {
+      if (!assignedParticipantIds.has(participant._id)) {
+        await ctx.db.delete(participant._id);
+      }
+    }
+
+    // Create/update participants for each slot
+    const participants: Doc<"tournamentParticipants">[] = [];
+    for (let i = 1; i <= actualSize; i++) {
+      const assignedParticipantId = seedToParticipantId.get(i);
+
+      if (assignedParticipantId) {
+        // Update existing participant with the seed and mark as not placeholder
+        await ctx.db.patch(assignedParticipantId, {
+          seed: i,
+          isPlaceholder: false,
+        });
+        const participant = await ctx.db.get(assignedParticipantId);
+        if (participant) {
+          participants.push(participant);
+        }
+      } else {
+        // Create a new placeholder participant
+        const participantId = await ctx.db.insert("tournamentParticipants", {
+          tournamentId: args.tournamentId,
+          type: tournament.participantType,
+          displayName: `Slot ${i}`,
+          seed: i,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          pointsFor: 0,
+          pointsAgainst: 0,
+          createdAt: Date.now(),
+          isPlaceholder: true,
+        });
+
+        const participant = await ctx.db.get(participantId);
+        if (participant) {
+          participants.push(participant);
+        }
+      }
+    }
+
+    // Update tournament maxParticipants if needed
+    if (tournament.maxParticipants < actualSize) {
+      await ctx.db.patch(args.tournamentId, {
+        maxParticipants: actualSize,
+      });
+    }
+
+    // Generate the bracket using existing helper (only for elimination formats)
+    if (tournament.format === "single_elimination" || tournament.format === "double_elimination") {
+      await generateBracketMatches(ctx, args.tournamentId, tournament, participants);
+    }
 
     return null;
   },

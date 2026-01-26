@@ -87,6 +87,7 @@ export const listParticipants = query({
       pointsFor: v.number(),
       pointsAgainst: v.number(),
       createdAt: v.number(),
+      isPlaceholder: v.optional(v.boolean()),
     })
   ),
   handler: async (ctx, args) => {
@@ -134,6 +135,7 @@ export const listParticipants = query({
       pointsFor: p.pointsFor,
       pointsAgainst: p.pointsAgainst,
       createdAt: p.createdAt,
+      isPlaceholder: p.isPlaceholder,
     }));
   },
 });
@@ -526,6 +528,91 @@ export const updateSeedingBatch = mutation({
       }
     }
 
+    return null;
+  },
+});
+
+/**
+ * Update a placeholder participant's name (for blank bracket feature)
+ * This replaces the placeholder with an actual participant name
+ */
+export const updatePlaceholderName = mutation({
+  args: {
+    participantId: v.id("tournamentParticipants"),
+    displayName: v.string(),
+    // Optional: for individual tournaments
+    playerName: v.optional(v.string()),
+    // Optional: for doubles tournaments
+    player1Name: v.optional(v.string()),
+    player2Name: v.optional(v.string()),
+    // Optional: for team tournaments
+    teamName: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const participant = await ctx.db.get(args.participantId);
+    if (!participant) {
+      throw new Error("Participant not found");
+    }
+
+    const tournament = await ctx.db.get(participant.tournamentId);
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+
+    // Only owner can update placeholder names
+    const canManage = await canManageTournament(tournament, userId);
+    if (!canManage) {
+      throw new Error("Not authorized");
+    }
+
+    // Build updates based on participant type
+    const updates: {
+      displayName: string;
+      isPlaceholder: boolean;
+      playerName?: string;
+      player1Name?: string;
+      player2Name?: string;
+      teamName?: string;
+    } = {
+      displayName: args.displayName.trim(),
+      isPlaceholder: false, // Mark as no longer a placeholder
+    };
+
+    // Add type-specific fields if provided
+    switch (participant.type) {
+      case "individual":
+        if (args.playerName?.trim()) {
+          updates.playerName = args.playerName.trim();
+        } else {
+          updates.playerName = args.displayName.trim();
+        }
+        break;
+
+      case "doubles":
+        if (args.player1Name?.trim()) {
+          updates.player1Name = args.player1Name.trim();
+        }
+        if (args.player2Name?.trim()) {
+          updates.player2Name = args.player2Name.trim();
+        }
+        break;
+
+      case "team":
+        if (args.teamName?.trim()) {
+          updates.teamName = args.teamName.trim();
+        } else {
+          updates.teamName = args.displayName.trim();
+        }
+        break;
+    }
+
+    await ctx.db.patch(args.participantId, updates);
     return null;
   },
 });

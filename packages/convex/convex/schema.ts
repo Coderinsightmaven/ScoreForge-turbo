@@ -254,6 +254,8 @@ export default defineSchema({
     pointsFor: v.number(),
     pointsAgainst: v.number(),
     createdAt: v.number(),
+    // For blank bracket feature - placeholder slots that can be filled in later
+    isPlaceholder: v.optional(v.boolean()),
   })
     .index("by_tournament", ["tournamentId"])
     .index("by_tournament_and_seed", ["tournamentId", "seed"]),

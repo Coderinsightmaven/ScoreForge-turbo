@@ -7,6 +7,7 @@ import Link from "next/link";
 import { use } from "react";
 import { useSearchParams } from "next/navigation";
 import { Skeleton, SkeletonBracket, SkeletonTabs } from "@/app/components/Skeleton";
+import { EditableBracket } from "@/app/components/EditableBracket";
 
 type Tab = "bracket" | "matches" | "participants" | "standings" | "scorers";
 
@@ -138,7 +139,7 @@ export default function TournamentDetailPage({
               {/* Tournament ID for API access */}
               <TournamentIdDisplay tournamentId={tournament._id} />
             </div>
-            {canManage && <TournamentActions tournament={tournament} />}
+            {canManage && <TournamentActions tournament={{...tournament, format: tournament.format}} />}
           </div>
         </div>
       </header>
@@ -165,7 +166,7 @@ export default function TournamentDetailPage({
       {/* Content */}
       <main className="py-8 px-6 max-w-[var(--content-max)] mx-auto">
         {activeTab === "bracket" && (
-          <BracketTab tournamentId={id} format={tournament.format} status={tournament.status} />
+          <BracketTab tournamentId={id} format={tournament.format} status={tournament.status} canManage={canManage} />
         )}
         {activeTab === "matches" && <MatchesTab tournamentId={id} status={tournament.status} />}
         {activeTab === "participants" && (
@@ -227,6 +228,7 @@ function TournamentActions({
     status: string;
     participantCount: number;
     myRole: string;
+    format: string;
   };
 }) {
   const generateBracket = useMutation(api.tournaments.generateBracket);
@@ -236,6 +238,7 @@ function TournamentActions({
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showBlankBracketModal, setShowBlankBracketModal] = useState(false);
 
   const handleGenerateBracket = async () => {
     setGenerating(true);
@@ -280,46 +283,317 @@ function TournamentActions({
     }
   };
 
+  // Only show blank bracket option for elimination formats
+  const supportsBlankBracket = tournament.format === "single_elimination" || tournament.format === "double_elimination";
+
   return (
-    <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-      {tournament.status === "draft" && (
-        <button
-          onClick={handleGenerateBracket}
-          disabled={generating || tournament.participantCount < 2}
-          className="px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {generating ? "..." : "Generate Bracket"}
-        </button>
-      )}
-      {tournament.status === "draft" && (
-        <button
-          onClick={handleStart}
-          disabled={loading || tournament.participantCount < 2}
-          className="px-4 py-2 text-xs font-semibold tracking-wide text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "..." : "Start Tournament"}
-        </button>
-      )}
-      {tournament.status !== "completed" &&
-        tournament.status !== "cancelled" &&
-        tournament.myRole === "owner" && (
+    <>
+      <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+        {tournament.status === "draft" && tournament.participantCount >= 2 && (
           <button
-            onClick={handleCancel}
-            disabled={loading}
-            className="px-4 py-2 text-xs font-semibold tracking-wide text-red bg-red/10 border border-red/20 rounded-lg hover:bg-red hover:text-white transition-all disabled:opacity-50"
+            onClick={handleGenerateBracket}
+            disabled={generating}
+            className="px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cancel
+            {generating ? "..." : "Generate Bracket"}
           </button>
         )}
-      {tournament.myRole === "owner" && (
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="px-4 py-2 text-xs font-semibold tracking-wide text-red bg-red/10 border border-red/20 rounded-lg hover:bg-red hover:text-white transition-all disabled:opacity-50"
-        >
-          {deleting ? "Deleting..." : "Delete"}
-        </button>
+        {tournament.status === "draft" && supportsBlankBracket && (
+          <button
+            onClick={() => setShowBlankBracketModal(true)}
+            className="px-4 py-2 text-xs font-semibold tracking-wide text-accent bg-accent/10 border border-accent/30 rounded-lg hover:bg-accent hover:text-text-inverse transition-all"
+          >
+            Blank Bracket
+          </button>
+        )}
+        {tournament.status === "draft" && (
+          <button
+            onClick={handleStart}
+            disabled={loading || tournament.participantCount < 2}
+            className="px-4 py-2 text-xs font-semibold tracking-wide text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "..." : "Start Tournament"}
+          </button>
+        )}
+        {tournament.status !== "completed" &&
+          tournament.status !== "cancelled" &&
+          tournament.myRole === "owner" && (
+            <button
+              onClick={handleCancel}
+              disabled={loading}
+              className="px-4 py-2 text-xs font-semibold tracking-wide text-red bg-red/10 border border-red/20 rounded-lg hover:bg-red hover:text-white transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
+        {tournament.myRole === "owner" && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="px-4 py-2 text-xs font-semibold tracking-wide text-red bg-red/10 border border-red/20 rounded-lg hover:bg-red hover:text-white transition-all disabled:opacity-50"
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        )}
+      </div>
+
+      {/* Blank Bracket Modal */}
+      {showBlankBracketModal && (
+        <BlankBracketModal
+          tournamentId={tournament._id}
+          onClose={() => setShowBlankBracketModal(false)}
+        />
       )}
+    </>
+  );
+}
+
+type SeedAssignment = {
+  participantId: string;
+  seed: number;
+};
+
+function BlankBracketModal({
+  tournamentId,
+  onClose,
+}: {
+  tournamentId: string;
+  onClose: () => void;
+}) {
+  const generateBlankBracket = useMutation(api.tournaments.generateBlankBracket);
+  const participants = useQuery(api.tournamentParticipants.listParticipants, {
+    tournamentId: tournamentId as any,
+  });
+
+  const [bracketSize, setBracketSize] = useState(8);
+  const [seedAssignments, setSeedAssignments] = useState<SeedAssignment[]>([]);
+  const [generatingBlank, setGeneratingBlank] = useState(false);
+
+  // Filter out placeholder participants (only show real ones)
+  const realParticipants = participants?.filter(p => !p.isPlaceholder) || [];
+
+  // Auto-adjust bracket size based on participant count
+  useEffect(() => {
+    if (realParticipants.length > 0) {
+      // Find the smallest bracket size that fits all participants
+      const sizes = [4, 8, 16, 32, 64];
+      const minSize = sizes.find(s => s >= realParticipants.length) || 64;
+      if (minSize > bracketSize) {
+        setBracketSize(minSize);
+      }
+    }
+  }, [realParticipants.length]);
+
+  // Get list of participants not yet assigned to a seed
+  const unassignedParticipants = realParticipants.filter(
+    p => !seedAssignments.some(a => a.participantId === p._id)
+  );
+
+  // Get the participant assigned to a specific seed
+  const getAssignedParticipant = (seed: number) => {
+    const assignment = seedAssignments.find(a => a.seed === seed);
+    if (!assignment) return null;
+    return realParticipants.find(p => p._id === assignment.participantId);
+  };
+
+  const assignToSeed = (participantId: string, seed: number) => {
+    // Remove any existing assignment for this participant
+    const filtered = seedAssignments.filter(a => a.participantId !== participantId);
+    // Remove any existing assignment for this seed
+    const withoutSeed = filtered.filter(a => a.seed !== seed);
+    // Add new assignment
+    setSeedAssignments([...withoutSeed, { participantId, seed }]);
+  };
+
+  const removeFromSeed = (seed: number) => {
+    setSeedAssignments(seedAssignments.filter(a => a.seed !== seed));
+  };
+
+  const handleGenerate = async () => {
+    setGeneratingBlank(true);
+    try {
+      await generateBlankBracket({
+        tournamentId: tournamentId as any,
+        bracketSize,
+        seedAssignments: seedAssignments.length > 0
+          ? seedAssignments.map(a => ({
+              participantId: a.participantId as any,
+              seed: a.seed,
+            }))
+          : undefined,
+      });
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to generate blank bracket");
+    }
+    setGeneratingBlank(false);
+  };
+
+  const slots = Array.from({ length: bracketSize }, (_, i) => i + 1);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="w-full max-w-2xl max-h-[90vh] bg-bg-card border border-border rounded-2xl shadow-2xl animate-scaleIn flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
+          <h3 className="font-display text-lg font-medium text-text-primary">
+            Generate Blank Bracket
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            X
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto flex-1">
+          <p className="text-sm text-text-secondary mb-4">
+            Create a bracket with placeholder slots.
+            {realParticipants.length > 0 && " Assign existing participants to seeds or leave slots empty to fill in later."}
+          </p>
+
+          {/* Bracket Size Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Bracket Size
+            </label>
+            <select
+              value={bracketSize}
+              onChange={(e) => {
+                const newSize = Number(e.target.value);
+                setBracketSize(newSize);
+                // Remove assignments for seeds beyond new size
+                setSeedAssignments(seedAssignments.filter(a => a.seed <= newSize));
+              }}
+              className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+            >
+              <option value={4} disabled={realParticipants.length > 4}>4 participants</option>
+              <option value={8} disabled={realParticipants.length > 8}>8 participants</option>
+              <option value={16} disabled={realParticipants.length > 16}>16 participants</option>
+              <option value={32} disabled={realParticipants.length > 32}>32 participants</option>
+              <option value={64} disabled={realParticipants.length > 64}>64 participants</option>
+            </select>
+          </div>
+
+          {/* Existing Participants Section */}
+          {realParticipants.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-text-primary mb-3">
+                Existing Participants ({realParticipants.length})
+              </h4>
+
+              {unassignedParticipants.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs text-text-muted mb-2">Unassigned - click a slot below to assign:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {unassignedParticipants.map(p => (
+                      <div
+                        key={p._id}
+                        className="px-3 py-1.5 text-sm bg-accent/10 text-accent border border-accent/30 rounded-lg"
+                      >
+                        {p.displayName}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {seedAssignments.length > 0 && (
+                <p className="text-xs text-success mb-2">
+                  {seedAssignments.length} participant{seedAssignments.length !== 1 ? 's' : ''} assigned to seeds
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Seed Slots */}
+          <div>
+            <h4 className="text-sm font-medium text-text-primary mb-3">
+              Bracket Slots
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[300px] overflow-y-auto">
+              {slots.map(seed => {
+                const assigned = getAssignedParticipant(seed);
+                return (
+                  <div
+                    key={seed}
+                    className={`relative p-3 border rounded-lg transition-all ${
+                      assigned
+                        ? "bg-accent/10 border-accent/30"
+                        : "bg-bg-elevated border-border hover:border-accent/30"
+                    }`}
+                  >
+                    <div className="text-xs font-medium text-text-muted mb-1">
+                      Seed {seed}
+                    </div>
+                    {assigned ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-text-primary truncate">
+                          {assigned.displayName}
+                        </span>
+                        <button
+                          onClick={() => removeFromSeed(seed)}
+                          className="text-xs text-red hover:text-red-dim flex-shrink-0"
+                          title="Remove"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        {unassignedParticipants.length > 0 ? (
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                assignToSeed(e.target.value, seed);
+                              }
+                            }}
+                            className="w-full text-sm bg-transparent border-none text-text-muted focus:outline-none cursor-pointer"
+                          >
+                            <option value="">Empty slot</option>
+                            {unassignedParticipants.map(p => (
+                              <option key={p._id} value={p._id}>
+                                {p.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-sm text-text-muted italic">
+                            Empty slot
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center gap-3 p-6 border-t border-border flex-shrink-0">
+          <p className="text-xs text-text-muted">
+            {seedAssignments.length} of {bracketSize} slots filled
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleGenerate}
+              disabled={generatingBlank}
+              className="px-4 py-2 text-sm font-semibold text-text-inverse bg-accent rounded-lg hover:bg-accent-bright transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generatingBlank ? "Generating..." : "Generate Bracket"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -363,10 +637,12 @@ function BracketTab({
   tournamentId,
   format,
   status,
+  canManage,
 }: {
   tournamentId: string;
   format: string;
   status: string;
+  canManage: boolean;
 }) {
   const bracket = useQuery(api.tournaments.getBracket, {
     tournamentId: tournamentId as any,
@@ -387,6 +663,47 @@ function BracketTab({
         <p className="text-text-secondary">
           Bracket will be generated when the tournament starts
         </p>
+        {canManage && status === "draft" && (format === "single_elimination" || format === "double_elimination") && (
+          <p className="text-sm text-text-muted mt-2">
+            Use the &quot;Blank Bracket&quot; button to create a bracket with placeholder slots.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Check if this bracket has placeholder participants (for editable mode)
+  const hasPlaceholders = bracket.matches.some(
+    (m) => m.participant1?.isPlaceholder || m.participant2?.isPlaceholder
+  );
+
+  // Use EditableBracket for draft tournaments with placeholders
+  if (status === "draft" && hasPlaceholders && canManage) {
+    return (
+      <div className="animate-fadeIn">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-text-muted">
+            Click on placeholder slots to fill in participant names.
+          </p>
+          <div className="flex gap-2">
+            <Link
+              href={`/tournaments/${tournamentId}/bracket/print`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all no-print"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+              </svg>
+              Print
+            </Link>
+          </div>
+        </div>
+        <EditableBracket
+          matches={bracket.matches as any}
+          format={format}
+          sport={bracket.sport}
+          tournamentId={tournamentId}
+          canEdit={true}
+        />
       </div>
     );
   }
@@ -429,6 +746,17 @@ function BracketTab({
 
   return (
     <div className="animate-fadeIn">
+      <div className="flex justify-end mb-4 no-print">
+        <Link
+          href={`/tournaments/${tournamentId}/bracket/print`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+          </svg>
+          Print Bracket
+        </Link>
+      </div>
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-8 min-w-max">
           {roundNumbers.map((round) => (

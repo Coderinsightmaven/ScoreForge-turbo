@@ -571,3 +571,109 @@ input, textarea, select {
   color: var(--color-text-muted);
   background: var(--color-bg-tertiary);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  /* Hide non-printable elements */
+  .no-print,
+  nav,
+  header:not(.print-header),
+  footer,
+  .sidebar,
+  button:not(.print-button),
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Reset page for printing */
+  html, body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Page setup */
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+
+  /* Bracket container */
+  .bracket-container,
+  .bracket-print-container {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Empty slots with lines for handwriting */
+  .bracket-slot-empty {
+    border-bottom: 1px solid #999 !important;
+    min-width: 100px;
+    display: inline-block;
+    height: 1.2em;
+  }
+
+  /* Match cards */
+  .bracket-container [class*="bg-bg-card"],
+  .bracket-print-container [class*="bg-bg-card"] {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  /* Text colors for print */
+  [class*="text-text-primary"] {
+    color: black !important;
+  }
+
+  [class*="text-text-secondary"],
+  [class*="text-text-muted"] {
+    color: #666 !important;
+  }
+
+  [class*="text-accent"] {
+    color: #333 !important;
+    font-weight: 600;
+  }
+
+  /* Border colors for print */
+  [class*="border-border"] {
+    border-color: #ccc !important;
+  }
+
+  /* Remove backgrounds */
+  [class*="bg-bg-"],
+  [class*="bg-accent"] {
+    background: white !important;
+  }
+
+  /* Ensure links don't show underlines */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  /* Adjust overflow for printing */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  /* Ensure full width */
+  main,
+  .bracket-container,
+  [class*="max-w-"] {
+    max-width: none !important;
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
