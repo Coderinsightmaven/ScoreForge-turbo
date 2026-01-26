@@ -9,7 +9,6 @@ import { VideoManager } from '../ui/VideoManager';
 import { ComponentsList } from './PropertyPanel/ComponentsList';
 import { PositionSizeSection } from './PropertyPanel/shared/PositionSizeSection';
 import { TextStyleSection } from './PropertyPanel/shared/TextStyleSection';
-import { TennisApiBindingSection } from './PropertyPanel/shared/TennisApiBindingSection';
 
 /**
  * PropertyPanel displays and allows editing of component properties.
@@ -748,7 +747,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -802,7 +800,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -840,7 +837,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -935,7 +931,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -987,7 +982,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -1039,7 +1033,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -1091,7 +1084,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -1184,7 +1176,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );
@@ -1210,7 +1201,6 @@ export const PropertyPanel: React.FC = () => {
           </div>
         </div>
 
-        <TennisApiBindingSection />
         <TextStyleSection component={selectedComponent} onStyleChange={handleStyleChange} />
       </div>
     );

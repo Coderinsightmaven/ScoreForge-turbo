@@ -1,13 +1,12 @@
 /**
- * useLiveDataStore - Live data connection and tennis API integration store.
- * 
+ * useLiveDataStore - Live data connection store for ScoreForge integration.
+ *
  * Manages:
- * - WebSocket and REST API connections for live tennis data
+ * - ScoreForge API connections for live tennis data
  * - Component bindings to live data fields
- * - Tennis API WebSocket connection state
  * - Data polling intervals
  * - Rust backend tennis data processing
- * 
+ *
  * This store handles all real-time data integration and component data binding.
  */
 // src/stores/useLiveDataStore.ts
@@ -15,7 +14,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { LiveDataConnection, TennisLiveData, LiveDataComponentBinding } from '../types/scoreboard';
 import { v4 as uuidv4 } from 'uuid';
-import { TauriAPI, LiveDataState, ScoreboardInfo } from '../lib/tauri';
+import { TauriAPI, LiveDataState } from '../lib/tauri';
 import { getRustTennisProcessor, ProcessedTennisMatch } from '../services/rustTennisProcessor';
 import { RawTennisData } from '../types/tennisProcessor';
 import { scoreforgeApi } from '../services/scoreforgeApi';
@@ -29,10 +28,6 @@ interface LiveDataStoreState {
   pollingIntervals: Record<string, number>;
   isLoaded: boolean;
   lastError: string | null;
-
-  // Tennis API integration
-  tennisApiConnected: boolean;
-  tennisApiScoreboards: ScoreboardInfo[];
 
   // Rust processor integration
   lastProcessedData: ProcessedTennisMatch | null;
@@ -70,33 +65,9 @@ interface LiveDataActions {
   // Persistence
   loadConnections: () => Promise<void>;
   saveConnections: () => Promise<void>;
-  
 
-    // === Tennis API Integration ===
-    
-    /**
-     * Connects to tennis API WebSocket for live data.
-     * 
-     * @param wsUrl - WebSocket URL (e.g., 'wss://sub.ioncourt.com/?token=...')
-     * @param courtFilter - Optional court filter for WebSocket message filtering
-     * @param connectionId - Optional existing connection ID to update
-     * 
-     * Process:
-     * 1. Creates or updates connection
-     * 2. Establishes WebSocket connection via Tauri backend
-     * 3. Sets up message handlers
-     * 4. Updates connection state
-     * 
-     * Side effects:
-     * - Updates tennisApiConnected state
-     * - Sets up WebSocket event listeners
-     * - Processes incoming tennis data
-     */
-    connectToWebSocket: (wsUrl: string, courtFilter?: string, connectionId?: string) => Promise<void>;
-  disconnectFromTennisApi: () => void;
+  // Error handling
   clearError: () => void;
-  getTennisApiMatch: (scoreboardId: string) => any;
-  getTennisApiScoreboards: () => ScoreboardInfo[];
 
   // Rust processor integration
   processTennisDataViaRust: (rawData: RawTennisData) => Promise<ProcessedTennisMatch>;
@@ -150,89 +121,6 @@ const getValueFromPath = (obj: any, path: string): any => {
   }, obj);
 };
 
-// === Mock Data Generation (for demo/testing) ===
-
-/**
- * Progressive mock tennis data generator for demo purposes.
- * Simulates a tennis match that progresses over time.
- * 
- * Behavior:
- * - Starts at set 1
- * - Progresses to set 2 after 30 seconds
- * - Progresses to set 3 after 60 seconds
- * - Generates random scores for current set
- * - Marks match as completed when a player wins 2 sets
- * 
- * @returns Mock tennis live data object
- */
-let mockMatchStartTime: number | null = null;
-
-function getMockTennisDataProgressive(): TennisLiveData {
-  // Progressive match simulation - starts at set 1 and progresses over time
-  const now = Date.now();
-  if (!mockMatchStartTime) mockMatchStartTime = now;
-  const matchDuration = now - mockMatchStartTime;
-  
-  // Progress through sets over time (each set takes ~30 seconds for demo)
-  let currentSet = 1;
-  let setsWon = { player1: 0, player2: 0 };
-  let setsData: any = {};
-  
-  // Determine current set based on time elapsed
-  if (matchDuration > 30000) currentSet = 2; // After 30 seconds, start set 2
-  if (matchDuration > 60000) currentSet = 3; // After 60 seconds, start set 3
-  
-  // Build sets data progressively
-  for (let setNum = 1; setNum <= currentSet; setNum++) {
-    if (setNum < currentSet) {
-      // Completed sets
-      const setWinner = setNum === 1 ? 1 : (setNum === 2 ? 2 : 1); // Alternate winners
-      setsData[`set${setNum}`] = {
-        player1: setWinner === 1 ? 6 : 4,
-        player2: setWinner === 2 ? 6 : 4
-      };
-      if (setWinner === 1) setsWon.player1++;
-      else setsWon.player2++;
-    } else {
-      // Current set in progress
-      setsData[`set${setNum}`] = {
-        player1: Math.floor(Math.random() * 7),
-        player2: Math.floor(Math.random() * 7)
-      };
-    }
-  }
-
-  return {
-    matchId: "live_match_001",
-    player1: {
-      name: "Novak Djokovic",
-      country: "SRB",
-      seed: 1
-    },
-    player2: {
-      name: "Rafael Nadal", 
-      country: "ESP",
-      seed: 2
-    },
-    score: {
-      player1Sets: setsWon.player1,
-      player2Sets: setsWon.player2,
-      player1Games: setsData[`set${currentSet}`]?.player1 || 0,
-      player2Games: setsData[`set${currentSet}`]?.player2 || 0,
-      player1Points: ["0", "15", "30", "40"][Math.floor(Math.random() * 4)],
-      player2Points: ["0", "15", "30", "40"][Math.floor(Math.random() * 4)]
-    },
-    sets: setsData,
-    serve: {
-      speed: Math.floor(Math.random() * 40) + 100 + " MPH" // 100-140 MPH
-    },
-    matchStatus: currentSet >= 3 && (setsWon.player1 >= 2 || setsWon.player2 >= 2) ? "completed" : "in_progress",
-    servingPlayer: Math.random() > 0.5 ? 1 : 2,
-    currentSet: currentSet,
-    isTiebreak: false
-  } as TennisLiveData;
-}
-
 export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
@@ -243,10 +131,6 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
     pollingIntervals: {},
     isLoaded: false,
     lastError: null,
-
-    // Tennis API integration
-    tennisApiConnected: false,
-    tennisApiScoreboards: [],
 
     // Rust processor integration
     lastProcessedData: null,
@@ -433,77 +317,21 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
     },
 
     // Polling control
+    // Note: For ScoreForge connections, use startScoreForgePolling instead
     startPolling: (connectionId) => {
       const state = get();
       const connection = state.connections.find(conn => conn.id === connectionId);
 
       if (!connection || state.pollingIntervals[connectionId]) return;
 
-      // Polling function
-      const pollData = async () => {
-        try {
-          let data;
+      // For ScoreForge connections, redirect to the dedicated polling method
+      if (connection.provider === 'scoreforge') {
+        get().startScoreForgePolling(connectionId);
+        return;
+      }
 
-          // Handle different data providers
-          if (connection.provider === 'mock') {
-            data = getMockTennisDataProgressive();
-
-            // Process mock data through Rust backend
-            try {
-              const processor = getRustTennisProcessor({
-                enableDebugLogging: import.meta.env.DEV
-              });
-              const processedData = await processor.processData(data as RawTennisData);
-
-              // Convert processed data back to TennisLiveData format
-              data = {
-                matchId: processedData.match_id,
-                player1: processedData.player1,
-                player2: processedData.player2,
-                score: {
-                  player1Sets: processedData.score.player1Sets,
-                  player2Sets: processedData.score.player2Sets,
-                  player1Games: processedData.score.player1Games,
-                  player2Games: processedData.score.player2Games,
-                  player1Points: processedData.score.player1Points,
-                  player2Points: processedData.score.player2Points
-                },
-                sets: processedData.sets,
-                serve: { speed: '120 MPH' },
-                matchStatus: processedData.match_status as 'not_started' | 'in_progress' | 'completed' | 'suspended',
-                servingPlayer: processedData.servingPlayer as 1 | 2 | 3 | 4,
-                currentSet: processedData.currentSet,
-                isTiebreak: processedData.isTiebreak
-              };
-            } catch (rustError) {
-              console.warn('⚠️ Rust processing failed, using raw data:', rustError);
-              // Fall back to raw data if processing fails
-            }
-          } else {
-            // WebSocket connections receive data automatically via WebSocket messages
-            // No manual fetching needed - data comes from the active WebSocket connection
-            return; // Skip polling for WebSocket connections
-          }
-
-          get().updateLiveData(connectionId, data);
-        } catch (error) {
-          get().setConnectionError(connectionId, error instanceof Error ? error.message : 'Unknown error');
-        }
-      };
-
-      // Initial fetch
-      pollData();
-
-      // Set up polling interval
-      const interval = setInterval(pollData, connection.pollInterval * 1000);
-
-      set((state) => ({
-        pollingIntervals: {
-          ...state.pollingIntervals,
-          [connectionId]: interval,
-        },
-        isPolling: true,
-      }));
+      // Other providers are not supported
+      console.warn(`Unsupported provider: ${connection.provider}. Only 'scoreforge' is supported.`);
     },
 
     stopPolling: (connectionId) => {
@@ -630,105 +458,8 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
     },
 
 
-    // Tennis API integration methods
-    connectToWebSocket: async (wsUrl: string, courtFilter?: string, connectionId?: string) => {
-      try {
-        set({ lastError: null });
-
-        // Use provided connection ID or generate one based on court filter
-        const finalConnectionId = connectionId || (courtFilter
-          ? `ioncourt-${courtFilter.replace(/[^a-zA-Z0-9\s]/g, '_')}`
-          : 'ioncourt-connection');
-
-        // For WebSocket connections, we don't need to test HTTP connection
-        // The WebSocket will establish the connection directly
-        if (wsUrl.startsWith('wss://') || wsUrl.startsWith('ws://')) {
-          // Establish the actual WebSocket connection with optional court filter
-          const connectResult = await import('../lib/tauri').then(m => m.TauriAPI.connectWebSocket(wsUrl, finalConnectionId, courtFilter));
-          console.log('🔗 WebSocket connection result:', connectResult);
-
-          set({
-            tennisApiConnected: true,
-            tennisApiScoreboards: [{
-              id: 'ioncourt-main',
-              name: 'IonCourt Live Scoreboard'
-            }],
-            lastError: null
-          });
-
-          // Start the WebSocket message listener
-          try {
-            const listenerResult = await import('../lib/tauri').then(m => m.TauriAPI.startWebSocketListener('ioncourt-connection'));
-            console.log('✅ WebSocket listener started:', listenerResult);
-          } catch (error) {
-            console.warn('⚠️ Failed to start WebSocket listener:', error);
-          }
-
-          // Check WebSocket status after a short delay to see if connection succeeded
-          setTimeout(async () => {
-            try {
-              const status = await import('../lib/tauri').then(m => m.TauriAPI.checkWebSocketStatus());
-              // Parse the status to see if we're connected
-              if (status.includes('WebSocket is CONNECTED and ACTIVE')) {
-                // Connection successful - no action needed as state is already set
-              } else {
-                // Connection may not be fully established - could update state here if needed
-              }
-            } catch (error) {
-              // Could not check WebSocket status - silently handle
-            }
-          }, 2000);
-        } else {
-          throw new Error('Invalid WebSocket URL. For security, use WSS:// (secure WebSocket) instead of WS:// (insecure WebSocket)');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        set({
-          tennisApiConnected: false,
-          tennisApiScoreboards: [],
-          lastError: errorMessage
-        });
-        throw error;
-      }
-    },
-
-    disconnectFromTennisApi: async () => {
-      try {
-        // Stop the WebSocket listener
-        const stopResult = await import('../lib/tauri').then(m => m.TauriAPI.stopWebSocketListener('ioncourt-connection'));
-        console.log('🛑 WebSocket listener stopped:', stopResult);
-      } catch (error) {
-        console.warn('⚠️ Failed to stop WebSocket listener:', error);
-      }
-
-      try {
-        // Disconnect the WebSocket
-        const disconnectResult = await import('../lib/tauri').then(m => m.TauriAPI.disconnectWebSocket('ioncourt-connection'));
-        console.log('🔌 WebSocket disconnected:', disconnectResult);
-      } catch (error) {
-        console.warn('⚠️ Failed to disconnect WebSocket:', error);
-      }
-
-      set({
-        tennisApiConnected: false,
-        tennisApiScoreboards: [],
-        lastError: null
-      });
-    },
-
     clearError: () => {
       set({ lastError: null });
-    },
-
-    getTennisApiMatch: (_scoreboardId: string) => {
-      // For now, return null since we only fetch scoreboard list, not match data
-      // Match data should be fetched separately when needed (e.g., when opening scoreboard.html)
-      return null;
-    },
-
-    getTennisApiScoreboards: () => {
-      const state = get();
-      return state.tennisApiScoreboards;
     },
 
     // Rust processor integration methods

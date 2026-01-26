@@ -132,22 +132,30 @@ export const useTennisWorkerData = (
 
 /**
  * Hook for getting tennis match data by component ID.
- * 
- * Automatically fetches and processes match data for a specific component.
- * 
+ *
+ * Automatically fetches and processes match data for a specific component
+ * from the first active ScoreForge connection.
+ *
  * @param componentId - Component ID to get match data for
  * @returns Tennis worker data result with processed match data
  */
 export const useTennisMatchData = (componentId: string) => {
-  const { getTennisApiMatch } = useLiveDataStore();
+  const { connections, getLiveData } = useLiveDataStore();
   const workerData = useTennisWorkerData({ componentId });
 
   useEffect(() => {
     const fetchMatchData = async () => {
       try {
-        const rawData = getTennisApiMatch(componentId);
-        if (rawData) {
-          await workerData.processData(rawData);
+        // Find the first active ScoreForge connection
+        const activeConnection = connections.find(
+          (conn) => conn.provider === 'scoreforge' && conn.isActive
+        );
+
+        if (activeConnection) {
+          const rawData = getLiveData(activeConnection.id);
+          if (rawData) {
+            await workerData.processData(rawData as RawTennisData);
+          }
         }
       } catch (error) {
         console.error(`❌ Failed to fetch match data for ${componentId}:`, error);
@@ -157,7 +165,7 @@ export const useTennisMatchData = (componentId: string) => {
     if (componentId) {
       fetchMatchData();
     }
-  }, [componentId, getTennisApiMatch, workerData]);
+  }, [componentId, connections, getLiveData, workerData]);
 
   return workerData;
 };

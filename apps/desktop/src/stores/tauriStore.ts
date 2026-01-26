@@ -216,9 +216,6 @@ export const useTauriStore = create<TauriStoreState & TauriStoreActions>()(
             break;
 
           case 'liveData':
-            if (updates.tennisApiConnected !== undefined) {
-              await invoke('set_tennis_api_connected', { connected: updates.tennisApiConnected });
-            }
             if (updates.polling !== undefined) {
               await invoke('set_live_data_polling', { polling: updates.polling });
             }

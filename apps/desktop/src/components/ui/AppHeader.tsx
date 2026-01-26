@@ -1,5 +1,4 @@
 import React from 'react';
-import { TennisApiConnectionButton } from './TennisApiConnectionButton';
 import { ScoreForgeConnectionButton } from './ScoreForgeConnectionButton';
 
 interface AppHeaderProps {
@@ -204,8 +203,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </svg>
             <span>Manage Scoreboards</span>
           </button>
-
-          <TennisApiConnectionButton />
 
           <ScoreForgeConnectionButton />
 

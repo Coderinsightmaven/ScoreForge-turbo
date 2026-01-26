@@ -23,8 +23,6 @@ import { VideoComponent } from './VideoComponent';
 import { TennisPlayerNameDisplay } from './TennisPlayerNameDisplay';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useLiveDataStore } from '../../../stores/useLiveDataStore';
-import { getRustTennisProcessor } from '../../../services/rustTennisProcessor';
-import { RawTennisData } from '../../../types/tennisProcessor';
 
 interface DraggableComponentProps {
   /** The component to render */
@@ -33,76 +31,40 @@ interface DraggableComponentProps {
   onSelect?: (id: string) => void;
   /** Callback when resize handle is grabbed */
   onResizeStart?: (componentId: string, handle: ResizeHandle, event: React.MouseEvent) => void;
-  /** Optional tennis API scoreboard ID for filtering data in scoreboard windows */
-  tennisApiScoreboardId?: string;
 }
 
 export const DraggableComponent: React.FC<DraggableComponentProps> = ({
   component,
   onSelect,
   onResizeStart,
-  tennisApiScoreboardId,
 }) => {
   const { selectedComponents, isResizing } = useCanvasStore();
   const isSelected = selectedComponents.has(component.id);
 
   /**
-   * Gets live tennis data for tennis components.
-   * 
+   * Gets live tennis data for tennis components from ScoreForge connections.
+   *
    * Process:
    * 1. Checks if component is a tennis component
-   * 2. Retrieves raw tennis data from live data store
-   * 3. Processes data through Rust backend for performance
-   * 4. Returns processed match data for rendering
-   * 
-   * Note: Rust processing happens asynchronously and doesn't block rendering.
+   * 2. Retrieves live data from the first active ScoreForge connection
+   * 3. Returns match data for rendering
    */
-  const tennisMatch = component.type.startsWith('tennis_') ?
-    (() => {
-      const state = useLiveDataStore.getState();
+  const tennisMatch = component.type.startsWith('tennis_')
+    ? (() => {
+        const state = useLiveDataStore.getState();
 
-      // If a specific tennis API scoreboard ID is provided (for scoreboard windows),
-      // only get data from that scoreboard
-      if (tennisApiScoreboardId) {
-        const rawData = state.getTennisApiMatch(tennisApiScoreboardId);
-        if (rawData) {
-          // Process data through Rust backend
-          try {
-            const processor = getRustTennisProcessor({
-              enableDebugLogging: import.meta.env.DEV
-            });
-            // Process synchronously if possible, or handle async processing
-            processor.processData(rawData as RawTennisData).then(processedData => {
-              console.log(`✅ Processed tennis data for ${component.id}:`, processedData.match_id);
-            }).catch(error => {
-              console.error(`❌ Rust processing failed for ${component.id}:`, error);
-            });
-          } catch (error) {
-            console.error(`❌ Failed to initialize Rust processor for ${component.id}:`, error);
-          }
-        }
-        return state.getTennisApiMatch(tennisApiScoreboardId);
-      }
+        // Find the first active ScoreForge connection with data
+        const activeConnection = state.connections.find(
+          (conn) => conn.provider === 'scoreforge' && conn.isActive
+        );
 
-      // For design canvas (no specific scoreboard ID), get match by component ID
-      const rawData = state.getTennisApiMatch(component.id);
-      if (rawData) {
-        // Process data through Rust backend
-        try {
-          const processor = getRustTennisProcessor({
-            enableDebugLogging: import.meta.env.DEV
-          });
-          processor.processData(rawData as RawTennisData).then(processedData => {
-            console.log(`✅ Processed tennis data for ${component.id}:`, processedData.match_id);
-          }).catch(error => {
-            console.error(`❌ Rust processing failed for ${component.id}:`, error);
-          });
-        } catch (error) {
-          console.error(`❌ Failed to initialize Rust processor for ${component.id}:`, error);
+        if (activeConnection) {
+          return state.getLiveData(activeConnection.id);
         }
-      }
-      return rawData;
-    })() : null;
+
+        return null;
+      })()
+    : null;
   
   // Tennis data change animation disabled to prevent visual clutter
 
@@ -343,20 +305,20 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
           );
         case ComponentType.TENNIS_GAME_SCORE:
           if (tennisMatch) {
-            displayValue = component.data.playerNumber === 2 ? tennisMatch.score.player2_points : tennisMatch.score.player1_points;
+            displayValue = component.data.playerNumber === 2 ? tennisMatch.score.player2Points : tennisMatch.score.player1Points;
           }
           // Keep custom fallback text for game score
           break;
         case ComponentType.TENNIS_SET_SCORE:
           if (tennisMatch) {
-            displayValue = component.data.playerNumber === 2 ? tennisMatch.score.player2_sets.toString() : tennisMatch.score.player1_sets.toString();
+            displayValue = component.data.playerNumber === 2 ? tennisMatch.score.player2Sets.toString() : tennisMatch.score.player1Sets.toString();
           }
           // Keep custom fallback text for set score
           break;
         case ComponentType.TENNIS_MATCH_SCORE:
           if (tennisMatch) {
             // Display overall match score as sets
-            displayValue = `${tennisMatch.score.player1_sets}-${tennisMatch.score.player2_sets}`;
+            displayValue = `${tennisMatch.score.player1Sets}-${tennisMatch.score.player2Sets}`;
           }
           // Keep custom fallback text for match score
           break;
@@ -385,7 +347,7 @@ export const DraggableComponent: React.FC<DraggableComponentProps> = ({
         case ComponentType.TENNIS_SERVING_INDICATOR:
           // Show serving indicator only for the selected player
           if (tennisMatch) {
-            const servingPlayer = tennisMatch.serving_player;
+            const servingPlayer = tennisMatch.servingPlayer;
             const selectedPlayer = component.data.playerNumber || 1; // Default to player 1
             if (servingPlayer === selectedPlayer) {
               displayValue = '●'; // Dot when selected player is serving

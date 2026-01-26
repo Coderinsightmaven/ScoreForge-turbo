@@ -12,7 +12,6 @@ import { MultipleScoreboardManager } from './components/ui/MultipleScoreboardMan
 import { ScoreboardManager } from './components/ui/ScoreboardManager';
 import { AppHeader } from './components/ui/AppHeader';
 import { ComponentLibrary } from './components/ui/ComponentLibrary';
-import { useTennisApiAutoConnect } from './hooks/useTennisApiAutoConnect';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useScoreboardImportExport } from './hooks/useScoreboardImportExport';
 import { TauriAPI } from './lib/tauri';
@@ -65,8 +64,6 @@ function App() {
     console.log('🎾 App initialized - Rust tennis processor will be used on-demand');
   }, [loadMonitors, loadImages]);
 
-  // Auto-connect to tennis API on startup
-  useTennisApiAutoConnect();
 
   // Set up keyboard shortcuts for copy/paste
   const { handleCopyComponents, handlePasteComponents } = useKeyboardShortcuts(config);

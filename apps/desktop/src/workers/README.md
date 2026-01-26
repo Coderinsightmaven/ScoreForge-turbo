@@ -117,9 +117,8 @@ await initializeTennisWorker(config);
 The worker processes tennis data from various formats into a standardized structure:
 
 ### Input Formats Supported
-- IonCourt API format
+- ScoreForge API format
 - Generic tennis data format
-- Custom match data structures
 
 ### Output Format
 ```typescript

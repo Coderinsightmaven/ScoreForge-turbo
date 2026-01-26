@@ -1,8 +1,8 @@
 import React from 'react';
-import { IonCourtMatchData, TennisLiveData } from '../../../types/scoreboard';
+import { TennisLiveData } from '../../../types/scoreboard';
 
 interface AdaptiveTeamDisplayProps {
-  tennisMatch: IonCourtMatchData | TennisLiveData | null;
+  tennisMatch: TennisLiveData | null;
   teamSelection?: number; // 0 for both teams, 1 for team 1 only, 2 for team 2 only
   separator?: string; // separator between team names when showing both
   fallbackText?: string;
@@ -17,42 +17,7 @@ export const AdaptiveTeamDisplay: React.FC<AdaptiveTeamDisplayProps> = ({
   const getTeamDisplayName = (sideIndex: number): string => {
     if (!tennisMatch) return `Team ${sideIndex + 1}`;
 
-    // Check if this is IonCourt data (has sides array)
-    if ('sides' in tennisMatch && tennisMatch.sides) {
-      const ionCourtMatch = tennisMatch as IonCourtMatchData;
-      const side = ionCourtMatch.sides[sideIndex];
-      if (!side) return `Team ${sideIndex + 1}`;
-
-      let displayText = '';
-
-      // Always start with the note (school/team name)
-      if (side.note && side.note.trim()) {
-        displayText = side.note.trim();
-      }
-
-      // For singles, also add the player's last name
-      if (ionCourtMatch.matchType === "SINGLES") {
-        const players = side.players;
-        if (players && players.length > 0) {
-          const player = players[0];
-          if (player?.participant?.last_name) {
-            const lastName = player.participant.last_name.trim();
-            if (displayText) {
-              displayText += ` - ${lastName}`;
-            } else {
-              displayText = lastName;
-            }
-          }
-        }
-      }
-
-      if (displayText) {
-        return displayText;
-      }
-    }
-
-    // Handle TennisLiveData - fallback for compatibility
-    const liveMatch = tennisMatch as TennisLiveData;
+    const liveMatch = tennisMatch;
 
     // Check for team names (school names)
     const teamNameKey = sideIndex === 0 ? 'team1Name' : 'team2Name';
@@ -60,7 +25,7 @@ export const AdaptiveTeamDisplay: React.FC<AdaptiveTeamDisplayProps> = ({
       let displayText = liveMatch[teamNameKey]!;
 
       // For singles matches, append player last name
-      if (liveMatch.matchType === 'singles' || liveMatch.matchType === 'SINGLES') {
+      if (liveMatch.matchType === 'singles') {
         const player = sideIndex === 0 ? liveMatch.player1 : liveMatch.player2;
         if (player?.name && player.name.includes(' ')) {
           const lastName = player.name.split(' ').pop();
