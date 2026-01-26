@@ -102,9 +102,16 @@ pub async fn create_scoreboard_window(
     let target_monitor = monitor_list.into_iter().nth(monitor_id as usize);
     
     // Store the scoreboard data for this window
-    if let Some(data) = scoreboard_data {
+    if let Some(data) = &scoreboard_data {
+        println!("🎾 [RUST] Storing scoreboard data for window: {}", window_id);
+        println!("🎾 [RUST] Data has scoreForgeConfig: {}", data.get("scoreForgeConfig").is_some());
+        if let Some(config) = data.get("scoreForgeConfig") {
+            println!("🎾 [RUST] ScoreForge config: {:?}", config);
+        }
         let mut instances = store.instances.lock().map_err(|e| e.to_string())?;
-        instances.insert(window_id.clone(), data);
+        instances.insert(window_id.clone(), scoreboard_data.unwrap());
+    } else {
+        println!("🎾 [RUST] No scoreboard data provided for window: {}", window_id);
     }
 
     // Create window in windowed mode first, then move to target monitor and set fullscreen
@@ -252,8 +259,15 @@ pub async fn get_scoreboard_instance_data(
     store: State<'_, ScoreboardInstanceStore>,
     window_id: String,
 ) -> Result<Option<serde_json::Value>, String> {
+    println!("🎾 [RUST] get_scoreboard_instance_data for window: {}", window_id);
     let instances = store.instances.lock().map_err(|e| e.to_string())?;
-    Ok(instances.get(&window_id).cloned())
+    let data = instances.get(&window_id).cloned();
+    if let Some(ref d) = data {
+        println!("🎾 [RUST] Returning data with scoreForgeConfig: {}", d.get("scoreForgeConfig").is_some());
+    } else {
+        println!("🎾 [RUST] No data found for window: {}", window_id);
+    }
+    Ok(data)
 }
 
  

@@ -211,15 +211,16 @@ export class ScoreForgeApiService {
 
     if (tennisState) {
       tennisState.sets.forEach((set, index) => {
-        setsData[`set${index + 1}`] = {
+        // Use numeric string keys ('1', '2', '3') to match renderer expectations
+        setsData[(index + 1).toString()] = {
           player1: set[0],
           player2: set[1],
         };
       });
 
-      // Add current set
+      // Add current set with numeric string key
       const currentSetNumber = tennisState.sets.length + 1;
-      setsData[`set${currentSetNumber}`] = {
+      setsData[currentSetNumber.toString()] = {
         player1: tennisState.currentSetGames[0],
         player2: tennisState.currentSetGames[1],
       };

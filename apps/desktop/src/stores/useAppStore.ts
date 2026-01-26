@@ -76,7 +76,7 @@ interface AppActions {
     offsetY?: number,
     savedScoreboardId?: string,
     tennisApiScoreboardId?: string,
-    courtFilter?: string
+    scoreForgeConfig?: { apiKey: string; convexUrl: string; matchId: string }
   ) => Promise<string | null>;
   closeScoreboardInstance: (instanceId: string) => Promise<void>;
   closeAllScoreboardInstances: () => Promise<void>;
@@ -241,9 +241,9 @@ export const useAppStore = create<AppState & AppActions>()(
      * This function:
      * - Creates a new Tauri window for scoreboard display
      * - Loads scoreboard data (either from saved scoreboard or current designer state)
-     * - Associates tennis API scoreboard ID and court filter if provided
+     * - Associates tennis API scoreboard ID if provided
      * - Tracks the instance in the store
-     * 
+     *
      * @param name - Display name for the scoreboard instance
      * @param width - Window width in pixels
      * @param height - Window height in pixels
@@ -251,7 +251,6 @@ export const useAppStore = create<AppState & AppActions>()(
      * @param offsetY - Y offset from monitor origin (default: 0)
      * @param savedScoreboardId - Optional ID of saved scoreboard to load
      * @param tennisApiScoreboardId - Optional tennis API scoreboard ID for live data
-     * @param courtFilter - Optional court filter for WebSocket data filtering
      * @returns The instance ID if successful, null if failed
      * 
      * Side effects:
@@ -268,7 +267,7 @@ export const useAppStore = create<AppState & AppActions>()(
       offsetY: number = 0,
       savedScoreboardId?: string,
       tennisApiScoreboardId?: string,
-      courtFilter?: string
+      scoreForgeConfig?: { apiKey: string; convexUrl: string; matchId: string }
     ) => {
       const state = get();
       if (!state.selectedMonitor) {
@@ -295,12 +294,12 @@ export const useAppStore = create<AppState & AppActions>()(
             const savedScoreboard = savedScoreboards.find(sb => sb.id === savedScoreboardId);
             if (savedScoreboard) {
               scoreboardData = savedScoreboard.data;
-              // Include tennis API scoreboard ID and court filter in the data if provided
-              if (tennisApiScoreboardId || courtFilter) {
+              // Include tennis API scoreboard ID and ScoreForge config if provided
+              if (tennisApiScoreboardId || scoreForgeConfig) {
                 scoreboardData = {
                   ...scoreboardData,
                   tennisApiScoreboardId: tennisApiScoreboardId,
-                  courtFilter: courtFilter
+                  scoreForgeConfig: scoreForgeConfig
                 };
               }
               // Use the saved scoreboard's name if no custom name provided
@@ -319,8 +318,8 @@ export const useAppStore = create<AppState & AppActions>()(
               config: scoreboardStoreState.config,
               components: scoreboardStoreState.components,
               gameState: scoreboardStoreState.gameState,
-              tennisApiScoreboardId: tennisApiScoreboardId, // Include tennis API scoreboard ID
-              courtFilter: courtFilter // Include court filter for WebSocket filtering
+              tennisApiScoreboardId: tennisApiScoreboardId,
+              scoreForgeConfig: scoreForgeConfig
             };
           } catch (error) {
             console.warn('Failed to load live data bindings:', error);
@@ -329,8 +328,8 @@ export const useAppStore = create<AppState & AppActions>()(
               config: scoreboardStoreState.config,
               components: scoreboardStoreState.components,
               gameState: scoreboardStoreState.gameState,
-              tennisApiScoreboardId: tennisApiScoreboardId, // Include tennis API scoreboard ID
-              courtFilter: courtFilter // Include court filter for WebSocket filtering
+              tennisApiScoreboardId: tennisApiScoreboardId,
+              scoreForgeConfig: scoreForgeConfig
             };
           }
         }
@@ -341,7 +340,9 @@ export const useAppStore = create<AppState & AppActions>()(
         console.log('  Monitor position:', state.selectedMonitor.x, state.selectedMonitor.y);
         console.log('  Offsets:', offsetX, offsetY);
         console.log('  Tennis API Scoreboard ID:', tennisApiScoreboardId);
-        console.log('  Scoreboard data includes tennisApiScoreboardId:', !!scoreboardData?.tennisApiScoreboardId);
+        console.log('  ScoreForge config param:', scoreForgeConfig ? `matchId: ${scoreForgeConfig.matchId}` : 'none');
+        console.log('  ScoreboardData has scoreForgeConfig:', !!scoreboardData?.scoreForgeConfig);
+        console.log('  ScoreboardData scoreForgeConfig:', scoreboardData?.scoreForgeConfig);
 
         await TauriAPI.createScoreboardWindow(
           windowId,

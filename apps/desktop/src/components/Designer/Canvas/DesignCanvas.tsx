@@ -20,7 +20,6 @@ import { useComponentDrag } from '../../../hooks/useComponentDrag';
 import { useComponentResize } from '../../../hooks/useComponentResize';
 import { DraggableComponent } from './DraggableComponent';
 import { AlignmentGuides } from './AlignmentGuides';
-import { ResizeHandle } from '../../../types/canvas';
 
 export const DesignCanvas: React.FC = () => {
   const {

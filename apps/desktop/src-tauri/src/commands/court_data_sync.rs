@@ -323,26 +323,10 @@ impl CourtDataSync {
         Ok(Vec::new())
     }
 
-    async fn fetch_court_data(active_courts: Vec<String>) -> Result<HashMap<String, serde_json::Value>, CourtSyncError> {
-        // Use the existing get_active_court_data command from live_data.rs
-        use crate::commands::get_active_court_data;
-
-        let result = get_active_court_data(active_courts).await;
-
-        match result {
-            Ok(data) => {
-                // Convert the serde_json::Value to HashMap
-                if let serde_json::Value::Object(map) = data {
-                    Ok(map.into_iter().collect())
-                } else {
-                    Ok(HashMap::new())
-                }
-            }
-            Err(e) => {
-                println!("Failed to fetch court data: {:?}", e);
-                Ok(HashMap::new())
-            }
-        }
+    async fn fetch_court_data(_active_courts: Vec<String>) -> Result<HashMap<String, serde_json::Value>, CourtSyncError> {
+        // Court data sync is no longer used - ScoreForge uses HTTP polling from frontend
+        // This function is kept for backward compatibility but returns empty data
+        Ok(HashMap::new())
     }
 
     async fn cleanup_undisplayed_courts(

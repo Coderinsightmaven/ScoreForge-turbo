@@ -1,25 +1,31 @@
 import { TauriAPI } from '../lib/tauri';
 import { useScoreboardStore } from '../stores/useScoreboardStore';
 import { useImageStore } from '../stores/useImageStore';
+import { useVideoStore } from '../stores/useVideoStore';
+import type { ScoreboardConfig, ScoreboardComponent } from '../types/scoreboard';
 
 /**
  * Hook that provides functions for importing and exporting scoreboards.
- * 
+ *
  * Export functionality:
  * - Saves scoreboard to disk
  * - Packages scoreboard with all assets (images, videos) into a ZIP file
  * - Allows user to choose save location
- * 
+ *
  * Import functionality:
  * - Reads ZIP file from user's file system
  * - Extracts scoreboard data and assets
  * - Loads scoreboard into the designer
- * 
+ * - Syncs imported assets with local stores
+ *
  * @param config - The current scoreboard config
  * @param components - The current scoreboard components
  * @returns Object with export and import handler functions
  */
-export const useScoreboardImportExport = (config: any, components: any[]) => {
+export const useScoreboardImportExport = (
+  config: ScoreboardConfig | null,
+  components: ScoreboardComponent[]
+) => {
   /**
    * Exports the current scoreboard design as a ZIP file.
    * The ZIP includes the scoreboard JSON and all referenced assets.
@@ -89,15 +95,15 @@ export const useScoreboardImportExport = (config: any, components: any[]) => {
 
   /**
    * Imports a scoreboard from a ZIP file.
-   * 
+   *
    * Process:
    * 1. Creates a hidden file input element
    * 2. Triggers file selection dialog
    * 3. Reads ZIP file as array buffer
-   * 4. Imports scoreboard data from ZIP
-   * 5. Loads scoreboard into designer
-   * 6. Refreshes image store to load imported images
-   * 
+   * 4. Imports scoreboard data from ZIP (Rust handles asset extraction and ID remapping)
+   * 5. Refreshes image and video stores to sync imported assets
+   * 6. Loads scoreboard into designer with remapped asset IDs
+   *
    * @throws Error if import fails (shows alert to user)
    */
   const handleImportScoreboard = async () => {
@@ -107,45 +113,70 @@ export const useScoreboardImportExport = (config: any, components: any[]) => {
       input.type = 'file';
       input.accept = '.zip';
       input.style.display = 'none';
-      
+
       // Handle file selection
       input.onchange = async (event) => {
         const file = (event.target as HTMLInputElement).files?.[0];
         if (!file) return;
-        
+
         try {
+          // Validate file size (max 100MB)
+          const MAX_SIZE = 100 * 1024 * 1024;
+          if (file.size > MAX_SIZE) {
+            alert('File is too large. Maximum size is 100MB.');
+            return;
+          }
+
           // Read file as array buffer
           const arrayBuffer = await file.arrayBuffer();
           const zipData = Array.from(new Uint8Array(arrayBuffer));
-          
-          // Import the scoreboard
+
+          // Import the scoreboard (Rust extracts assets and remaps IDs)
           const importedTauriConfig = await TauriAPI.importScoreboardFromZip(zipData);
-          
+
+          // Validate the imported data has required fields
+          if (!importedTauriConfig.data?.dimensions || !importedTauriConfig.data?.components) {
+            throw new Error('Invalid scoreboard data: missing required fields');
+          }
+
+          // Refresh images and videos FIRST to ensure assets are available
+          // This syncs the store with the newly imported assets from the ZIP
+          const { loadImages } = useImageStore.getState();
+          const { loadVideos } = useVideoStore.getState();
+          await Promise.all([loadImages(), loadVideos()]);
+
           // Convert TauriScoreboardConfig to ScoreboardConfig format
+          // Convert string timestamps to Date objects (required by ScoreboardConfig)
           const importedConfig = {
             ...importedTauriConfig.data,
             id: importedTauriConfig.id,
             name: importedTauriConfig.name,
+            createdAt: importedTauriConfig.data.createdAt
+              ? new Date(importedTauriConfig.data.createdAt)
+              : new Date(),
+            updatedAt: importedTauriConfig.data.updatedAt
+              ? new Date(importedTauriConfig.data.updatedAt)
+              : new Date(),
           };
-          
+
           // Load the imported scoreboard into the designer
           const { loadScoreboard } = useScoreboardStore.getState();
           await loadScoreboard(importedConfig);
-          
-          // Refresh images
-          const { loadImages } = useImageStore.getState();
-          await loadImages();
-          
+
           alert(`Scoreboard "${importedConfig.name}" imported successfully!`);
         } catch (error) {
           console.error('Failed to import scoreboard:', error);
-          alert('Failed to import scoreboard. Please ensure the file is a valid scoreboard ZIP.');
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          alert(
+            `Failed to import scoreboard: ${errorMessage}\n\nPlease ensure the file is a valid scoreboard ZIP.`
+          );
         } finally {
           // Clean up
           document.body.removeChild(input);
         }
       };
-      
+
       // Trigger file dialog
       document.body.appendChild(input);
       input.click();

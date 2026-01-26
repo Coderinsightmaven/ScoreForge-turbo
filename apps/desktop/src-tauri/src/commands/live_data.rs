@@ -101,8 +101,6 @@ pub struct MatchInfo {
 lazy_static::lazy_static! {
     static ref WEBSOCKET_CONNECTIONS: Arc<Mutex<HashMap<String, WebSocketConnection>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref MESSAGE_LISTENERS: Arc<Mutex<HashMap<String, tokio::task::JoinHandle<()>>>> = Arc::new(Mutex::new(HashMap::new()));
-    static ref LATEST_DATA_BY_COURT: Arc<Mutex<HashMap<String, serde_json::Value>>> = Arc::new(Mutex::new(HashMap::new()));
-    static ref LAST_DATA_UPDATE: Arc<Mutex<std::collections::HashMap<String, std::time::Instant>>> = Arc::new(Mutex::new(std::collections::HashMap::new()));
 }
 
 // Mock data for testing
@@ -160,7 +158,7 @@ fn create_mock_tennis_data() -> TennisLiveData {
 }
 
 #[tauri::command]
-pub async fn connect_websocket(ws_url: String, connection_id: String, _court_filter: Option<String>) -> Result<String, String> {
+pub async fn connect_websocket(ws_url: String, connection_id: String) -> Result<String, String> {
     println!("Attempting to connect to WebSocket: {}", ws_url);
 
     // Ensure URL starts with wss://
@@ -251,44 +249,7 @@ pub async fn start_websocket_listener(connection_id: String) -> Result<String, S
                                 match message {
                                     Message::Text(text) => {
                                         println!("📨 [WEBSOCKET {}] Received TEXT message: {}", connection_id_clone, text);
-
-                                        // Try to parse IonCourt JSON format
-                                        if let Ok(parsed_message) = serde_json::from_str::<serde_json::Value>(&text) {
-                                            if let Some(message_type) = parsed_message.get("type") {
-                                                if message_type == "MATCH" {
-                                                    if let Some(match_data) = parsed_message.get("data") {
-                                                        // Single connection - always process all matches
-                                                        println!("🎾 [WEBSOCKET {}] Processing IonCourt MATCH message", connection_id_clone);
-
-                                                        // Extract court name from match data
-                                                        if let Some(court_name) = match_data.get("court") {
-                                                            if let Some(court_str) = court_name.as_str() {
-                                                                // Validate court name is not empty
-                                                                if court_str.trim().is_empty() {
-                                                                    println!("⚠️ [WEBSOCKET {}] Received empty court name, skipping", connection_id_clone);
-                                                                    continue;
-                                                                }
-
-                                                                println!("🎾 [WEBSOCKET {}] Storing match data for court '{}'", connection_id_clone, court_str);
-
-                                                                // Store the latest match data by court name
-                                                                let mut latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-                                                                latest_data_by_court.insert(court_str.to_string(), match_data.clone());
-
-                                                                // Track last update time for cleanup
-                                                                let mut last_update = LAST_DATA_UPDATE.lock().await;
-                                                                last_update.insert(court_str.to_string(), std::time::Instant::now());
-
-                                                                // Periodic cleanup of old data (every 100 messages)
-                                                                if latest_data_by_court.len() % 100 == 0 {
-                                                                    cleanup_old_data().await;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        // Generic message logging - specific parsing handled by frontend
                                     }
                                     Message::Binary(data) => {
                                         println!("📨 [WEBSOCKET {}] Received BINARY message: {} bytes", connection_id_clone, data.len());
@@ -384,164 +345,10 @@ pub async fn start_websocket_listener(connection_id: String) -> Result<String, S
     Ok(format!("Started WebSocket message listener for: {}", connection_id))
 }
 
-async fn cleanup_old_data() {
-    println!("🧹 Running automatic cleanup of old court data");
-    let mut latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-    let mut last_update = LAST_DATA_UPDATE.lock().await;
-
-    let now = std::time::Instant::now();
-    let timeout_duration = std::time::Duration::from_secs(300); // 5 minutes
-
-    let mut courts_to_remove = Vec::new();
-
-    for (court_name, last_update_time) in last_update.iter() {
-        if now.duration_since(*last_update_time) > timeout_duration {
-            courts_to_remove.push(court_name.clone());
-        }
-    }
-
-    let removed_count = courts_to_remove.len();
-
-    for court_name in courts_to_remove {
-        latest_data_by_court.remove(&court_name);
-        last_update.remove(&court_name);
-        println!("🧹 Cleaned up old data for court: {}", court_name);
-    }
-
-    if removed_count > 0 {
-        println!("🧹 Data cleanup completed. Removed {} old court entries (5+ minute timeout)", removed_count);
-    } else {
-        println!("✅ No old court data to clean up (5-minute timeout)");
-    }
-}
-
 async fn attempt_reconnection(connection_id: &str) -> Result<(), String> {
     println!("🔄 [WEBSOCKET {}] Attempting reconnection...", connection_id);
-
-    // For now, we'll use the default IonCourt WebSocket URL
-    // In a production system, this should be configurable
-    let ws_url = "wss://sub.ioncourt.com/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXJ0bmVyX25hbWUiOiJiYXR0bGUtaW4tYmF5IiwiZXhwaXJ5IjoiMjAyNS0xMC0xMFQwMzo1OTo1OS45OTlaIiwidXNlcklkIjoiNWQ4OTVmZThjNzhhNWFhNTk4OThhOGIxIiwidG9rZW5JZCI6IjkxNTY5NjdmOTkzNjY2YTRjMTY0ZGQ0ZTllZWIyYTU0MGNiNGM3YTg5MGNlNmQwMTIzYTRkZjNiMWI3ZjdkOTAiLCJpYXQiOjE3NTc0MzY3ODEsImV4cCI6MTc2MDA2ODc5OX0.KaHcIiOKPnGl0oYwV8Iy0dHxRiUClnlV--jO2sAlwrE";
-
-    // Ensure URL starts with wss://
-    let ws_url = if ws_url.starts_with("ws://") {
-        ws_url.replace("ws://", "wss://")
-    } else if !ws_url.starts_with("wss://") {
-        format!("wss://{}", ws_url)
-    } else {
-        ws_url.to_string()
-    };
-
-    // Attempt to connect
-    match connect_async(&ws_url).await {
-        Ok((ws_stream, _)) => {
-            println!("✅ [WEBSOCKET {}] Reconnection successful: {}", connection_id, ws_url);
-
-            // Store the new connection
-            let mut connections = WEBSOCKET_CONNECTIONS.lock().await;
-            connections.insert(connection_id.to_string(), ws_stream);
-
-            Ok(())
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to reconnect to WebSocket: {}", e);
-            println!("❌ [WEBSOCKET {}] {}", connection_id, error_msg);
-            Err(error_msg)
-        }
-    }
-}
-
-#[tauri::command]
-pub async fn get_latest_ioncourt_data_by_court(court_name: String) -> Result<Option<serde_json::Value>, String> {
-    println!("🎾 Retrieving latest IonCourt match data for court: {}", court_name);
-    let latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-
-    // Debug: Print all available courts
-    println!("🎾 Available courts: {:?}", latest_data_by_court.keys().collect::<Vec<_>>());
-
-    let data = latest_data_by_court.get(&court_name).cloned();
-    if data.is_some() {
-        println!("🎾 Found data for court: {}", court_name);
-    } else {
-        println!("🎾 No data found for court: {}", court_name);
-    }
-    Ok(data)
-}
-
-#[tauri::command]
-pub async fn get_latest_ioncourt_data(_connection_id: String) -> Result<Option<serde_json::Value>, String> {
-    // For backward compatibility, try to get data by connection ID first
-    // If not found, return the first available court data
-    println!("🎾 Retrieving latest IonCourt match data (legacy method)");
-    let latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-
-    // Return the first available court data
-    if let Some((court_name, data)) = latest_data_by_court.iter().next() {
-        println!("🎾 Returning data for court: {}", court_name);
-        Ok(Some(data.clone()))
-    } else {
-        println!("🎾 No court data available");
-        Ok(None)
-    }
-}
-
-#[tauri::command]
-pub async fn get_active_court_data(active_courts: Vec<String>) -> Result<serde_json::Value, String> {
-    println!("🎾 Retrieving active court data only ({} courts requested)", active_courts.len());
-    let latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-    let last_update = LAST_DATA_UPDATE.lock().await;
-
-    let now = std::time::Instant::now();
-    let active_timeout = std::time::Duration::from_secs(300); // 5 minutes
-
-    // Convert HashMap to JSON object, but only include active courts that are being displayed
-    let mut result = serde_json::Map::new();
-    let mut active_count = 0;
-
-    // If active_courts list is provided, only include those courts
-    if !active_courts.is_empty() {
-        println!("🎯 Filtering for specific courts: {:?}", active_courts);
-        for court_name in &active_courts {
-            if let Some(data) = latest_data_by_court.get(court_name) {
-                // Check if this court has been updated recently
-                if let Some(&last_update_time) = last_update.get(court_name) {
-                    if now.duration_since(last_update_time) <= active_timeout {
-                        result.insert(court_name.clone(), data.clone());
-                        active_count += 1;
-                    } else {
-                        println!("⏰ Skipping stale court '{}' (last update: {:.2?} ago)",
-                            court_name,
-                            now.duration_since(last_update_time));
-                    }
-                } else {
-                    println!("⚠️  Skipping court '{}' with no update timestamp", court_name);
-                }
-            } else {
-                println!("📭 No data available for requested court '{}'", court_name);
-            }
-        }
-    } else {
-        // Fallback to time-based filtering if no specific courts requested
-        println!("⚠️  No active courts specified, falling back to time-based filtering");
-        for (court_name, data) in latest_data_by_court.iter() {
-            if let Some(&last_update_time) = last_update.get(court_name) {
-                if now.duration_since(last_update_time) <= active_timeout {
-                    result.insert(court_name.clone(), data.clone());
-                    active_count += 1;
-                } else {
-                    println!("⏰ Skipping inactive court '{}' (last update: {:.2?} ago)",
-                        court_name,
-                        now.duration_since(last_update_time));
-                }
-            } else {
-                println!("⚠️  Skipping court '{}' with no update timestamp", court_name);
-            }
-        }
-    }
-
-    println!("🎾 Returning data for {} active courts out of {} requested courts",
-        active_count, active_courts.len().max(latest_data_by_court.len()));
-
-    Ok(serde_json::Value::Object(result))
+    // Automatic reconnection is not supported - connection URL must be provided by the client
+    Err("Automatic reconnection is not supported. Please reconnect manually.".to_string())
 }
 
 #[tauri::command]
@@ -665,22 +472,14 @@ pub async fn inspect_live_data() -> Result<String, String> {
     let connections = WEBSOCKET_CONNECTIONS.lock().await;
     let connection_count = connections.len();
 
-    let latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-    let court_count = latest_data_by_court.len();
-    let court_names: Vec<&String> = latest_data_by_court.keys().collect();
-
-    Ok(format!("Active WebSocket connections: {}, Stored courts: {} ({:?})", connection_count, court_count, court_names))
+    Ok(format!("Active WebSocket connections: {}", connection_count))
 }
 
 #[tauri::command]
 pub async fn cleanup_live_data() -> Result<String, String> {
     println!("🧹 Manual data cleanup requested");
-    cleanup_old_data().await;
-
-    let latest_data_by_court = LATEST_DATA_BY_COURT.lock().await;
-    let remaining_count = latest_data_by_court.len();
-
-    Ok(format!("Data cleanup completed. {} court entries remaining", remaining_count))
+    // No cleanup needed - live data is managed via ScoreForge HTTP polling
+    Ok("Data cleanup completed.".to_string())
 }
 
 #[tauri::command]

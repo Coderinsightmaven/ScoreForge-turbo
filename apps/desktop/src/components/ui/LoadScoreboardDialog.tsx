@@ -51,18 +51,37 @@ export const LoadScoreboardDialog: React.FC<LoadScoreboardDialogProps> = ({
     try {
       setIsLoading(true);
       const scoreboardData = await TauriAPI.loadScoreboard(selectedScoreboard.filename);
-      loadScoreboard(scoreboardData.data);
 
-      if (scoreboardData.data.dimensions) {
-        setCanvasSize(
-          scoreboardData.data.dimensions.width,
-          scoreboardData.data.dimensions.height
-        );
+      // Validate that required data fields exist
+      if (!scoreboardData.data || !scoreboardData.data.dimensions || !scoreboardData.data.components) {
+        throw new Error('Invalid scoreboard data: missing required fields');
       }
+
+      // Create config with proper structure, converting string timestamps to Date objects
+      const configToLoad = {
+        ...scoreboardData.data,
+        id: scoreboardData.id,
+        name: scoreboardData.name,
+        // Convert string timestamps to Date objects (required by ScoreboardConfig)
+        createdAt: scoreboardData.data.createdAt
+          ? new Date(scoreboardData.data.createdAt)
+          : new Date(),
+        updatedAt: scoreboardData.data.updatedAt
+          ? new Date(scoreboardData.data.updatedAt)
+          : new Date(),
+      };
+
+      loadScoreboard(configToLoad);
+
+      setCanvasSize(
+        scoreboardData.data.dimensions.width,
+        scoreboardData.data.dimensions.height
+      );
 
       onClose();
     } catch (error) {
       console.error('Failed to load scoreboard:', error);
+      alert('Failed to load scoreboard. The file may be corrupted.');
     } finally {
       setIsLoading(false);
     }

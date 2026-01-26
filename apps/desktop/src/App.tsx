@@ -15,7 +15,6 @@ import { ComponentLibrary } from './components/ui/ComponentLibrary';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useScoreboardImportExport } from './hooks/useScoreboardImportExport';
 import { TauriAPI } from './lib/tauri';
-import { ComponentType } from './types/scoreboard';
 import { useImageStore } from './stores/useImageStore';
 
 /**

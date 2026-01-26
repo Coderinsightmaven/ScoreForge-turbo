@@ -597,17 +597,23 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
 
       if (interval) {
         clearInterval(interval);
-
-        const newIntervals = { ...state.pollingIntervals };
-        delete newIntervals[connectionId];
-
-        set({
-          pollingIntervals: newIntervals,
-          isPolling: Object.keys(newIntervals).length > 0,
-        });
-
-        console.log(`🔴 Stopped ScoreForge polling for connection ${connectionId}`);
       }
+
+      const newIntervals = { ...state.pollingIntervals };
+      delete newIntervals[connectionId];
+
+      // Mark the connection as inactive
+      const updatedConnections = state.connections.map((conn) =>
+        conn.id === connectionId ? { ...conn, isActive: false } : conn
+      );
+
+      set({
+        connections: updatedConnections,
+        pollingIntervals: newIntervals,
+        isPolling: Object.keys(newIntervals).length > 0,
+      });
+
+      console.log(`🔴 Stopped ScoreForge polling for connection ${connectionId}`);
     },
 
     fetchScoreForgeMatch: async (connectionId) => {
