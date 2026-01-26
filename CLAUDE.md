@@ -99,16 +99,31 @@ export const myFunction = query({
 - `tournamentParticipants` - Supports individual, doubles, team types
 - `matches` - Game records with sport-specific state
 - `apiKeys` - User-owned API keys for public API access
+- `siteAdmins` - Users with site-wide admin privileges
+- `systemSettings` - Global app settings (tournament limits, maintenance mode)
 
 ### Sport-Specific State
 Tennis and volleyball have dedicated state objects on matches:
-- `tennisState` - Sets, games, points, tiebreak, serve tracking
+- `tennisState` - Sets, games, points, tiebreak, serve tracking, ad-scoring config
 - `volleyballState` - Sets, points, serve tracking
 
 Both include `history` array for undo functionality (last 10 states).
 
+### Access Control
+- Tournament owner (`createdBy`) has full control
+- Scorers (via `tournamentScorers`) can score matches but not manage tournament
+- Site admins can manage users and system settings
+
 ### User Preferences
 - `userPreferences` - Stores user settings (theme preference), indexed by userId
+
+## Public API
+
+External API access via `publicApi.ts` for integrations:
+- Requires API key (generated in Settings page)
+- Endpoints: `getMatch`, `listMatches`, `listTournaments`
+- Supports filtering by status, round, court
+- Supports sorting by round, court, scheduledTime
 
 ## Web App Patterns
 
