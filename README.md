@@ -10,6 +10,9 @@ A real-time tournament management platform for organizing competitions, tracking
 - **Sport-Specific Scoring** - Dedicated interfaces for tennis (sets/games/points) and volleyball (sets/points)
 - **Organization Management** - Role-based access control (owner, admin, scorer)
 - **Bracket Generation** - Automatic seeding and bracket creation
+- **Blank Bracket Generator** - Create printable brackets with placeholder slots, assign existing participants to seeds
+- **Quick Bracket Tool** - Standalone printable bracket generator (no database required)
+- **Print Support** - Print-optimized bracket views with empty slots for handwriting
 - **Public API** - External access to match data via API keys
 
 ## Tech Stack
@@ -54,6 +57,25 @@ For mobile, create `.env` in `apps/mobile`:
 ```
 EXPO_PUBLIC_CONVEX_URL=<your-convex-url>
 ```
+
+## Blank Bracket Generator
+
+Generate tournament brackets with placeholder slots that can be filled in later:
+
+### Tournament Blank Bracket
+1. Create a tournament and optionally add participants
+2. Click **"Blank Bracket"** button
+3. Select bracket size (4, 8, 16, 32, or 64)
+4. Assign existing participants to specific seeds or leave slots empty
+5. Click **"Generate Bracket"**
+6. Click on placeholder slots to fill in names
+7. Use the **Print** button for a printable version
+
+### Quick Bracket (Standalone)
+Visit `/brackets/quick` to create a printable bracket without saving to the database:
+- Select bracket size and format (single/double elimination)
+- Fill in participant names by clicking slots
+- Print directly from the browser
 
 ## Project Structure
 
