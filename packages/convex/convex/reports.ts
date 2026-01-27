@@ -62,6 +62,7 @@ const matchScoreResult = v.object({
 export const getTournamentMatchScores = query({
   args: {
     tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
   },
   returns: v.array(matchScoreResult),
   handler: async (ctx, args) => {
@@ -86,13 +87,23 @@ export const getTournamentMatchScores = query({
       throw new Error("Not authorized");
     }
 
-    // Get all completed matches
-    const matches = await ctx.db
-      .query("matches")
-      .withIndex("by_tournament_and_status", (q: any) =>
-        q.eq("tournamentId", args.tournamentId).eq("status", "completed")
-      )
-      .collect();
+    // Get all completed matches (optionally filtered by bracket)
+    let matches;
+    if (args.bracketId !== undefined) {
+      matches = await ctx.db
+        .query("matches")
+        .withIndex("by_bracket_and_status", (q: any) =>
+          q.eq("bracketId", args.bracketId).eq("status", "completed")
+        )
+        .collect();
+    } else {
+      matches = await ctx.db
+        .query("matches")
+        .withIndex("by_tournament_and_status", (q: any) =>
+          q.eq("tournamentId", args.tournamentId).eq("status", "completed")
+        )
+        .collect();
+    }
 
     // Get participants for name lookup
     const participants = await ctx.db
@@ -156,6 +167,7 @@ export const getTournamentMatchScores = query({
 export const hasCompletedTennisMatches = query({
   args: {
     tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
   },
   returns: v.object({
     hasMatches: v.boolean(),
@@ -183,13 +195,23 @@ export const hasCompletedTennisMatches = query({
       return { hasMatches: false, matchCount: 0, isTennis: true };
     }
 
-    // Count completed matches with tennisState
-    const matches = await ctx.db
-      .query("matches")
-      .withIndex("by_tournament_and_status", (q: any) =>
-        q.eq("tournamentId", args.tournamentId).eq("status", "completed")
-      )
-      .collect();
+    // Count completed matches with tennisState (optionally filtered by bracket)
+    let matches;
+    if (args.bracketId !== undefined) {
+      matches = await ctx.db
+        .query("matches")
+        .withIndex("by_bracket_and_status", (q: any) =>
+          q.eq("bracketId", args.bracketId).eq("status", "completed")
+        )
+        .collect();
+    } else {
+      matches = await ctx.db
+        .query("matches")
+        .withIndex("by_tournament_and_status", (q: any) =>
+          q.eq("tournamentId", args.tournamentId).eq("status", "completed")
+        )
+        .collect();
+    }
 
     const tennisMatches = matches.filter(
       (m: Doc<"matches">) => m.tennisState
@@ -240,6 +262,7 @@ type MatchScore = {
 export const generateMatchScoresCSV = action({
   args: {
     tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
   },
   returns: v.object({
     csv: v.string(),
@@ -252,6 +275,7 @@ export const generateMatchScoresCSV = action({
       api.reports.getTournamentMatchScores,
       {
         tournamentId: args.tournamentId,
+        bracketId: args.bracketId,
       }
     );
 

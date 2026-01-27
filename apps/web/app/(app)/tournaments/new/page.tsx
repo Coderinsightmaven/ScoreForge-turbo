@@ -16,6 +16,7 @@ export default function NewTournamentPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [bracketName, setBracketName] = useState("Main Draw");
   const [sport, setSport] = useState<Sport>("tennis");
   const [format, setFormat] = useState<Format>("single_elimination");
   const [participantType, setParticipantType] = useState<ParticipantType>("individual");
@@ -65,6 +66,7 @@ export default function NewTournamentPage() {
         tennisConfig,
         volleyballConfig,
         courts: courts.length > 0 ? courts : undefined,
+        bracketName: bracketName.trim() || "Main Draw",
       });
 
       router.push(`/tournaments/${tournamentId}`);
@@ -135,6 +137,23 @@ export default function NewTournamentPage() {
                 placeholder="Optional description..."
                 className="w-full px-4 py-3 bg-bg-card border border-border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all resize-none"
               />
+            </div>
+            <div>
+              <label htmlFor="bracketName" className="block text-sm font-medium text-text-secondary mb-2">
+                Bracket name *
+              </label>
+              <input
+                id="bracketName"
+                type="text"
+                value={bracketName}
+                onChange={(e) => setBracketName(e.target.value)}
+                required
+                placeholder="e.g. Main Draw, Men's Singles, Women's Doubles"
+                className="w-full px-4 py-3 bg-bg-card border border-border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+              />
+              <p className="mt-1.5 text-xs text-text-muted">
+                You can add more brackets after creating the tournament
+              </p>
             </div>
           </section>
 
@@ -511,7 +530,7 @@ export default function NewTournamentPage() {
           <div className="flex items-center gap-4 pt-4 border-t border-border">
             <button
               type="submit"
-              disabled={isSubmitting || !name.trim()}
+              disabled={isSubmitting || !name.trim() || !bracketName.trim()}
               className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-text-inverse bg-accent rounded-xl hover:bg-accent-bright transition-all shadow-lg shadow-accent/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (

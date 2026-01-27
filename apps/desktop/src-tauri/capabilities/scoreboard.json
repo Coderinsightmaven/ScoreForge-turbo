@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "scoreboard",
+  "description": "Capability for scoreboard windows",
+  "windows": ["scoreboard_*"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:allow-set-fullscreen"
+  ]
+}

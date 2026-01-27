@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { use, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function PrintBracketPage({
   params,
@@ -11,14 +12,32 @@ export default function PrintBracketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const bracketIdParam = searchParams.get("bracketId");
 
   const tournament = useQuery(api.tournaments.getTournament, {
     tournamentId: id as any,
   });
 
-  const bracket = useQuery(api.tournaments.getBracket, {
+  // Get all brackets for this tournament
+  const brackets = useQuery(api.tournamentBrackets.listBrackets, {
     tournamentId: id as any,
   });
+
+  // Determine which bracket to display
+  const selectedBracketId = bracketIdParam || brackets?.[0]?._id;
+
+  // Get bracket details if we have a selected bracket
+  const bracketDetails = useQuery(
+    api.tournamentBrackets.getBracket,
+    selectedBracketId ? { bracketId: selectedBracketId as any } : "skip"
+  );
+
+  // Get bracket matches
+  const bracket = useQuery(
+    api.tournamentBrackets.getBracketMatches,
+    selectedBracketId ? { bracketId: selectedBracketId as any } : "skip"
+  );
 
   // Auto-print when loaded (optional - user can trigger manually)
   useEffect(() => {
@@ -32,7 +51,7 @@ export default function PrintBracketPage({
     }
   }, [tournament, bracket]);
 
-  if (tournament === undefined || bracket === undefined) {
+  if (tournament === undefined || brackets === undefined || (selectedBracketId && (bracket === undefined || bracketDetails === undefined))) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -58,7 +77,7 @@ export default function PrintBracketPage({
     );
   }
 
-  if (bracket.matches.length === 0) {
+  if (!bracket || bracket.matches.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -66,7 +85,7 @@ export default function PrintBracketPage({
             No Bracket Generated
           </h1>
           <p className="text-text-secondary mb-4">
-            This tournament does not have a bracket yet.
+            {bracketDetails ? `"${bracketDetails.name}" does not have matches yet.` : "This tournament does not have a bracket yet."}
           </p>
           <Link
             href={`/tournaments/${id}`}
@@ -124,6 +143,9 @@ export default function PrintBracketPage({
             <span className="text-text-muted">|</span>
             <span className="text-sm text-text-primary font-medium">
               {tournament.name}
+              {bracketDetails && (
+                <span className="text-text-muted"> &bull; {bracketDetails.name}</span>
+              )}
             </span>
           </div>
           <button
@@ -155,6 +177,11 @@ export default function PrintBracketPage({
           <h1 className="text-3xl font-bold text-black print:text-2xl">
             {tournament.name}
           </h1>
+          {bracketDetails && (
+            <h2 className="text-xl font-semibold text-gray-700 mt-1 print:text-lg">
+              {bracketDetails.name}
+            </h2>
+          )}
           <p className="text-gray-600 mt-1 print:text-sm">
             {formatLabels[bracket.format] || bracket.format} &bull;{" "}
             {bracket.matches.length} matches

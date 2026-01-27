@@ -8,6 +8,8 @@ import { use } from "react";
 import { useSearchParams } from "next/navigation";
 import { Skeleton, SkeletonBracket, SkeletonTabs } from "@/app/components/Skeleton";
 import { EditableBracket } from "@/app/components/EditableBracket";
+import { BracketSelector } from "@/app/components/BracketSelector";
+import { BracketManagementModal } from "@/app/components/BracketManagementModal";
 
 type Tab = "bracket" | "matches" | "participants" | "standings" | "scorers";
 
@@ -23,6 +25,8 @@ export default function TournamentDetailPage({
   const tabParam = searchParams.get("tab");
   const initialTab = tabParam && validTabs.includes(tabParam as Tab) ? (tabParam as Tab) : "bracket";
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [selectedBracketId, setSelectedBracketId] = useState<string | null>(null);
+  const [showBracketManagement, setShowBracketManagement] = useState(false);
 
   useEffect(() => {
     if (tabParam && validTabs.includes(tabParam as Tab)) {
@@ -114,27 +118,17 @@ export default function TournamentDetailPage({
                   {tournament.description}
                 </p>
               )}
-              <div className="flex flex-wrap gap-6">
+              {tournament.startDate && (
                 <div className="flex items-baseline gap-1">
                   <span className="font-display text-2xl font-bold text-accent">
-                    {tournament.participantCount}
+                    {new Date(tournament.startDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </span>
-                  <span className="text-sm text-text-muted">
-                    / {tournament.maxParticipants} Participants
-                  </span>
+                  <span className="text-sm text-text-muted">Start Date</span>
                 </div>
-                {tournament.startDate && (
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-display text-2xl font-bold text-accent">
-                      {new Date(tournament.startDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                    <span className="text-sm text-text-muted">Start Date</span>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Tournament ID for API access */}
               <TournamentIdDisplay tournamentId={tournament._id} />
@@ -143,6 +137,17 @@ export default function TournamentDetailPage({
           </div>
         </div>
       </header>
+
+      {/* Bracket Selector (shown if tournament has brackets or is in draft mode for owner) */}
+      {(tournament.bracketCount > 0 || (canManage && tournament.status === "draft")) && (
+        <BracketSelector
+          tournamentId={id}
+          selectedBracketId={selectedBracketId}
+          onSelectBracket={setSelectedBracketId}
+          showManageButton={canManage && tournament.status === "draft"}
+          onManageBrackets={() => setShowBracketManagement(true)}
+        />
+      )}
 
       {/* Tabs */}
       <nav className="bg-bg-secondary border-b border-border sticky top-[var(--nav-height)] z-50">
@@ -166,22 +171,48 @@ export default function TournamentDetailPage({
       {/* Content */}
       <main className="py-8 px-6 max-w-[var(--content-max)] mx-auto">
         {activeTab === "bracket" && (
-          <BracketTab tournamentId={id} format={tournament.format} status={tournament.status} canManage={canManage} />
+          <BracketTab
+            tournamentId={id}
+            bracketId={selectedBracketId}
+            format={tournament.format}
+            status={tournament.status}
+            canManage={canManage}
+          />
         )}
-        {activeTab === "matches" && <MatchesTab tournamentId={id} status={tournament.status} />}
+        {activeTab === "matches" && (
+          <MatchesTab
+            tournamentId={id}
+            bracketId={selectedBracketId}
+            status={tournament.status}
+          />
+        )}
         {activeTab === "participants" && (
           <ParticipantsTab
             tournamentId={id}
+            bracketId={selectedBracketId}
             canManage={canManage}
             status={tournament.status}
             participantType={tournament.participantType}
           />
         )}
-        {activeTab === "standings" && <StandingsTab tournamentId={id} />}
+        {activeTab === "standings" && (
+          <StandingsTab
+            tournamentId={id}
+            bracketId={selectedBracketId}
+          />
+        )}
         {activeTab === "scorers" && (
           <ScorersTab tournamentId={id} />
         )}
       </main>
+
+      {/* Bracket Management Modal */}
+      {showBracketManagement && (
+        <BracketManagementModal
+          tournamentId={id}
+          onClose={() => setShowBracketManagement(false)}
+        />
+      )}
     </div>
   );
 }
@@ -687,24 +718,62 @@ function formatVolleyballScoreForBracket(
 
 function BracketTab({
   tournamentId,
+  bracketId,
   format,
   status,
   canManage,
 }: {
   tournamentId: string;
+  bracketId: string | null;
   format: string;
   status: string;
   canManage: boolean;
 }) {
-  const bracket = useQuery(api.tournaments.getBracket, {
+  const [generating, setGenerating] = useState(false);
+  const generateBracketMatches = useMutation(api.tournamentBrackets.generateBracketMatches);
+  const generateTournamentBracket = useMutation(api.tournaments.generateBracket);
+
+  // Use bracket-specific query if a bracket is selected, otherwise tournament-level
+  const tournamentBracket = useQuery(api.tournaments.getBracket, {
     tournamentId: tournamentId as any,
   });
+  const selectedBracket = useQuery(
+    api.tournamentBrackets.getBracketMatches,
+    bracketId ? { bracketId: bracketId as any } : "skip"
+  );
+
+  // Get bracket details for participant count
+  const bracketDetails = useQuery(
+    api.tournamentBrackets.getBracket,
+    bracketId ? { bracketId: bracketId as any } : "skip"
+  );
+
+  // Use selected bracket data if available, otherwise use tournament bracket
+  const bracket = bracketId && selectedBracket ? selectedBracket : tournamentBracket;
+
+  const handleGenerateMatches = async () => {
+    setGenerating(true);
+    try {
+      if (bracketId) {
+        await generateBracketMatches({ bracketId: bracketId as any });
+      } else {
+        await generateTournamentBracket({ tournamentId: tournamentId as any });
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to generate matches");
+    }
+    setGenerating(false);
+  };
 
   if (!bracket) {
     return <TabSkeleton />;
   }
 
   if (bracket.matches.length === 0) {
+    const participantCount = bracketId && bracketDetails ? bracketDetails.participantCount : 0;
+    const canGenerate = canManage && status === "draft" && participantCount >= 2;
+
     return (
       <div className="flex flex-col items-center py-16 text-center bg-bg-secondary border border-dashed border-border rounded-2xl">
         <div className="w-14 h-14 flex items-center justify-center bg-bg-card rounded-2xl mb-4">
@@ -712,13 +781,34 @@ function BracketTab({
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
           </svg>
         </div>
-        <p className="text-text-secondary">
-          Bracket will be generated when the tournament starts
-        </p>
-        {canManage && status === "draft" && (format === "single_elimination" || format === "double_elimination") && (
-          <p className="text-sm text-text-muted mt-2">
-            Use the &quot;Blank Bracket&quot; button to create a bracket with placeholder slots.
-          </p>
+        {bracketId ? (
+          <>
+            <p className="text-text-secondary">
+              {participantCount < 2
+                ? `Add at least 2 participants to generate matches (${participantCount} added)`
+                : "No matches generated yet"}
+            </p>
+            {canGenerate && (
+              <button
+                onClick={handleGenerateMatches}
+                disabled={generating}
+                className="mt-4 px-4 py-2 bg-accent text-text-inverse rounded-lg font-medium hover:bg-accent/90 transition-colors disabled:opacity-50"
+              >
+                {generating ? "Generating..." : "Generate Matches"}
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-text-secondary">
+              Bracket will be generated when the tournament starts
+            </p>
+            {canManage && status === "draft" && (format === "single_elimination" || format === "double_elimination") && (
+              <p className="text-sm text-text-muted mt-2">
+                Use the &quot;Blank Bracket&quot; button to create a bracket with placeholder slots.
+              </p>
+            )}
+          </>
         )}
       </div>
     );
@@ -739,7 +829,7 @@ function BracketTab({
           </p>
           <div className="flex gap-2">
             <Link
-              href={`/tournaments/${tournamentId}/bracket/print`}
+              href={`/tournaments/${tournamentId}/bracket/print${bracketId ? `?bracketId=${bracketId}` : ""}`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all no-print"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -800,7 +890,7 @@ function BracketTab({
     <div className="animate-fadeIn">
       <div className="flex justify-end mb-4 no-print">
         <Link
-          href={`/tournaments/${tournamentId}/bracket/print`}
+          href={`/tournaments/${tournamentId}/bracket/print${bracketId ? `?bracketId=${bracketId}` : ""}`}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -951,9 +1041,18 @@ function BracketTab({
   );
 }
 
-function MatchesTab({ tournamentId, status }: { tournamentId: string; status: string }) {
+function MatchesTab({
+  tournamentId,
+  bracketId,
+  status,
+}: {
+  tournamentId: string;
+  bracketId: string | null;
+  status: string;
+}) {
   const matches = useQuery(api.matches.listMatches, {
     tournamentId: tournamentId as any,
+    bracketId: bracketId ? (bracketId as any) : undefined,
   });
 
   if (!matches) {
@@ -1094,17 +1193,20 @@ function MatchesTab({ tournamentId, status }: { tournamentId: string; status: st
 
 function ParticipantsTab({
   tournamentId,
+  bracketId,
   canManage,
   status,
   participantType,
 }: {
   tournamentId: string;
+  bracketId: string | null;
   canManage: boolean;
   status: string;
   participantType: string;
 }) {
   const participants = useQuery(api.tournamentParticipants.listParticipants, {
     tournamentId: tournamentId as any,
+    bracketId: bracketId ? (bracketId as any) : undefined,
   });
 
   if (!participants) {
@@ -1187,9 +1289,16 @@ function ParticipantsTab({
   );
 }
 
-function StandingsTab({ tournamentId }: { tournamentId: string }) {
+function StandingsTab({
+  tournamentId,
+  bracketId,
+}: {
+  tournamentId: string;
+  bracketId: string | null;
+}) {
   const standings = useQuery(api.tournaments.getStandings, {
     tournamentId: tournamentId as any,
+    bracketId: bracketId ? (bracketId as any) : undefined,
   });
 
   if (!standings) {

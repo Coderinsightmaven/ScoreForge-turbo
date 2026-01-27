@@ -3,7 +3,7 @@ import { Id } from "../_generated/dataModel";
 export type MatchData = {
   round: number;
   matchNumber: number;
-  bracket?: string;
+  bracketType?: string;
   bracketPosition?: number;
   participant1Id?: Id<"tournamentParticipants">;
   participant2Id?: Id<"tournamentParticipants">;
@@ -86,7 +86,7 @@ export function generateSingleEliminationBracket(
     matches.push({
       round: 1,
       matchNumber,
-      bracket: "winners",
+      bracketType: "winners",
       bracketPosition: matchNumber,
       participant1Id: p1 ?? undefined,
       participant2Id: p2 ?? undefined,
@@ -112,7 +112,7 @@ export function generateSingleEliminationBracket(
       matches.push({
         round,
         matchNumber,
-        bracket: "winners",
+        bracketType: "winners",
         bracketPosition: i + 1,
         participant1Score: 0,
         participant2Score: 0,
@@ -185,7 +185,7 @@ export function generateDoubleEliminationBracket(
     matches.push({
       round: 1,
       matchNumber,
-      bracket: "winners",
+      bracketType: "winners",
       bracketPosition: matchNumber,
       participant1Id: p1 ?? undefined,
       participant2Id: p2 ?? undefined,
@@ -211,7 +211,7 @@ export function generateDoubleEliminationBracket(
       matches.push({
         round,
         matchNumber,
-        bracket: "winners",
+        bracketType: "winners",
         bracketPosition: i + 1,
         participant1Score: 0,
         participant2Score: 0,
@@ -252,7 +252,7 @@ export function generateDoubleEliminationBracket(
     matches.push({
       round: losersRound,
       matchNumber,
-      bracket: "losers",
+      bracketType: "losers",
       bracketPosition: i / 2 + 1,
       participant1Score: 0,
       participant2Score: 0,
@@ -290,7 +290,7 @@ export function generateDoubleEliminationBracket(
         matches.push({
           round: losersRound,
           matchNumber,
-          bracket: "losers",
+          bracketType: "losers",
           bracketPosition: i + 1,
           participant1Score: 0,
           participant2Score: 0,
@@ -330,7 +330,7 @@ export function generateDoubleEliminationBracket(
         matches.push({
           round: losersRound,
           matchNumber,
-          bracket: "losers",
+          bracketType: "losers",
           bracketPosition: i + 1,
           participant1Score: 0,
           participant2Score: 0,
@@ -359,7 +359,7 @@ export function generateDoubleEliminationBracket(
   matches.push({
     round: numWinnersRounds + 1,
     matchNumber,
-    bracket: "grand_final",
+    bracketType: "grand_final",
     bracketPosition: 1,
     participant1Score: 0,
     participant2Score: 0,
@@ -382,7 +382,7 @@ export function generateDoubleEliminationBracket(
   matches.push({
     round: numWinnersRounds + 2,
     matchNumber,
-    bracket: "grand_final_reset",
+    bracketType: "grand_final_reset",
     bracketPosition: 1,
     participant1Score: 0,
     participant2Score: 0,

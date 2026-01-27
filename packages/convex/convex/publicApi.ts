@@ -37,7 +37,7 @@ const matchReturn = v.object({
   id: v.string(),
   round: v.number(),
   matchNumber: v.number(),
-  bracket: v.optional(v.string()),
+  bracketType: v.optional(v.string()),
   court: v.optional(v.string()),
   status: matchStatus,
   scores: v.object({
@@ -195,7 +195,7 @@ export const getMatch = query({
         id: match._id,
         round: match.round,
         matchNumber: match.matchNumber,
-        bracket: match.bracket,
+        bracketType: match.bracketType,
         court: match.court,
         status: match.status,
         scores: {
@@ -234,6 +234,7 @@ export const listMatches = query({
   args: {
     apiKey: v.string(),
     tournamentId: v.string(),
+    bracketId: v.optional(v.string()),
     status: v.optional(matchStatus),
     round: v.optional(v.number()),
     court: v.optional(v.string()),
@@ -276,7 +277,31 @@ export const listMatches = query({
 
     // Query matches with appropriate filters
     let matches;
-    if (args.round !== undefined) {
+    const bracketId = args.bracketId ? (args.bracketId as Id<"tournamentBrackets">) : undefined;
+
+    if (bracketId !== undefined) {
+      // Filter by specific bracket
+      if (args.round !== undefined) {
+        matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket_and_round", (q) =>
+            q.eq("bracketId", bracketId).eq("round", args.round!)
+          )
+          .collect();
+      } else if (args.status !== undefined) {
+        matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket_and_status", (q) =>
+            q.eq("bracketId", bracketId).eq("status", args.status!)
+          )
+          .collect();
+      } else {
+        matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket", (q) => q.eq("bracketId", bracketId))
+          .collect();
+      }
+    } else if (args.round !== undefined) {
       matches = await ctx.db
         .query("matches")
         .withIndex("by_tournament_and_round", (q) =>
@@ -350,7 +375,7 @@ export const listMatches = query({
           id: match._id,
           round: match.round,
           matchNumber: match.matchNumber,
-          bracket: match.bracket,
+          bracketType: match.bracketType,
           court: match.court,
           status: match.status,
           scores: {
@@ -504,5 +529,102 @@ export const listTournaments = query({
     );
 
     return { tournaments: results };
+  },
+});
+
+/**
+ * List brackets for a tournament
+ * Requires a valid API key for the user that owns the tournament
+ */
+export const listBrackets = query({
+  args: {
+    apiKey: v.string(),
+    tournamentId: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      brackets: v.array(
+        v.object({
+          id: v.string(),
+          name: v.string(),
+          description: v.optional(v.string()),
+          format: v.optional(tournamentFormats),
+          status: v.union(
+            v.literal("draft"),
+            v.literal("active"),
+            v.literal("completed")
+          ),
+          displayOrder: v.number(),
+          participantCount: v.number(),
+          matchCount: v.number(),
+        })
+      ),
+    }),
+    v.object({
+      error: v.string(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    // Validate API key
+    const keyValidation = await validateApiKeyInternal(ctx, args.apiKey);
+    if (!keyValidation) {
+      return { error: "Invalid or inactive API key" };
+    }
+
+    // Parse tournament ID
+    let tournamentId: Id<"tournaments">;
+    try {
+      tournamentId = args.tournamentId as Id<"tournaments">;
+    } catch {
+      return { error: "Invalid tournament ID format" };
+    }
+
+    // Get the tournament
+    const tournament = await ctx.db.get("tournaments", tournamentId);
+    if (!tournament) {
+      return { error: "Tournament not found" };
+    }
+
+    // Verify the user owns this tournament
+    if (tournament.createdBy !== keyValidation.userId) {
+      return { error: "API key not authorized for this tournament" };
+    }
+
+    // Get all brackets for the tournament
+    const brackets = await ctx.db
+      .query("tournamentBrackets")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
+      .collect();
+
+    // Enrich with counts
+    const enrichedBrackets = await Promise.all(
+      brackets.map(async (bracket) => {
+        const participants = await ctx.db
+          .query("tournamentParticipants")
+          .withIndex("by_bracket", (q) => q.eq("bracketId", bracket._id))
+          .collect();
+
+        const matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket", (q) => q.eq("bracketId", bracket._id))
+          .collect();
+
+        return {
+          id: bracket._id,
+          name: bracket.name,
+          description: bracket.description,
+          format: bracket.format,
+          status: bracket.status,
+          displayOrder: bracket.displayOrder,
+          participantCount: participants.length,
+          matchCount: matches.length,
+        };
+      })
+    );
+
+    // Sort by displayOrder
+    enrichedBrackets.sort((a, b) => a.displayOrder - b.displayOrder);
+
+    return { brackets: enrichedBrackets };
   },
 });

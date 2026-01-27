@@ -67,10 +67,13 @@ function formatDoublesDisplayName(player1: string, player2: string): string {
 // ============================================
 
 /**
- * List participants for a tournament
+ * List participants for a tournament (optionally filtered by bracket)
  */
 export const listParticipants = query({
-  args: { tournamentId: v.id("tournaments") },
+  args: {
+    tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
+  },
   returns: v.array(
     v.object({
       _id: v.id("tournamentParticipants"),
@@ -88,6 +91,7 @@ export const listParticipants = query({
       pointsAgainst: v.number(),
       createdAt: v.number(),
       isPlaceholder: v.optional(v.boolean()),
+      bracketId: v.optional(v.id("tournamentBrackets")),
     })
   ),
   handler: async (ctx, args) => {
@@ -107,10 +111,22 @@ export const listParticipants = query({
       throw new Error("Not authorized");
     }
 
-    const participants = await ctx.db
-      .query("tournamentParticipants")
-      .withIndex("by_tournament", (q: any) => q.eq("tournamentId", args.tournamentId))
-      .collect();
+    let participants;
+    if (args.bracketId !== undefined) {
+      // Filter by bracket
+      participants = await ctx.db
+        .query("tournamentParticipants")
+        .withIndex("by_tournament_and_bracket", (q: any) =>
+          q.eq("tournamentId", args.tournamentId).eq("bracketId", args.bracketId)
+        )
+        .collect();
+    } else {
+      // Get all participants for the tournament
+      participants = await ctx.db
+        .query("tournamentParticipants")
+        .withIndex("by_tournament", (q: any) => q.eq("tournamentId", args.tournamentId))
+        .collect();
+    }
 
     // Sort by seed (if set) then creation time
     const sorted = [...participants].sort((a, b) => {
@@ -136,6 +152,7 @@ export const listParticipants = query({
       pointsAgainst: p.pointsAgainst,
       createdAt: p.createdAt,
       isPlaceholder: p.isPlaceholder,
+      bracketId: p.bracketId,
     }));
   },
 });
@@ -213,11 +230,13 @@ export const getParticipant = query({
 
 /**
  * Add a participant to a tournament (owner only)
- * The type is determined by the tournament's participantType
+ * The type is determined by the tournament's participantType or bracket's participantType
  */
 export const addParticipant = mutation({
   args: {
     tournamentId: v.id("tournaments"),
+    // Required bracket assignment (every tournament has at least one bracket)
+    bracketId: v.id("tournamentBrackets"),
     // For individual tournaments
     playerName: v.optional(v.string()),
     // For doubles tournaments
@@ -251,17 +270,33 @@ export const addParticipant = mutation({
       throw new Error("Tournament is not in draft status");
     }
 
-    // Check max participants
-    const currentParticipants = await ctx.db
-      .query("tournamentParticipants")
-      .withIndex("by_tournament", (q: any) => q.eq("tournamentId", args.tournamentId))
-      .collect();
-
-    if (currentParticipants.length >= tournament.maxParticipants) {
-      throw new Error("Tournament is full");
+    // Verify the bracket exists and belongs to this tournament
+    const bracket = await ctx.db.get(args.bracketId);
+    if (!bracket) {
+      throw new Error("Bracket not found");
+    }
+    if (bracket.tournamentId !== args.tournamentId) {
+      throw new Error("Bracket does not belong to this tournament");
+    }
+    if (bracket.status !== "draft") {
+      throw new Error("Bracket is not in draft status");
     }
 
-    // Validate and generate displayName based on tournament type
+    // Use bracket's participantType if set, otherwise fallback to tournament
+    const participantType = bracket.participantType || tournament.participantType;
+
+    // Check bracket's maxParticipants if set
+    if (bracket.maxParticipants) {
+      const bracketParticipants = await ctx.db
+        .query("tournamentParticipants")
+        .withIndex("by_bracket", (q: any) => q.eq("bracketId", args.bracketId))
+        .collect();
+      if (bracketParticipants.length >= bracket.maxParticipants) {
+        throw new Error("Bracket is full");
+      }
+    }
+
+    // Validate and generate displayName based on participant type
     let displayName: string;
     let participantData: {
       playerName?: string;
@@ -270,7 +305,7 @@ export const addParticipant = mutation({
       teamName?: string;
     } = {};
 
-    switch (tournament.participantType) {
+    switch (participantType) {
       case "individual":
         if (!args.playerName?.trim()) {
           throw new Error("Player name is required for individual tournaments");
@@ -304,7 +339,8 @@ export const addParticipant = mutation({
 
     const participantId = await ctx.db.insert("tournamentParticipants", {
       tournamentId: args.tournamentId,
-      type: tournament.participantType,
+      bracketId: args.bracketId,
+      type: participantType,
       displayName,
       ...participantData,
       seed: args.seed,

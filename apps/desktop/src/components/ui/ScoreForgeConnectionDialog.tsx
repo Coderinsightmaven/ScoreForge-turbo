@@ -4,6 +4,7 @@ import { scoreforgeApi } from '../../services/scoreforgeApi';
 import type {
   ScoreForgeConfig,
   ScoreForgeTournamentListItem,
+  ScoreForgeBracket,
   ScoreForgeMatch,
 } from '../../types/scoreforge';
 import { Dialog, DialogHeader, DialogContent, DialogFooter } from './Dialog';
@@ -17,11 +18,12 @@ interface ScoreForgeConnectionDialogProps {
   onClose: () => void;
 }
 
-type ConnectionStep = 'config' | 'tournament' | 'match' | 'connected';
+type ConnectionStep = 'config' | 'tournament' | 'bracket' | 'match' | 'connected';
 
 const steps: { key: ConnectionStep; label: string }[] = [
   { key: 'config', label: 'Connect' },
   { key: 'tournament', label: 'Tournament' },
+  { key: 'bracket', label: 'Bracket' },
   { key: 'match', label: 'Match' },
   { key: 'connected', label: 'Live' },
 ];
@@ -30,13 +32,28 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
   isOpen,
   onClose,
 }) => {
-  const [apiKey, setApiKey] = useState('');
-  const [convexUrl, setConvexUrl] = useState('');
+  // Load saved credentials from localStorage
+  const [apiKey, setApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('scoreforge-api-key') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [convexUrl, setConvexUrl] = useState(() => {
+    try {
+      return localStorage.getItem('scoreforge-convex-url') || 'https://knowing-alpaca-261.convex.cloud';
+    } catch {
+      return 'https://knowing-alpaca-261.convex.cloud';
+    }
+  });
   const [showApiKey, setShowApiKey] = useState(false);
   const [pollInterval, setPollInterval] = useState(2);
 
   const [tournaments, setTournaments] = useState<ScoreForgeTournamentListItem[]>([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState('');
+  const [brackets, setBrackets] = useState<ScoreForgeBracket[]>([]);
+  const [selectedBracketId, setSelectedBracketId] = useState('');
   const [matches, setMatches] = useState<ScoreForgeMatch[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [statusFilter, setStatusFilter] = useState<'live' | 'scheduled' | ''>('');
@@ -65,6 +82,8 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
   }, [isOpen, activeConnection]);
 
   const filteredMatches = matches.filter((m) => {
+    // Exclude completed matches - they shouldn't be selectable for live scoring
+    if (m.status === 'completed') return false;
     if (statusFilter && m.status !== statusFilter) return false;
     return true;
   });
@@ -95,6 +114,15 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
       }
 
       setTournaments(tournamentsResponse.tournaments || []);
+
+      // Save credentials to localStorage on successful connection
+      try {
+        localStorage.setItem('scoreforge-api-key', apiKey.trim());
+        localStorage.setItem('scoreforge-convex-url', convexUrl.trim());
+      } catch (error) {
+        console.warn('Failed to save ScoreForge credentials:', error);
+      }
+
       setStep('tournament');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect');
@@ -110,7 +138,32 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
 
     try {
       const config: ScoreForgeConfig = { apiKey, convexUrl };
-      const matchesResponse = await scoreforgeApi.listMatches(config, tournamentId);
+      const bracketsResponse = await scoreforgeApi.listBrackets(config, tournamentId);
+
+      if (bracketsResponse.error) {
+        setError(bracketsResponse.error);
+        return;
+      }
+
+      setBrackets(bracketsResponse.brackets || []);
+      setStep('bracket');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load brackets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectBracket = async (bracketId: string) => {
+    setSelectedBracketId(bracketId);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const config: ScoreForgeConfig = { apiKey, convexUrl };
+      const matchesResponse = await scoreforgeApi.listMatches(config, selectedTournamentId, {
+        bracketId: bracketId,
+      });
 
       if (matchesResponse.error) {
         setError(matchesResponse.error);
@@ -158,16 +211,22 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
     setConnectionId(null);
     setStep('config');
     setSelectedTournamentId('');
+    setSelectedBracketId('');
     setSelectedMatchId('');
     setMatches([]);
+    setBrackets([]);
     setTournaments([]);
   };
 
   const handleBack = () => {
     if (step === 'match') {
-      setStep('tournament');
+      setStep('bracket');
       setSelectedMatchId('');
       setMatches([]);
+    } else if (step === 'bracket') {
+      setStep('tournament');
+      setSelectedBracketId('');
+      setBrackets([]);
     } else if (step === 'tournament') {
       setStep('config');
       setSelectedTournamentId('');
@@ -348,9 +407,72 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
           </div>
         )}
 
-        {/* Step 3: Match Selection */}
+        {/* Step 3: Bracket Selection */}
+        {step === 'bracket' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Select a bracket to view its matches
+            </p>
+
+            {brackets.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400">
+                  No brackets found
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                  Create a bracket in ScoreForge first
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {brackets.map((bracket) => (
+                  <button
+                    key={bracket.id}
+                    onClick={() => handleSelectBracket(bracket.id)}
+                    disabled={loading}
+                    className={cn(
+                      'w-full text-left p-4 rounded-lg border-2 transition-all',
+                      'hover:border-indigo-300 dark:hover:border-indigo-600',
+                      'border-gray-200 dark:border-gray-700',
+                      'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {bracket.name}
+                      </div>
+                      <span className={cn(
+                        'px-2 py-0.5 text-xs font-medium rounded-full',
+                        bracket.status === 'active'
+                          ? 'bg-success/10 text-success'
+                          : bracket.status === 'completed'
+                          ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                      )}>
+                        {bracket.status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      {bracket.participantCount}{bracket.maxParticipants ? ` / ${bracket.maxParticipants}` : ''} participants • {bracket.matchCount} matches
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Match Selection */}
         {step === 'match' && (
           <div className="space-y-4">
+            {/* Selected bracket indicator */}
+            {selectedBracketId && (
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="font-medium">Bracket:</span>{' '}
+                {brackets.find(b => b.id === selectedBracketId)?.name || 'Unknown'}
+              </div>
+            )}
+
             {/* Status filter */}
             <div className="flex gap-2">
               {(['', 'live', 'scheduled'] as const).map((status) => (
@@ -420,7 +542,7 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
           </div>
         )}
 
-        {/* Step 4: Connected */}
+        {/* Step 5: Connected */}
         {step === 'connected' && (
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-success/10 border border-success/20">
@@ -474,6 +596,17 @@ export const ScoreForgeConnectionDialog: React.FC<ScoreForgeConnectionDialogProp
         )}
 
         {step === 'tournament' && (
+          <>
+            <Button variant="secondary" onClick={handleBack}>
+              Back
+            </Button>
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+          </>
+        )}
+
+        {step === 'bracket' && (
           <>
             <Button variant="secondary" onClick={handleBack}>
               Back

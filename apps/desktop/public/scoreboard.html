@@ -1797,6 +1797,53 @@
                 renderScoreboard(scoreboardData);
             }
         });
+
+        // Listen for match change events from the main window
+        async function setupMatchChangeListener() {
+            if (!window.__TAURI__ || !window.__TAURI__.event) {
+                console.log('🎾 [SCOREBOARD] Tauri event API not available');
+                return;
+            }
+
+            const { listen } = window.__TAURI__.event;
+
+            // Listen for match change events
+            await listen('update-scoreforge-match', (event) => {
+                console.log('🎾 [SCOREBOARD] Received match change event:', event.payload);
+
+                const { apiKey, convexUrl, matchId } = event.payload;
+
+                if (!matchId) {
+                    console.log('🎾 [SCOREBOARD] Invalid match change event - missing matchId');
+                    return;
+                }
+
+                // Update the scoreForgeConfig
+                if (!scoreboardData) {
+                    scoreboardData = {};
+                }
+                scoreboardData.scoreForgeConfig = {
+                    apiKey,
+                    convexUrl,
+                    matchId
+                };
+
+                console.log('🎾 [SCOREBOARD] Updated scoreForgeConfig to match:', matchId);
+
+                // Clear tennis components to show we're switching
+                clearTennisComponents();
+
+                // Restart the subscription with the new match
+                startScoreForgeSubscription();
+            });
+
+            console.log('🎾 [SCOREBOARD] Match change listener set up');
+        }
+
+        // Set up match change listener when Tauri is available
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(setupMatchChangeListener, 1000); // Wait for Tauri to be ready
+        });
     </script>
 </body>
 </html>

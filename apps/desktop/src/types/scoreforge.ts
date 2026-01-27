@@ -145,6 +145,26 @@ export interface ScoreForgeTournamentListItem {
 }
 
 // ============================================
+// Bracket Types
+// ============================================
+
+export type ScoreForgeBracketStatus = 'draft' | 'active' | 'completed';
+
+export interface ScoreForgeBracket {
+  id: string;
+  tournamentId: string;
+  name: string;
+  description?: string;
+  format?: ScoreForgeFormat;
+  participantType?: 'individual' | 'doubles' | 'team';
+  maxParticipants?: number;
+  status: ScoreForgeBracketStatus;
+  displayOrder: number;
+  participantCount: number;
+  matchCount: number;
+}
+
+// ============================================
 // API Response Types
 // ============================================
 
@@ -162,6 +182,11 @@ export interface ScoreForgeListMatchesResponse {
 
 export interface ScoreForgeListTournamentsResponse {
   tournaments?: ScoreForgeTournamentListItem[];
+  error?: string;
+}
+
+export interface ScoreForgeListBracketsResponse {
+  brackets?: ScoreForgeBracket[];
   error?: string;
 }
 

@@ -39,12 +39,18 @@ export default function AddParticipantPage({
     tournamentId: tournamentId as any,
   });
 
+  const brackets = useQuery(api.tournamentBrackets.listBrackets, {
+    tournamentId: tournamentId as any,
+  });
+
   const addParticipant = useMutation(api.tournamentParticipants.addParticipant);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state for different participant types
+  // If brackets exist, default to first bracket
+  const [selectedBracketId, setSelectedBracketId] = useState<string>("");
   const [playerName, setPlayerName] = useState("");
   const [player1Name, setPlayer1Name] = useState("");
   const [player2Name, setPlayer2Name] = useState("");
@@ -75,6 +81,12 @@ export default function AddParticipantPage({
     setLoading(true);
 
     try {
+      if (!selectedBracketId) {
+        setError("Please select a bracket");
+        setLoading(false);
+        return;
+      }
+
       const seedValue = seed ? parseInt(seed, 10) : undefined;
 
       if (tournament.participantType === "individual") {
@@ -88,6 +100,7 @@ export default function AddParticipantPage({
         for (let i = 0; i < names.length; i++) {
           await addParticipant({
             tournamentId: tournamentId as any,
+            bracketId: selectedBracketId as any,
             playerName: names[i],
             seed: names.length === 1 ? seedValue : undefined, // Only use seed for single participant
           });
@@ -111,6 +124,7 @@ export default function AddParticipantPage({
         for (let i = 0; i < players1.length; i++) {
           await addParticipant({
             tournamentId: tournamentId as any,
+            bracketId: selectedBracketId as any,
             player1Name: players1[i],
             player2Name: players2[i],
             seed: players1.length === 1 ? seedValue : undefined,
@@ -127,6 +141,7 @@ export default function AddParticipantPage({
         for (let i = 0; i < names.length; i++) {
           await addParticipant({
             tournamentId: tournamentId as any,
+            bracketId: selectedBracketId as any,
             teamName: names[i],
             seed: names.length === 1 ? seedValue : undefined,
           });
@@ -140,7 +155,17 @@ export default function AddParticipantPage({
     }
   };
 
-  const isFull = tournament.participantCount >= tournament.maxParticipants;
+  // Get selected bracket info (tournaments always have at least one bracket)
+  const selectedBracket = brackets?.find(b => b._id === selectedBracketId);
+
+  // Calculate participant count and max based on selected bracket
+  const currentParticipantCount = selectedBracket?.participantCount ?? 0;
+  const maxParticipants = selectedBracket?.maxParticipants;
+
+  // Check if full - only applies when max is set on the bracket
+  const isFull = selectedBracket && selectedBracket.maxParticipants
+    ? selectedBracket.participantCount >= selectedBracket.maxParticipants
+    : false;
 
   const getFormTitle = () => {
     switch (tournament.participantType) {
@@ -156,6 +181,11 @@ export default function AddParticipantPage({
   };
 
   const isFormValid = () => {
+    // Bracket selection is always required
+    if (!selectedBracketId) {
+      return false;
+    }
+
     switch (tournament.participantType) {
       case "individual":
         return playerName.trim().length > 0;
@@ -199,18 +229,26 @@ export default function AddParticipantPage({
               {getFormTitle()}
             </p>
             <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-              <span className="text-accent font-semibold">{tournament.participantCount}</span>
-              <span className="text-text-muted">/</span>
-              <span className="text-text-muted">{tournament.maxParticipants} participants</span>
+              <span className="text-accent font-semibold">{currentParticipantCount}</span>
+              {maxParticipants && (
+                <>
+                  <span className="text-text-muted">/</span>
+                  <span className="text-text-muted">{maxParticipants}</span>
+                </>
+              )}
+              <span className="text-text-muted">participants</span>
+              {selectedBracket && (
+                <span className="text-text-muted">in {selectedBracket.name}</span>
+              )}
             </div>
           </div>
 
-          {isFull ? (
+          {isFull && selectedBracket ? (
             <div className="px-8 pb-10">
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <span className="text-4xl mb-4">⚠</span>
                 <p className="text-text-secondary mb-4">
-                  This tournament is full. Maximum participants reached.
+                  {selectedBracket.name} is full. Maximum participants reached.
                 </p>
                 <Link
                   href={`/tournaments/${tournamentId}`}
@@ -222,6 +260,30 @@ export default function AddParticipantPage({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-6">
+              {/* Bracket Selection (always required) */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="bracketId"
+                  className="block text-sm font-medium text-text-primary"
+                >
+                  Bracket <span className="text-error">*</span>
+                </label>
+                <select
+                  id="bracketId"
+                  value={selectedBracketId}
+                  onChange={(e) => setSelectedBracketId(e.target.value)}
+                  className="w-full px-4 py-3 bg-bg-elevated border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent transition-colors"
+                  required
+                >
+                  <option value="">Select a bracket</option>
+                  {brackets?.map((bracket) => (
+                    <option key={bracket._id} value={bracket._id}>
+                      {bracket.name} ({bracket.participantCount}{bracket.maxParticipants ? ` / ${bracket.maxParticipants}` : ""} participants)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Individual: Single Player Name */}
               {tournament.participantType === "individual" && (
                 <div className="space-y-2">

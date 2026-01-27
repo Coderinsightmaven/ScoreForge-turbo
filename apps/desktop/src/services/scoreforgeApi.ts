@@ -10,6 +10,7 @@ import type {
   ScoreForgeGetMatchResponse,
   ScoreForgeListMatchesResponse,
   ScoreForgeListTournamentsResponse,
+  ScoreForgeListBracketsResponse,
   ScoreForgeMatch,
 } from '../types/scoreforge';
 import type { TennisLiveData } from '../types/scoreboard';
@@ -152,12 +153,26 @@ export class ScoreForgeApiService {
       status?: 'pending' | 'scheduled' | 'live' | 'completed' | 'bye';
       court?: string;
       round?: number;
+      bracketId?: string;
     }
   ): Promise<ScoreForgeListMatchesResponse> {
     return callConvexQuery<ScoreForgeListMatchesResponse>(config.convexUrl, 'publicApi:listMatches', {
       apiKey: config.apiKey,
       tournamentId: tournamentId,
       ...filters,
+    });
+  }
+
+  /**
+   * Lists brackets for a tournament.
+   */
+  async listBrackets(
+    config: ScoreForgeConfig,
+    tournamentId: string
+  ): Promise<ScoreForgeListBracketsResponse> {
+    return callConvexQuery<ScoreForgeListBracketsResponse>(config.convexUrl, 'publicApi:listBrackets', {
+      apiKey: config.apiKey,
+      tournamentId: tournamentId,
     });
   }
 

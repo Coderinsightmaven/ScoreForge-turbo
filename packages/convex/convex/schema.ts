@@ -160,6 +160,15 @@ export const themePreference = v.union(
   v.literal("system")
 );
 
+/**
+ * Bracket status (for tournament brackets/categories)
+ */
+export const bracketStatus = v.union(
+  v.literal("draft"),
+  v.literal("active"),
+  v.literal("completed")
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -239,6 +248,8 @@ export default defineSchema({
   // Tournament participants - teams, doubles, or individuals registered for a tournament
   tournamentParticipants: defineTable({
     tournamentId: v.id("tournaments"),
+    // Optional bracket assignment (for multi-bracket tournaments)
+    bracketId: v.optional(v.id("tournamentBrackets")),
     type: participantTypes, // "individual" | "doubles" | "team"
     displayName: v.string(),
     // Type-specific fields
@@ -258,7 +269,9 @@ export default defineSchema({
     isPlaceholder: v.optional(v.boolean()),
   })
     .index("by_tournament", ["tournamentId"])
-    .index("by_tournament_and_seed", ["tournamentId", "seed"]),
+    .index("by_tournament_and_seed", ["tournamentId", "seed"])
+    .index("by_bracket", ["bracketId"])
+    .index("by_tournament_and_bracket", ["tournamentId", "bracketId"]),
 
   // Tournament scorers - users assigned to score matches in a tournament
   tournamentScorers: defineTable({
@@ -271,13 +284,35 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_tournament_and_user", ["tournamentId", "userId"]),
 
+  // Tournament brackets - categories/draws within a tournament (e.g., "Men's Singles", "Women's Doubles")
+  tournamentBrackets: defineTable({
+    tournamentId: v.id("tournaments"),
+    name: v.string(), // e.g., "Men's Singles"
+    description: v.optional(v.string()),
+    // Optional overrides (inherit from tournament if not set)
+    format: v.optional(tournamentFormats), // Can override tournament format
+    participantType: v.optional(participantTypes), // Can override participant type
+    maxParticipants: v.optional(v.number()),
+    // Sport-specific config overrides
+    tennisConfig: v.optional(tennisConfig),
+    volleyballConfig: v.optional(volleyballConfig),
+    // Status tracking
+    status: bracketStatus,
+    displayOrder: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_tournament", ["tournamentId"])
+    .index("by_tournament_and_status", ["tournamentId", "status"]),
+
   // Matches - individual games within a tournament
   matches: defineTable({
     tournamentId: v.id("tournaments"),
+    // Optional bracket assignment (for multi-bracket tournaments)
+    bracketId: v.optional(v.id("tournamentBrackets")),
     round: v.number(),
     matchNumber: v.number(),
-    // For elimination brackets: "winners" or "losers"
-    bracket: v.optional(v.string()),
+    // For elimination brackets: "winners" | "losers" | "grand_final" | "grand_final_reset"
+    bracketType: v.optional(v.string()),
     // Position in bracket for visualization
     bracketPosition: v.optional(v.number()),
     // Participants (null for TBD)
@@ -310,5 +345,8 @@ export default defineSchema({
     .index("by_tournament", ["tournamentId"])
     .index("by_tournament_and_round", ["tournamentId", "round"])
     .index("by_tournament_and_status", ["tournamentId", "status"])
-    .index("by_tournament_and_bracket", ["tournamentId", "bracket"]),
+    .index("by_tournament_and_bracket_type", ["tournamentId", "bracketType"])
+    .index("by_bracket", ["bracketId"])
+    .index("by_bracket_and_round", ["bracketId", "round"])
+    .index("by_bracket_and_status", ["bracketId", "status"]),
 });

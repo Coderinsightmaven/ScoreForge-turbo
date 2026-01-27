@@ -7,6 +7,7 @@ import { scoreforgeApi } from '../../services/scoreforgeApi';
 import type {
   ScoreForgeConfig,
   ScoreForgeTournamentListItem,
+  ScoreForgeBracket,
   ScoreForgeMatch,
 } from '../../types/scoreforge';
 
@@ -35,7 +36,7 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
     isCreatingScoreboardWindow,
   } = useAppStore();
 
-  const { stopScoreForgePolling, connections } = useLiveDataStore();
+  const { stopScoreForgePolling, connections, connectToScoreForge } = useLiveDataStore();
 
   const [newScoreboardWidth, setNewScoreboardWidth] = useState(800);
   const [newScoreboardHeight, setNewScoreboardHeight] = useState(600);
@@ -45,17 +46,32 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
   const [selectedScoreboardId, setSelectedScoreboardId] = useState<string>('');
   const [isLoadingScoreboards, setIsLoadingScoreboards] = useState(false);
 
-  // ScoreForge connection state
-  const [scoreForgeApiKey, setScoreForgeApiKey] = useState('');
-  const [scoreForgeConvexUrl, setScoreForgeConvexUrl] = useState('https://knowing-alpaca-261.convex.cloud');
+  // ScoreForge connection state - load saved credentials from localStorage
+  const [scoreForgeApiKey, setScoreForgeApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('scoreforge-api-key') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [scoreForgeConvexUrl, setScoreForgeConvexUrl] = useState(() => {
+    try {
+      return localStorage.getItem('scoreforge-convex-url') || 'https://knowing-alpaca-261.convex.cloud';
+    } catch {
+      return 'https://knowing-alpaca-261.convex.cloud';
+    }
+  });
   const [showApiKey, setShowApiKey] = useState(false);
   const [isScoreForgeConnected, setIsScoreForgeConnected] = useState(false);
   const [isConnectingScoreForge, setIsConnectingScoreForge] = useState(false);
   const [scoreForgeError, setScoreForgeError] = useState<string | null>(null);
 
-  // Tournament and match selection
+  // Tournament, bracket, and match selection
   const [tournaments, setTournaments] = useState<ScoreForgeTournamentListItem[]>([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState('');
+  const [brackets, setBrackets] = useState<ScoreForgeBracket[]>([]);
+  const [selectedBracketId, setSelectedBracketId] = useState('');
+  const [isLoadingBrackets, setIsLoadingBrackets] = useState(false);
   const [matches, setMatches] = useState<ScoreForgeMatch[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [isLoadingTournaments, setIsLoadingTournaments] = useState(false);
@@ -121,6 +137,14 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
 
       setTournaments(tournamentsResponse.tournaments || []);
       setIsScoreForgeConnected(true);
+
+      // Save credentials to localStorage on successful connection
+      try {
+        localStorage.setItem('scoreforge-api-key', scoreForgeApiKey.trim());
+        localStorage.setItem('scoreforge-convex-url', scoreForgeConvexUrl.trim());
+      } catch (error) {
+        console.warn('Failed to save ScoreForge credentials:', error);
+      }
     } catch (err) {
       setScoreForgeError(err instanceof Error ? err.message : 'Failed to connect to ScoreForge');
     } finally {
@@ -142,6 +166,8 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
     setIsScoreForgeConnected(false);
     setTournaments([]);
     setSelectedTournamentId('');
+    setBrackets([]);
+    setSelectedBracketId('');
     setMatches([]);
     setSelectedMatchId('');
     setScoreForgeError(null);
@@ -164,17 +190,32 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
 
       setTournaments(tournamentsResponse.tournaments || []);
 
-      // If a tournament is selected, refresh its matches too
+      // If a tournament is selected, refresh its brackets too
       if (selectedTournamentId) {
-        setIsLoadingMatches(true);
-        const matchesResponse = await scoreforgeApi.listMatches(config, selectedTournamentId);
+        setIsLoadingBrackets(true);
+        const bracketsResponse = await scoreforgeApi.listBrackets(config, selectedTournamentId);
 
-        if (matchesResponse.error) {
-          setScoreForgeError(matchesResponse.error);
+        if (bracketsResponse.error) {
+          setScoreForgeError(bracketsResponse.error);
         } else {
-          setMatches(matchesResponse.matches || []);
+          setBrackets(bracketsResponse.brackets || []);
         }
-        setIsLoadingMatches(false);
+        setIsLoadingBrackets(false);
+
+        // If a bracket is selected, refresh its matches too
+        if (selectedBracketId) {
+          setIsLoadingMatches(true);
+          const matchesResponse = await scoreforgeApi.listMatches(config, selectedTournamentId, {
+            bracketId: selectedBracketId,
+          });
+
+          if (matchesResponse.error) {
+            setScoreForgeError(matchesResponse.error);
+          } else {
+            setMatches(matchesResponse.matches || []);
+          }
+          setIsLoadingMatches(false);
+        }
       }
     } catch (err) {
       setScoreForgeError(err instanceof Error ? err.message : 'Failed to refresh');
@@ -185,17 +226,48 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
 
   const handleSelectTournament = async (tournamentId: string) => {
     setSelectedTournamentId(tournamentId);
+    setSelectedBracketId('');
+    setBrackets([]);
     setSelectedMatchId('');
     setMatches([]);
 
     if (!tournamentId) return;
+
+    setIsLoadingBrackets(true);
+    setScoreForgeError(null);
+
+    try {
+      const config = getScoreForgeConfig();
+      const bracketsResponse = await scoreforgeApi.listBrackets(config, tournamentId);
+
+      if (bracketsResponse.error) {
+        setScoreForgeError(bracketsResponse.error);
+        return;
+      }
+
+      setBrackets(bracketsResponse.brackets || []);
+    } catch (err) {
+      setScoreForgeError(err instanceof Error ? err.message : 'Failed to load brackets');
+    } finally {
+      setIsLoadingBrackets(false);
+    }
+  };
+
+  const handleSelectBracket = async (bracketId: string) => {
+    setSelectedBracketId(bracketId);
+    setSelectedMatchId('');
+    setMatches([]);
+
+    if (!bracketId || !selectedTournamentId) return;
 
     setIsLoadingMatches(true);
     setScoreForgeError(null);
 
     try {
       const config = getScoreForgeConfig();
-      const matchesResponse = await scoreforgeApi.listMatches(config, tournamentId);
+      const matchesResponse = await scoreforgeApi.listMatches(config, selectedTournamentId, {
+        bracketId: bracketId,
+      });
 
       if (matchesResponse.error) {
         setScoreForgeError(matchesResponse.error);
@@ -211,6 +283,8 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
   };
 
   const filteredMatches = matches.filter((m) => {
+    // Exclude completed matches - they shouldn't be selectable for live scoring
+    if (m.status === 'completed') return false;
     if (matchStatusFilter && m.status !== matchStatusFilter) return false;
     return true;
   });
@@ -410,12 +484,12 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
                   <>
                     <button
                       onClick={handleRefreshScoreForge}
-                      disabled={isLoadingTournaments || isLoadingMatches}
+                      disabled={isLoadingTournaments || isLoadingBrackets || isLoadingMatches}
                       className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded transition-colors"
-                      title="Refresh tournaments and matches"
+                      title="Refresh tournaments, brackets, and matches"
                     >
                       <svg
-                        className={`w-3 h-3 ${isLoadingTournaments || isLoadingMatches ? 'animate-spin' : ''}`}
+                        className={`w-3 h-3 ${isLoadingTournaments || isLoadingBrackets || isLoadingMatches ? 'animate-spin' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -427,7 +501,7 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
                           d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                         />
                       </svg>
-                      <span>{isLoadingTournaments || isLoadingMatches ? 'Refreshing...' : 'Refresh'}</span>
+                      <span>{isLoadingTournaments || isLoadingBrackets || isLoadingMatches ? 'Refreshing...' : 'Refresh'}</span>
                     </button>
                     <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
                       Connected
@@ -527,8 +601,35 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
                   )}
                 </div>
 
-                {/* Match Selection */}
+                {/* Bracket Selection */}
                 {selectedTournamentId && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Bracket
+                    </label>
+                    {isLoadingBrackets ? (
+                      <p className="text-sm text-gray-500">Loading brackets...</p>
+                    ) : brackets.length === 0 ? (
+                      <p className="text-sm text-orange-600 dark:text-orange-400">No brackets found</p>
+                    ) : (
+                      <select
+                        value={selectedBracketId}
+                        onChange={(e) => handleSelectBracket(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">Select a bracket...</option>
+                        {brackets.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} ({b.participantCount} participants, {b.matchCount} matches)
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {/* Match Selection */}
+                {selectedBracketId && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -733,6 +834,29 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
                 {scoreboardInstances.map((instance) => {
                   // Check if there's an active ScoreForge connection
                   const hasLiveData = connections.some(c => c.provider === 'scoreforge' && c.isActive);
+
+                  // Handler to change the match for this scoreboard instance
+                  const handleInstanceMatchChange = async (matchId: string, tournamentId: string) => {
+                    const config = getScoreForgeConfig();
+
+                    // Emit event to the scoreboard window to update its subscription
+                    try {
+                      const { emitTo } = await import('@tauri-apps/api/event');
+                      await emitTo(instance.windowId, 'update-scoreforge-match', {
+                        apiKey: config.apiKey,
+                        convexUrl: config.convexUrl,
+                        matchId: matchId,
+                      });
+                      console.log(`🎾 [MSM] Emitted match change to window ${instance.windowId} for match ${matchId}`);
+                    } catch (error) {
+                      console.error('Failed to emit match change event:', error);
+                    }
+
+                    // Also update the connection in the store for consistency
+                    const connectionId = `scoreforge-${instance.id.slice(0, 8)}`;
+                    await connectToScoreForge(config, tournamentId, matchId, connectionId);
+                  };
+
                   return (
                     <ScoreboardInstanceCard
                       key={instance.id}
@@ -741,6 +865,10 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
                       onPositionChange={(offsetX, offsetY) => handlePositionChange(instance, offsetX, offsetY)}
                       onSizeChange={(width, height) => handleSizeChange(instance, width, height)}
                       hasLiveData={hasLiveData}
+                      isScoreForgeConnected={isScoreForgeConnected}
+                      tournaments={tournaments}
+                      scoreForgeConfig={isScoreForgeConnected ? getScoreForgeConfig() : undefined}
+                      onMatchChange={handleInstanceMatchChange}
                     />
                   );
                 })}
@@ -766,6 +894,11 @@ interface ScoreboardInstanceCardProps {
   onPositionChange: (offsetX: number, offsetY: number) => void;
   onSizeChange: (width: number, height: number) => void;
   hasLiveData?: boolean;
+  // ScoreForge match change props
+  isScoreForgeConnected?: boolean;
+  tournaments?: ScoreForgeTournamentListItem[];
+  scoreForgeConfig?: ScoreForgeConfig;
+  onMatchChange?: (matchId: string, tournamentId: string) => Promise<void>;
 }
 
 const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
@@ -774,11 +907,29 @@ const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
   onPositionChange,
   onSizeChange,
   hasLiveData,
+  isScoreForgeConnected,
+  tournaments = [],
+  scoreForgeConfig,
+  onMatchChange,
 }) => {
   const [offsetX, setOffsetX] = useState(instance.position.offsetX);
   const [offsetY, setOffsetY] = useState(instance.position.offsetY);
   const [width, setWidth] = useState(instance.size.width);
   const [height, setHeight] = useState(instance.size.height);
+
+  // Match change state
+  const [showMatchChange, setShowMatchChange] = useState(false);
+  const [selectedTournamentId, setSelectedTournamentId] = useState('');
+  const [selectedBracketId, setSelectedBracketId] = useState('');
+  const [selectedMatchId, setSelectedMatchId] = useState('');
+  const [isChangingMatch, setIsChangingMatch] = useState(false);
+  const [matchStatusFilter, setMatchStatusFilter] = useState<'live' | 'scheduled' | ''>('');
+
+  // Local fetch state for this card
+  const [cardBrackets, setCardBrackets] = useState<ScoreForgeBracket[]>([]);
+  const [cardMatches, setCardMatches] = useState<ScoreForgeMatch[]>([]);
+  const [isLoadingBrackets, setIsLoadingBrackets] = useState(false);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(false);
 
   const handlePositionUpdate = () => {
     onPositionChange(offsetX, offsetY);
@@ -786,6 +937,82 @@ const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
 
   const handleSizeUpdate = () => {
     onSizeChange(width, height);
+  };
+
+  const handleTournamentChange = async (tournamentId: string) => {
+    setSelectedTournamentId(tournamentId);
+    setSelectedBracketId('');
+    setSelectedMatchId('');
+    setCardBrackets([]);
+    setCardMatches([]);
+
+    if (!tournamentId || !scoreForgeConfig) return;
+
+    setIsLoadingBrackets(true);
+    try {
+      const response = await scoreforgeApi.listBrackets(scoreForgeConfig, tournamentId);
+      if (!response.error && response.brackets) {
+        setCardBrackets(response.brackets);
+      }
+    } catch (error) {
+      console.error('Failed to load brackets:', error);
+    } finally {
+      setIsLoadingBrackets(false);
+    }
+  };
+
+  const handleBracketChange = async (bracketId: string) => {
+    setSelectedBracketId(bracketId);
+    setSelectedMatchId('');
+    setCardMatches([]);
+
+    if (!bracketId || !selectedTournamentId || !scoreForgeConfig) return;
+
+    setIsLoadingMatches(true);
+    try {
+      const response = await scoreforgeApi.listMatches(scoreForgeConfig, selectedTournamentId, {
+        bracketId: bracketId,
+      });
+      if (!response.error && response.matches) {
+        setCardMatches(response.matches);
+      }
+    } catch (error) {
+      console.error('Failed to load matches:', error);
+    } finally {
+      setIsLoadingMatches(false);
+    }
+  };
+
+  const handleApplyMatchChange = async () => {
+    if (!selectedMatchId || !selectedTournamentId || !onMatchChange) return;
+
+    setIsChangingMatch(true);
+    try {
+      await onMatchChange(selectedMatchId, selectedTournamentId);
+      setShowMatchChange(false);
+      setSelectedTournamentId('');
+      setSelectedBracketId('');
+      setSelectedMatchId('');
+      setCardBrackets([]);
+      setCardMatches([]);
+    } catch (error) {
+      console.error('Failed to change match:', error);
+    } finally {
+      setIsChangingMatch(false);
+    }
+  };
+
+  // Filter matches - exclude completed
+  const filteredMatches = cardMatches.filter((m) => {
+    if (m.status === 'completed') return false;
+    if (matchStatusFilter && m.status !== matchStatusFilter) return false;
+    return true;
+  });
+
+  const getMatchDisplayName = (match: ScoreForgeMatch) => {
+    const p1 = match.participant1?.displayName || 'TBD';
+    const p2 = match.participant2?.displayName || 'TBD';
+    return `${p1} vs ${p2}`;
   };
 
   return (
@@ -889,9 +1116,131 @@ const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
       </div>
 
       <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-        Final Position: ({instance.position.x + instance.position.offsetX}, {instance.position.y + instance.position.offsetY}) | 
+        Final Position: ({instance.position.x + instance.position.offsetX}, {instance.position.y + instance.position.offsetY}) |
         Size: {instance.size.width}x{instance.size.height}
       </div>
+
+      {/* Match Change Section */}
+      {isScoreForgeConnected && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Live Data Match
+            </h5>
+            <button
+              onClick={() => setShowMatchChange(!showMatchChange)}
+              className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              {showMatchChange ? 'Cancel' : 'Change Match'}
+            </button>
+          </div>
+
+          {showMatchChange && (
+            <div className="space-y-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-md">
+              {/* Tournament Selection */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tournament
+                </label>
+                <select
+                  value={selectedTournamentId}
+                  onChange={(e) => handleTournamentChange(e.target.value)}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Select tournament...</option>
+                  {tournaments.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Bracket Selection */}
+              {selectedTournamentId && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Bracket
+                  </label>
+                  {isLoadingBrackets ? (
+                    <p className="text-xs text-gray-500">Loading brackets...</p>
+                  ) : cardBrackets.length === 0 ? (
+                    <p className="text-xs text-gray-500">No brackets found</p>
+                  ) : (
+                    <select
+                      value={selectedBracketId}
+                      onChange={(e) => handleBracketChange(e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select bracket...</option>
+                      {cardBrackets.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.matchCount} matches)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {/* Match Selection */}
+              {selectedBracketId && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      Match
+                    </label>
+                    <div className="flex gap-1">
+                      {(['', 'live', 'scheduled'] as const).map((status) => (
+                        <button
+                          key={status || 'all'}
+                          onClick={() => setMatchStatusFilter(status)}
+                          className={`px-1.5 py-0.5 text-xs font-medium rounded transition-colors ${
+                            matchStatusFilter === status
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          {status === '' ? 'All' : status === 'live' ? 'Live' : 'Scheduled'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {isLoadingMatches ? (
+                    <p className="text-xs text-gray-500">Loading matches...</p>
+                  ) : filteredMatches.length === 0 ? (
+                    <p className="text-xs text-gray-500">No matches found</p>
+                  ) : (
+                    <select
+                      value={selectedMatchId}
+                      onChange={(e) => setSelectedMatchId(e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select match...</option>
+                      {filteredMatches.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {getMatchDisplayName(m)} {m.status === 'live' ? '🔴' : ''} {m.court ? `(${m.court})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {/* Apply Button */}
+              {selectedMatchId && (
+                <button
+                  onClick={handleApplyMatchChange}
+                  disabled={isChangingMatch}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium py-1.5 px-3 rounded transition-colors"
+                >
+                  {isChangingMatch ? 'Updating...' : 'Apply Match Change'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }; 

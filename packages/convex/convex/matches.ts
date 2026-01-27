@@ -60,16 +60,18 @@ async function getTournamentRole(
 export const listMatches = query({
   args: {
     tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
     round: v.optional(v.number()),
     status: v.optional(matchStatus),
-    bracket: v.optional(v.string()),
+    bracketType: v.optional(v.string()),
   },
   returns: v.array(
     v.object({
       _id: v.id("matches"),
       round: v.number(),
       matchNumber: v.number(),
-      bracket: v.optional(v.string()),
+      bracketId: v.optional(v.id("tournamentBrackets")),
+      bracketType: v.optional(v.string()),
       bracketPosition: v.optional(v.number()),
       participant1: v.optional(
         v.object({
@@ -117,7 +119,29 @@ export const listMatches = query({
 
     // Query matches with appropriate index
     let matches;
-    if (args.round !== undefined) {
+    if (args.bracketId !== undefined) {
+      // Filter by specific bracket
+      if (args.round !== undefined) {
+        matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket_and_round", (q: any) =>
+            q.eq("bracketId", args.bracketId).eq("round", args.round!)
+          )
+          .collect();
+      } else if (args.status !== undefined) {
+        matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket_and_status", (q: any) =>
+            q.eq("bracketId", args.bracketId).eq("status", args.status!)
+          )
+          .collect();
+      } else {
+        matches = await ctx.db
+          .query("matches")
+          .withIndex("by_bracket", (q: any) => q.eq("bracketId", args.bracketId))
+          .collect();
+      }
+    } else if (args.round !== undefined) {
       matches = await ctx.db
         .query("matches")
         .withIndex("by_tournament_and_round", (q: any) =>
@@ -131,11 +155,11 @@ export const listMatches = query({
           q.eq("tournamentId", args.tournamentId).eq("status", args.status!)
         )
         .collect();
-    } else if (args.bracket !== undefined) {
+    } else if (args.bracketType !== undefined) {
       matches = await ctx.db
         .query("matches")
-        .withIndex("by_tournament_and_bracket", (q: any) =>
-          q.eq("tournamentId", args.tournamentId).eq("bracket", args.bracket)
+        .withIndex("by_tournament_and_bracket_type", (q: any) =>
+          q.eq("tournamentId", args.tournamentId).eq("bracketType", args.bracketType)
         )
         .collect();
     } else {
@@ -177,7 +201,8 @@ export const listMatches = query({
           _id: match._id,
           round: match.round,
           matchNumber: match.matchNumber,
-          bracket: match.bracket,
+          bracketId: match.bracketId,
+          bracketType: match.bracketType,
           bracketPosition: match.bracketPosition,
           participant1,
           participant2,
@@ -217,7 +242,7 @@ export const getMatch = query({
       tournamentId: v.id("tournaments"),
       round: v.number(),
       matchNumber: v.number(),
-      bracket: v.optional(v.string()),
+      bracketType: v.optional(v.string()),
       bracketPosition: v.optional(v.number()),
       participant1: v.optional(
         v.object({
@@ -322,7 +347,7 @@ export const getMatch = query({
       tournamentId: match.tournamentId,
       round: match.round,
       matchNumber: match.matchNumber,
-      bracket: match.bracket,
+      bracketType: match.bracketType,
       bracketPosition: match.bracketPosition,
       participant1,
       participant2,
@@ -360,7 +385,7 @@ export const listMyLiveMatches = query({
       sport: v.string(),
       round: v.number(),
       matchNumber: v.number(),
-      bracket: v.optional(v.string()),
+      bracketType: v.optional(v.string()),
       participant1: v.optional(
         v.object({
           _id: v.id("tournamentParticipants"),
@@ -450,7 +475,7 @@ export const listMyLiveMatches = query({
           sport: tournament.sport,
           round: match.round,
           matchNumber: match.matchNumber,
-          bracket: match.bracket,
+          bracketType: match.bracketType,
           participant1,
           participant2,
           participant1Score: match.participant1Score,

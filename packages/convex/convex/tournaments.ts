@@ -113,6 +113,7 @@ export const getTournament = query({
       courts: v.optional(v.array(v.string())),
       createdBy: v.id("users"),
       participantCount: v.number(),
+      bracketCount: v.number(),
       myRole: v.union(v.literal("owner"), v.literal("scorer")),
     }),
     v.null()
@@ -140,6 +141,12 @@ export const getTournament = query({
       .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
       .collect();
 
+    // Get bracket count
+    const brackets = await ctx.db
+      .query("tournamentBrackets")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+      .collect();
+
     return {
       _id: tournament._id,
       _creationTime: tournament._creationTime,
@@ -158,6 +165,7 @@ export const getTournament = query({
       courts: tournament.courts,
       createdBy: tournament.createdBy,
       participantCount: participants.length,
+      bracketCount: brackets.length,
       myRole: role,
     };
   },
@@ -176,7 +184,7 @@ export const getBracket = query({
         _id: v.id("matches"),
         round: v.number(),
         matchNumber: v.number(),
-        bracket: v.optional(v.string()),
+        bracketType: v.optional(v.string()),
         bracketPosition: v.optional(v.number()),
         participant1: v.optional(
           v.object({
@@ -269,7 +277,7 @@ export const getBracket = query({
           _id: match._id,
           round: match.round,
           matchNumber: match.matchNumber,
-          bracket: match.bracket,
+          bracketType: match.bracketType,
           bracketPosition: match.bracketPosition,
           participant1,
           participant2,
@@ -483,10 +491,13 @@ export const listMyTournaments = query({
 });
 
 /**
- * Get standings for round robin tournaments
+ * Get standings for round robin tournaments (optionally filtered by bracket)
  */
 export const getStandings = query({
-  args: { tournamentId: v.id("tournaments") },
+  args: {
+    tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
+  },
   returns: v.array(
     v.object({
       _id: v.id("tournamentParticipants"),
@@ -517,11 +528,19 @@ export const getStandings = query({
       throw new Error("Not authorized");
     }
 
-    // Get all participants
-    const participants = await ctx.db
-      .query("tournamentParticipants")
-      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
-      .collect();
+    // Get participants (optionally filtered by bracket)
+    let participants;
+    if (args.bracketId !== undefined) {
+      participants = await ctx.db
+        .query("tournamentParticipants")
+        .withIndex("by_bracket", (q) => q.eq("bracketId", args.bracketId))
+        .collect();
+    } else {
+      participants = await ctx.db
+        .query("tournamentParticipants")
+        .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+        .collect();
+    }
 
     // Calculate points based on scoring config
     const config = tournament.scoringConfig || {
@@ -584,6 +603,7 @@ export const createTournament = mutation({
     tennisConfig: v.optional(tennisConfig),
     volleyballConfig: v.optional(volleyballConfig),
     courts: v.optional(v.array(v.string())),
+    bracketName: v.optional(v.string()),
   },
   returns: v.id("tournaments"),
   handler: async (ctx, args) => {
@@ -647,6 +667,16 @@ export const createTournament = mutation({
       tennisConfig: args.tennisConfig,
       volleyballConfig: args.volleyballConfig,
       courts: args.courts,
+    });
+
+    // Auto-create a default bracket for the tournament
+    await ctx.db.insert("tournamentBrackets", {
+      tournamentId,
+      name: args.bracketName?.trim() || "Main Draw",
+      status: "draft",
+      displayOrder: 1,
+      createdAt: Date.now(),
+      maxParticipants: args.maxParticipants,
     });
 
     return tournamentId;
@@ -759,6 +789,16 @@ export const deleteTournament = mutation({
       await ctx.db.delete(scorer._id);
     }
 
+    // Delete all brackets
+    const brackets = await ctx.db
+      .query("tournamentBrackets")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+      .collect();
+
+    for (const bracket of brackets) {
+      await ctx.db.delete(bracket._id);
+    }
+
     // Delete the tournament
     await ctx.db.delete(args.tournamentId);
     return null;
@@ -809,7 +849,7 @@ async function generateBracketMatches(
       tournamentId,
       round: match.round,
       matchNumber: match.matchNumber,
-      bracket: match.bracket,
+      bracketType: match.bracketType,
       bracketPosition: match.bracketPosition,
       participant1Id: match.participant1Id,
       participant2Id: match.participant2Id,
@@ -924,6 +964,122 @@ async function generateBracketMatches(
 }
 
 /**
+ * Helper function to generate bracket matches for a specific tournament bracket
+ */
+async function generateBracketMatchesForBracket(
+  ctx: MutationCtx,
+  tournamentId: Id<"tournaments">,
+  bracketId: Id<"tournamentBrackets">,
+  format: "single_elimination" | "double_elimination" | "round_robin",
+  tournament: Doc<"tournaments">,
+  participants: Doc<"tournamentParticipants">[]
+) {
+  // Sort by seed (if set) or creation order
+  participants.sort((a, b) => {
+    if (a.seed && b.seed) return a.seed - b.seed;
+    if (a.seed) return -1;
+    if (b.seed) return 1;
+    return a.createdAt - b.createdAt;
+  });
+
+  const participantIds = participants.map((p) => p._id);
+
+  // Generate matches based on format
+  let matchData;
+  switch (format) {
+    case "single_elimination":
+      matchData = generateSingleEliminationBracket(participantIds);
+      break;
+    case "double_elimination":
+      matchData = generateDoubleEliminationBracket(participantIds);
+      break;
+    case "round_robin":
+      matchData = generateRoundRobinSchedule(participantIds);
+      break;
+    default:
+      throw new Error("Unknown tournament format");
+  }
+
+  // Insert matches and build ID map for next match linking
+  const matchIdMap = new Map<number, Id<"matches">>();
+
+  for (let i = 0; i < matchData.length; i++) {
+    const match = matchData[i]!;
+    const matchId = await ctx.db.insert("matches", {
+      tournamentId,
+      bracketId, // Include bracket ID for bracket-specific matches
+      round: match.round,
+      matchNumber: match.matchNumber,
+      bracketType: match.bracketType,
+      bracketPosition: match.bracketPosition,
+      participant1Id: match.participant1Id,
+      participant2Id: match.participant2Id,
+      participant1Score: match.participant1Score,
+      participant2Score: match.participant2Score,
+      status: match.status,
+      nextMatchSlot: match.nextMatchSlot,
+      loserNextMatchSlot: match.loserNextMatchSlot,
+    });
+    matchIdMap.set(i, matchId);
+  }
+
+  // Update next match IDs
+  for (let i = 0; i < matchData.length; i++) {
+    const match = matchData[i] as any;
+    const matchId = matchIdMap.get(i)!;
+    const updates: { nextMatchId?: Id<"matches">; loserNextMatchId?: Id<"matches"> } = {};
+
+    if (match._nextMatchIndex !== undefined) {
+      updates.nextMatchId = matchIdMap.get(match._nextMatchIndex);
+    }
+    if (match._loserNextMatchIndex !== undefined) {
+      updates.loserNextMatchId = matchIdMap.get(match._loserNextMatchIndex);
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(matchId, updates);
+    }
+  }
+
+  // Process bye matches - auto-advance winners
+  const byeMatches = matchData
+    .map((match, index) => ({ match, index }))
+    .filter(({ match }) => match.status === "bye")
+    .sort((a, b) => a.match.round - b.match.round);
+
+  for (const { match, index } of byeMatches) {
+    const matchId = matchIdMap.get(index)!;
+    const fullMatch = await ctx.db.get(matchId);
+    if (!fullMatch) continue;
+
+    const winnerId = match.participant1Id || match.participant2Id;
+    if (winnerId) {
+      await ctx.db.patch(matchId, {
+        winnerId,
+        status: "completed",
+        completedAt: Date.now(),
+      });
+
+      if (fullMatch.nextMatchId) {
+        const nextMatch = await ctx.db.get(fullMatch.nextMatchId);
+        if (nextMatch) {
+          const slot = fullMatch.nextMatchSlot;
+          if (slot === 1) {
+            await ctx.db.patch(fullMatch.nextMatchId, {
+              participant1Id: winnerId,
+            });
+          } else if (slot === 2) {
+            await ctx.db.patch(fullMatch.nextMatchId, {
+              participant2Id: winnerId,
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Generate bracket for a tournament while still in draft mode (owner only)
  * Can be called multiple times to regenerate the bracket
  */
@@ -951,14 +1107,18 @@ export const generateBracket = mutation({
       throw new Error("Can only generate bracket for draft tournaments");
     }
 
-    // Get participants
-    const participants = await ctx.db
+    // Get participants that are NOT assigned to a specific bracket
+    // (for multi-bracket tournaments, each bracket generates its own matches)
+    const allParticipants = await ctx.db
       .query("tournamentParticipants")
       .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
       .collect();
 
+    // Filter to only participants without a bracketId (tournament-level participants)
+    const participants = allParticipants.filter((p) => !p.bracketId);
+
     if (participants.length < 2) {
-      throw new Error("Need at least 2 participants to generate bracket");
+      throw new Error("Need at least 2 participants to generate bracket. For multi-bracket tournaments, generate matches for each bracket individually.");
     }
 
     // Delete any existing matches (for regeneration)
@@ -980,7 +1140,8 @@ export const generateBracket = mutation({
 
 /**
  * Start a tournament - activates the tournament (owner only)
- * If bracket doesn't exist, generates it first
+ * For multi-bracket tournaments, generates matches for all brackets with 2+ participants
+ * For single-bracket tournaments, generates matches from tournament-level participants
  */
 export const startTournament = mutation({
   args: { tournamentId: v.id("tournaments") },
@@ -1006,25 +1167,73 @@ export const startTournament = mutation({
       throw new Error("Tournament has already started or is cancelled");
     }
 
-    // Get participants
-    const participants = await ctx.db
-      .query("tournamentParticipants")
+    // Check if this tournament has brackets
+    const brackets = await ctx.db
+      .query("tournamentBrackets")
       .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
       .collect();
 
-    if (participants.length < 2) {
-      throw new Error("Need at least 2 participants to start tournament");
-    }
+    if (brackets.length > 0) {
+      // Multi-bracket tournament: generate matches for each bracket with 2+ participants
+      let totalParticipants = 0;
 
-    // Check if bracket already exists
-    const existingMatches = await ctx.db
-      .query("matches")
-      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
-      .first();
+      for (const bracket of brackets) {
+        const bracketParticipants = await ctx.db
+          .query("tournamentParticipants")
+          .withIndex("by_bracket", (q) => q.eq("bracketId", bracket._id))
+          .collect();
 
-    // If no bracket exists, generate it
-    if (!existingMatches) {
-      await generateBracketMatches(ctx, args.tournamentId, tournament, participants);
+        totalParticipants += bracketParticipants.length;
+
+        if (bracketParticipants.length >= 2 && bracket.status === "draft") {
+          // Check if matches already exist for this bracket
+          const existingBracketMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_bracket", (q) => q.eq("bracketId", bracket._id))
+            .first();
+
+          if (!existingBracketMatches) {
+            // Generate matches for this bracket
+            const format = bracket.format || tournament.format;
+            await generateBracketMatchesForBracket(
+              ctx,
+              args.tournamentId,
+              bracket._id,
+              format,
+              tournament,
+              bracketParticipants
+            );
+          }
+
+          // Update bracket status to active
+          await ctx.db.patch(bracket._id, { status: "active" });
+        }
+      }
+
+      if (totalParticipants < 2) {
+        throw new Error("Need at least 2 participants across all brackets to start tournament");
+      }
+    } else {
+      // Single-bracket tournament: use tournament-level participants
+      const participants = await ctx.db
+        .query("tournamentParticipants")
+        .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+        .collect();
+
+      if (participants.length < 2) {
+        throw new Error("Need at least 2 participants to start tournament");
+      }
+
+      // Check if bracket already exists
+      const existingMatches = await ctx.db
+        .query("matches")
+        .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
+        .first();
+
+      // If no bracket exists, generate it
+      if (!existingMatches) {
+        await generateBracketMatches(ctx, args.tournamentId, tournament, participants);
+      }
     }
 
     // Update tournament status
