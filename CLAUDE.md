@@ -129,8 +129,8 @@ Both include `history` array for undo functionality (last 10 states).
 
 External API access via `publicApi.ts` for integrations:
 - Requires API key (generated in Settings page)
-- Endpoints: `getMatch`, `listMatches`, `listTournaments`
-- Supports filtering by status, round, court
+- Endpoints: `getMatch`, `listMatches`, `listTournaments`, `listBrackets`
+- Supports filtering by status, round, court, bracketId
 - Supports sorting by round, court, scheduledTime
 
 ## Reports
