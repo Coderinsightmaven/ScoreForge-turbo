@@ -44,21 +44,6 @@ const TENNIS_SCORE_TYPES = new Set([
   ComponentType.TENNIS_SET_SCORE,
   ComponentType.TENNIS_MATCH_SCORE,
   ComponentType.TENNIS_DETAILED_SET_SCORE,
-  ComponentType.PLAYER1_SET1,
-  ComponentType.PLAYER2_SET1,
-  ComponentType.PLAYER1_SET2,
-  ComponentType.PLAYER2_SET2,
-  ComponentType.PLAYER1_SET3,
-  ComponentType.PLAYER2_SET3,
-  ComponentType.PLAYER1_SET4,
-  ComponentType.PLAYER2_SET4,
-  ComponentType.PLAYER1_SET5,
-  ComponentType.PLAYER2_SET5,
-  ComponentType.TENNIS_SET_1,
-  ComponentType.TENNIS_SET_2,
-  ComponentType.TENNIS_SET_3,
-  ComponentType.TENNIS_SET_4,
-  ComponentType.TENNIS_SET_5,
 ]);
 
 export const DraggableComponent: React.FC<DraggableComponentProps> = ({

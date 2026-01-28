@@ -73,50 +73,6 @@ export const TennisScoreRenderer: React.FC<TennisScoreRendererProps> = ({
         return '0';
       }
 
-      // Player-specific set score components
-      case ComponentType.PLAYER1_SET1:
-        return tennisMatch.sets?.['1']?.player1?.toString() || fallback;
-      case ComponentType.PLAYER2_SET1:
-        return tennisMatch.sets?.['1']?.player2?.toString() || fallback;
-      case ComponentType.PLAYER1_SET2:
-        return tennisMatch.sets?.['2']?.player1?.toString() || fallback;
-      case ComponentType.PLAYER2_SET2:
-        return tennisMatch.sets?.['2']?.player2?.toString() || fallback;
-      case ComponentType.PLAYER1_SET3:
-        return tennisMatch.sets?.['3']?.player1?.toString() || fallback;
-      case ComponentType.PLAYER2_SET3:
-        return tennisMatch.sets?.['3']?.player2?.toString() || fallback;
-      case ComponentType.PLAYER1_SET4:
-        return tennisMatch.sets?.['4']?.player1?.toString() || fallback;
-      case ComponentType.PLAYER2_SET4:
-        return tennisMatch.sets?.['4']?.player2?.toString() || fallback;
-      case ComponentType.PLAYER1_SET5:
-        return tennisMatch.sets?.['5']?.player1?.toString() || fallback;
-      case ComponentType.PLAYER2_SET5:
-        return tennisMatch.sets?.['5']?.player2?.toString() || fallback;
-
-      // Individual set components
-      case ComponentType.TENNIS_SET_1: {
-        const set = tennisMatch.sets?.['1'];
-        return set ? `${set.player1 || 0}-${set.player2 || 0}` : fallback;
-      }
-      case ComponentType.TENNIS_SET_2: {
-        const set = tennisMatch.sets?.['2'];
-        return set ? `${set.player1 || 0}-${set.player2 || 0}` : fallback;
-      }
-      case ComponentType.TENNIS_SET_3: {
-        const set = tennisMatch.sets?.['3'];
-        return set ? `${set.player1 || 0}-${set.player2 || 0}` : fallback;
-      }
-      case ComponentType.TENNIS_SET_4: {
-        const set = tennisMatch.sets?.['4'];
-        return set ? `${set.player1 || 0}-${set.player2 || 0}` : fallback;
-      }
-      case ComponentType.TENNIS_SET_5: {
-        const set = tennisMatch.sets?.['5'];
-        return set ? `${set.player1 || 0}-${set.player2 || 0}` : fallback;
-      }
-
       default:
         return fallback;
     }

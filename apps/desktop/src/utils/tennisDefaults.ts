@@ -47,27 +47,6 @@ export function getDefaultTennisText(
       return '0';
     case ComponentType.TENNIS_SERVING_INDICATOR:
       return '●';
-    // Player-specific set score components
-    case ComponentType.PLAYER1_SET1:
-    case ComponentType.PLAYER2_SET1:
-      return '0';
-    case ComponentType.PLAYER1_SET2:
-    case ComponentType.PLAYER2_SET2:
-    case ComponentType.PLAYER1_SET3:
-    case ComponentType.PLAYER2_SET3:
-    case ComponentType.PLAYER1_SET4:
-    case ComponentType.PLAYER2_SET4:
-    case ComponentType.PLAYER1_SET5:
-    case ComponentType.PLAYER2_SET5:
-      return '';
-    // Individual set components
-    case ComponentType.TENNIS_SET_1:
-      return '0-0';
-    case ComponentType.TENNIS_SET_2:
-    case ComponentType.TENNIS_SET_3:
-    case ComponentType.TENNIS_SET_4:
-    case ComponentType.TENNIS_SET_5:
-      return '';
     default:
       return 'Tennis Data';
   }

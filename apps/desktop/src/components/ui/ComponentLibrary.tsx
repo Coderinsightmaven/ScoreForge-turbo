@@ -46,33 +46,6 @@ const categories: ComponentCategory[] = [
       { type: ComponentType.TENNIS_SERVING_INDICATOR, label: 'Serve Indicator', description: 'Who is serving' },
     ],
   },
-  {
-    id: 'set-scores',
-    label: 'Individual Set Scores',
-    components: [
-      { type: ComponentType.PLAYER1_SET1, label: 'P1 Set 1', description: 'Player 1 - Set 1' },
-      { type: ComponentType.PLAYER2_SET1, label: 'P2 Set 1', description: 'Player 2 - Set 1' },
-      { type: ComponentType.PLAYER1_SET2, label: 'P1 Set 2', description: 'Player 1 - Set 2' },
-      { type: ComponentType.PLAYER2_SET2, label: 'P2 Set 2', description: 'Player 2 - Set 2' },
-      { type: ComponentType.PLAYER1_SET3, label: 'P1 Set 3', description: 'Player 1 - Set 3' },
-      { type: ComponentType.PLAYER2_SET3, label: 'P2 Set 3', description: 'Player 2 - Set 3' },
-      { type: ComponentType.PLAYER1_SET4, label: 'P1 Set 4', description: 'Player 1 - Set 4' },
-      { type: ComponentType.PLAYER2_SET4, label: 'P2 Set 4', description: 'Player 2 - Set 4' },
-      { type: ComponentType.PLAYER1_SET5, label: 'P1 Set 5', description: 'Player 1 - Set 5' },
-      { type: ComponentType.PLAYER2_SET5, label: 'P2 Set 5', description: 'Player 2 - Set 5' },
-    ],
-  },
-  {
-    id: 'combined-sets',
-    label: 'Combined Set Scores',
-    components: [
-      { type: ComponentType.TENNIS_SET_1, label: 'Set 1', description: 'Combined set 1 score' },
-      { type: ComponentType.TENNIS_SET_2, label: 'Set 2', description: 'Combined set 2 score' },
-      { type: ComponentType.TENNIS_SET_3, label: 'Set 3', description: 'Combined set 3 score' },
-      { type: ComponentType.TENNIS_SET_4, label: 'Set 4', description: 'Combined set 4 score' },
-      { type: ComponentType.TENNIS_SET_5, label: 'Set 5', description: 'Combined set 5 score' },
-    ],
-  },
 ];
 
 export const ComponentLibrary: React.FC<ComponentLibraryProps> = ({ onAddComponent }) => {
@@ -279,21 +252,6 @@ const ComponentIcon: React.FC<{ type: ComponentType }> = ({ type }) => {
     case ComponentType.TENNIS_SET_SCORE:
     case ComponentType.TENNIS_MATCH_SCORE:
     case ComponentType.TENNIS_DETAILED_SET_SCORE:
-    case ComponentType.PLAYER1_SET1:
-    case ComponentType.PLAYER2_SET1:
-    case ComponentType.PLAYER1_SET2:
-    case ComponentType.PLAYER2_SET2:
-    case ComponentType.PLAYER1_SET3:
-    case ComponentType.PLAYER2_SET3:
-    case ComponentType.PLAYER1_SET4:
-    case ComponentType.PLAYER2_SET4:
-    case ComponentType.PLAYER1_SET5:
-    case ComponentType.PLAYER2_SET5:
-    case ComponentType.TENNIS_SET_1:
-    case ComponentType.TENNIS_SET_2:
-    case ComponentType.TENNIS_SET_3:
-    case ComponentType.TENNIS_SET_4:
-    case ComponentType.TENNIS_SET_5:
       return (
         <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />

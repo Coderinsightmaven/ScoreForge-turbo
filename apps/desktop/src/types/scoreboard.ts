@@ -42,12 +42,10 @@ export interface ScoreboardComponent {
 
 /**
  * Enum of all available component types.
- * 
+ *
  * Categories:
  * - Static: BACKGROUND, LOGO, TEXT, VIDEO
  * - Tennis Live Data: TENNIS_PLAYER_NAME, TENNIS_GAME_SCORE, etc.
- * - Player-Specific Sets: PLAYER1_SET1, PLAYER2_SET1, etc.
- * - Individual Sets: TENNIS_SET_1, TENNIS_SET_2, etc.
  */
 export const enum ComponentType {
   /** Background image component (rendered behind all other components) */
@@ -76,38 +74,6 @@ export const enum ComponentType {
   TENNIS_SERVING_INDICATOR = 'tennis_serving_indicator',
   /** Adaptive team display (school names for doubles, school-lastname for singles) */
   TENNIS_ADAPTIVE_TEAM_DISPLAY = 'tennis_adaptive_team_display',
-  // Player-specific set score components (for individual set scores per player)
-  /** Player 1's score in set 1 */
-  PLAYER1_SET1 = 'player1_set1',
-  /** Player 2's score in set 1 */
-  PLAYER2_SET1 = 'player2_set1',
-  /** Player 1's score in set 2 */
-  PLAYER1_SET2 = 'player1_set2',
-  /** Player 2's score in set 2 */
-  PLAYER2_SET2 = 'player2_set2',
-  /** Player 1's score in set 3 */
-  PLAYER1_SET3 = 'player1_set3',
-  /** Player 2's score in set 3 */
-  PLAYER2_SET3 = 'player2_set3',
-  /** Player 1's score in set 4 */
-  PLAYER1_SET4 = 'player1_set4',
-  /** Player 2's score in set 4 */
-  PLAYER2_SET4 = 'player2_set4',
-  /** Player 1's score in set 5 */
-  PLAYER1_SET5 = 'player1_set5',
-  /** Player 2's score in set 5 */
-  PLAYER2_SET5 = 'player2_set5',
-  // Individual set components (combined scores for each set)
-  /** Combined score for set 1 (e.g., "6-4") */
-  TENNIS_SET_1 = 'tennis_set_1',
-  /** Combined score for set 2 */
-  TENNIS_SET_2 = 'tennis_set_2',
-  /** Combined score for set 3 */
-  TENNIS_SET_3 = 'tennis_set_3',
-  /** Combined score for set 4 */
-  TENNIS_SET_4 = 'tennis_set_4',
-  /** Combined score for set 5 */
-  TENNIS_SET_5 = 'tennis_set_5',
 }
 
 /**
@@ -312,16 +278,10 @@ export interface ScoreboardConfig {
 
 /**
  * Supported sport types.
- * 
+ *
  * Each sport type may have sport-specific components and behaviors.
  */
 export const enum SportType {
-  BASKETBALL = 'basketball',
-  FOOTBALL = 'football',
-  SOCCER = 'soccer',
-  HOCKEY = 'hockey',
-  BASEBALL = 'baseball',
-  VOLLEYBALL = 'volleyball',
   TENNIS = 'tennis',
   GENERIC = 'generic', // Generic scoreboard with no sport-specific features
 }

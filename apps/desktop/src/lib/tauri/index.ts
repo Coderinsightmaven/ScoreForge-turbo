@@ -10,7 +10,6 @@ export * from './monitors';
 export * from './windows';
 export * from './storage';
 export * from './gameState';
-export * from './websocket';
 export * from './liveData';
 export * from './exportImport';
 export * from './types';
@@ -20,7 +19,6 @@ import * as monitors from './monitors';
 import * as windows from './windows';
 import * as storage from './storage';
 import * as gameState from './gameState';
-import * as websocket from './websocket';
 import * as liveData from './liveData';
 import * as exportImport from './exportImport';
 
@@ -62,16 +60,6 @@ export class TauriAPI {
   static toggleGameActive = gameState.toggleGameActive;
   static resetGame = gameState.resetGame;
   static updateTeamInfo = gameState.updateTeamInfo;
-
-  // === WebSocket Operations ===
-  static inspectLiveData = websocket.inspectLiveData;
-  static checkWebSocketStatus = websocket.checkWebSocketStatus;
-  static testWebSocketConnection = websocket.testWebSocketConnection;
-  static connectWebSocket = websocket.connectWebSocket;
-  static disconnectWebSocket = websocket.disconnectWebSocket;
-  static sendWebSocketMessage = websocket.sendWebSocketMessage;
-  static startWebSocketListener = websocket.startWebSocketListener;
-  static stopWebSocketListener = websocket.stopWebSocketListener;
 
   // === Live Data Connection Storage ===
   static saveLiveDataConnections = liveData.saveLiveDataConnections;

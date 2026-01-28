@@ -28,7 +28,7 @@ export const ComponentsList: React.FC<ComponentsListProps> = ({
   });
 
   const getComponentTypeName = (type: ComponentType): string => {
-    const names: Record<ComponentType, string> = {
+    const names: Partial<Record<ComponentType, string>> = {
       [ComponentType.BACKGROUND]: 'Background',
       [ComponentType.LOGO]: 'Logo',
       [ComponentType.TEXT]: 'Text',
@@ -42,21 +42,6 @@ export const ComponentsList: React.FC<ComponentsListProps> = ({
       [ComponentType.TENNIS_MATCH_SCORE]: 'Match Score',
       [ComponentType.TENNIS_DETAILED_SET_SCORE]: 'Detailed Set',
       [ComponentType.TENNIS_SERVING_INDICATOR]: 'Serving',
-      [ComponentType.PLAYER1_SET1]: 'P1 Set 1',
-      [ComponentType.PLAYER2_SET1]: 'P2 Set 1',
-      [ComponentType.PLAYER1_SET2]: 'P1 Set 2',
-      [ComponentType.PLAYER2_SET2]: 'P2 Set 2',
-      [ComponentType.PLAYER1_SET3]: 'P1 Set 3',
-      [ComponentType.PLAYER2_SET3]: 'P2 Set 3',
-      [ComponentType.PLAYER1_SET4]: 'P1 Set 4',
-      [ComponentType.PLAYER2_SET4]: 'P2 Set 4',
-      [ComponentType.PLAYER1_SET5]: 'P1 Set 5',
-      [ComponentType.PLAYER2_SET5]: 'P2 Set 5',
-      [ComponentType.TENNIS_SET_1]: 'Set 1',
-      [ComponentType.TENNIS_SET_2]: 'Set 2',
-      [ComponentType.TENNIS_SET_3]: 'Set 3',
-      [ComponentType.TENNIS_SET_4]: 'Set 4',
-      [ComponentType.TENNIS_SET_5]: 'Set 5',
     };
     return names[type] || 'Unknown';
   };
