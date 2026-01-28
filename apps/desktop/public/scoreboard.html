@@ -6,6 +6,11 @@
     <title>Scoreboard Display</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Force padding on tennis name components - inline styles don't override the * reset reliably */
+        .tennis-component {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+        }
         body { 
             font-family: Arial, sans-serif; 
             background: #000; 
@@ -946,15 +951,8 @@
 
                     console.log(`🎾 [SCOREBOARD] After update, component.textContent = "${component.textContent}"`);
 
-                    // Scale text to maximally fill if it's a player name or adaptive team display component
-                    if ((componentType === 'tennis_player_name' && newValue && newValue !== 'Player 1' && newValue !== 'Player 2') ||
-                        (componentType === 'tennis_adaptive_team_display' && newValue && newValue !== 'School A - Smith vs School B - Johnson')) {
-                        // Get component dimensions from the element's style
-                        const componentWidth = parseFloat(component.style.width);
-                        const componentHeight = parseFloat(component.style.height);
-                        const optimalFontSize = scaleTextToFit(component, componentWidth, componentHeight);
-                        component.style.fontSize = optimalFontSize + 'px';
-                    }
+                    // Auto-scaling disabled - use font size from designer
+                    // The designer's font size will be used as-is
 
                     // Additional debugging: Check the DOM element directly
                     const checkElement = document.querySelector(`[data-component-id="${component.getAttribute('data-component-id')}"]`);
@@ -1567,28 +1565,13 @@
             const currentSize = parseFloat(element.style.fontSize || (computed && computed.fontSize)) || 16;
             let fontSize = currentSize;
             const minFontSize = 14; // keep readable
-            const maxFontByHeight = Math.max(minFontSize, Math.floor(maxHeight)); // hard cap by box height
+            const maxFontByHeight = Math.max(minFontSize, Math.floor(maxHeight * 0.9)); // cap at 90% of box height
 
-            // Prepare for measurement
-            const originalVisibility = element.style.visibility;
-            const originalPosition = element.style.position;
-            const originalLeft = element.style.left;
-            const originalTop = element.style.top;
-
-            element.style.visibility = 'hidden';
-            element.style.position = 'absolute';
-            element.style.left = '-9999px';
-            element.style.top = '-9999px';
-
-            if (!element.parentNode) {
-                document.body.appendChild(element);
-            }
+            // Account for CSS-enforced padding (8px each side = 16px total)
+            const availableWidth = maxWidth - 16 - 4; // padding + safety margin
 
             const fits = () => {
-                // Very small safety margins
-                const containerWidth = maxWidth - 2;
-                const containerHeight = maxHeight - 1;
-                return element.scrollWidth <= containerWidth && element.scrollHeight <= containerHeight;
+                return element.scrollWidth <= availableWidth && element.scrollHeight <= maxHeight;
             };
 
             try {
@@ -1616,16 +1599,6 @@
                 }
             } catch (error) {
                 console.error('Error scaling text:', error);
-            } finally {
-                // Restore styles
-                element.style.visibility = originalVisibility;
-                element.style.position = originalPosition;
-                element.style.left = originalLeft;
-                element.style.top = originalTop;
-
-                if (element.parentNode === document.body && originalPosition !== 'absolute') {
-                    document.body.removeChild(element);
-                }
             }
 
             return fontSize;
@@ -1721,12 +1694,8 @@
                 element.setAttribute('data-team-selection', component.data.teamSelection || 0);
             }
 
-            // Scale text to maximally fill the component bounds for player names and adaptive team display
-            if ((component.type === 'tennis_player_name' && element.textContent && element.textContent !== 'Player 1' && element.textContent !== 'Player 2') ||
-                (component.type === 'tennis_adaptive_team_display' && element.textContent && element.textContent !== 'School A - Smith vs School B - Johnson')) {
-                const optimalFontSize = scaleTextToFit(element, component.size.width, component.size.height);
-                element.style.fontSize = optimalFontSize + 'px';
-            }
+            // Auto-scaling disabled - use font size from designer
+            // The designer's font size will be used as-is
 
             container.appendChild(element);
         }
