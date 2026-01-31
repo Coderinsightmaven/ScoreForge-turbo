@@ -18,15 +18,36 @@ export const useKeyboardShortcuts = (config: any) => {
 
   useEffect(() => {
     /**
+     * Checks if the currently focused element is a form field where
+     * native copy/paste should be allowed.
+     */
+    const isInFormField = (): boolean => {
+      const activeElement = document.activeElement as HTMLElement;
+      if (!activeElement) return false;
+
+      const tagName = activeElement.tagName.toUpperCase();
+      return (
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        activeElement.isContentEditable
+      );
+    };
+
+    /**
      * Handles keyboard events for copy/paste shortcuts.
-     * Only processes shortcuts when a scoreboard is loaded.
+     * Only processes shortcuts when a scoreboard is loaded and
+     * the user is not focused on a form field.
      */
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle shortcuts when a scoreboard is loaded
       if (!config) return;
-      
+
+      // Don't intercept copy/paste when user is in a form field
+      if (isInFormField()) return;
+
       const isCtrlCmd = event.ctrlKey || event.metaKey;
-      
+
       if (isCtrlCmd && event.key === 'c') {
         event.preventDefault();
         handleCopyComponents();
