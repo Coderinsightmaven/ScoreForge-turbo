@@ -223,7 +223,20 @@ pub async fn update_scoreboard_window_size(
 pub async fn toggle_scoreboard_fullscreen(app: AppHandle, window_id: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&window_id) {
         let is_fullscreen = window.is_fullscreen().map_err(|e| e.to_string())?;
-        window.set_fullscreen(!is_fullscreen).map_err(|e| e.to_string())?;
+
+        if is_fullscreen {
+            // Exiting fullscreen - reset position to 0,0
+            window.set_fullscreen(false).map_err(|e| e.to_string())?;
+            // Small delay to let fullscreen transition complete
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                x: 0,
+                y: 0
+            })).map_err(|e| e.to_string())?;
+        } else {
+            // Entering fullscreen
+            window.set_fullscreen(true).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }

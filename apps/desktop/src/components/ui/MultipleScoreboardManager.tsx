@@ -913,7 +913,7 @@ const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
   scoreForgeConfig,
   onMatchChange,
 }) => {
-  const { images } = useImageStore();
+  const { images, uploadImage } = useImageStore();
   const [offsetX, setOffsetX] = useState(instance.position.offsetX);
   const [offsetY, setOffsetY] = useState(instance.position.offsetY);
   const [width, setWidth] = useState(instance.size.width);
@@ -923,6 +923,37 @@ const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
   const [showBackgroundSwap, setShowBackgroundSwap] = useState(false);
   const [selectedBackgroundId, setSelectedBackgroundId] = useState('');
   const [isSwappingBackground, setIsSwappingBackground] = useState(false);
+  const [isImportingImage, setIsImportingImage] = useState(false);
+
+  // Handle importing a new image for background
+  const handleImportBackgroundImage = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+
+    input.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      setIsImportingImage(true);
+      try {
+        const uploadedImage = await uploadImage(file);
+        if (uploadedImage) {
+          // Auto-select the newly uploaded image
+          setSelectedBackgroundId(uploadedImage.id);
+        }
+      } catch (error) {
+        console.error('Failed to import image:', error);
+      } finally {
+        setIsImportingImage(false);
+        document.body.removeChild(input);
+      }
+    };
+
+    document.body.appendChild(input);
+    input.click();
+  };
 
   // Match change state
   const [showMatchChange, setShowMatchChange] = useState(false);
@@ -1144,11 +1175,20 @@ const ScoreboardInstanceCard: React.FC<ScoreboardInstanceCardProps> = ({
         {showBackgroundSwap && (
           <div className="space-y-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Select New Background
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Select New Background
+                </label>
+                <button
+                  onClick={handleImportBackgroundImage}
+                  disabled={isImportingImage}
+                  className="text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 disabled:opacity-50"
+                >
+                  {isImportingImage ? 'Importing...' : '+ Import Image'}
+                </button>
+              </div>
               {images.length === 0 ? (
-                <p className="text-xs text-gray-500">No images available. Upload images in the designer first.</p>
+                <p className="text-xs text-gray-500">No images available. Click "Import Image" to add one.</p>
               ) : (
                 <select
                   value={selectedBackgroundId}
