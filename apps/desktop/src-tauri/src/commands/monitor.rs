@@ -131,11 +131,20 @@ pub async fn create_scoreboard_window(
     .build()
     .map_err(|e| e.to_string())?;
 
-    // Position the window at 0,0
-    println!("  Positioning window at: (0, 0)");
+    // Position the window at the target monitor's origin
+    let (final_x, final_y) = if let Some(ref monitor) = target_monitor {
+        let monitor_x = monitor.position().x;
+        let monitor_y = monitor.position().y;
+        (monitor_x + offset_x, monitor_y + offset_y)
+    } else {
+        // Fallback to primary monitor (0, 0) with offsets
+        (offset_x, offset_y)
+    };
+
+    println!("  Positioning window at: ({}, {})", final_x, final_y);
     window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-        x: 0,
-        y: 0
+        x: final_x,
+        y: final_y
     })).map_err(|e| e.to_string())?;
 
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -149,7 +158,7 @@ pub async fn create_scoreboard_window(
     println!("  Setting fullscreen...");
     window.set_fullscreen(true).map_err(|e| e.to_string())?;
 
-    println!("  Scoreboard window created and shown in fullscreen at (0, 0)");
+    println!("  Scoreboard window created and shown in fullscreen at ({}, {})", final_x, final_y);
 
     Ok(())
 }
