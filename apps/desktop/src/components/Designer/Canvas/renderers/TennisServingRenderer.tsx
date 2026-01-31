@@ -35,6 +35,11 @@ export const TennisServingRenderer: React.FC<TennisServingRendererProps> = ({
       return componentData.text || getDefaultTennisText(ComponentType.TENNIS_SERVING_INDICATOR, componentData);
     }
 
+    // Only show serve indicator when match is live (in_progress)
+    if (tennisMatch.matchStatus !== 'in_progress') {
+      return '';
+    }
+
     const servingPlayer = tennisMatch.servingPlayer;
     const selectedPlayer = componentData.playerNumber || 1;
 

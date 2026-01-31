@@ -1,5 +1,6 @@
 import { TauriAPI } from '../lib/tauri';
 import { useScoreboardStore } from '../stores/useScoreboardStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
 import { useImageStore } from '../stores/useImageStore';
 import { useVideoStore } from '../stores/useVideoStore';
 import type { ScoreboardConfig, ScoreboardComponent } from '../types/scoreboard';
@@ -162,6 +163,13 @@ export const useScoreboardImportExport = (
           // Load the imported scoreboard into the designer
           const { loadScoreboard } = useScoreboardStore.getState();
           await loadScoreboard(importedConfig);
+
+          // Sync canvas size to match imported scoreboard dimensions
+          const { setCanvasSize } = useCanvasStore.getState();
+          setCanvasSize(
+            importedConfig.dimensions.width,
+            importedConfig.dimensions.height
+          );
 
           alert(`Scoreboard "${importedConfig.name}" imported successfully!`);
         } catch (error) {
