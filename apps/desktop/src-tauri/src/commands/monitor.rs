@@ -131,29 +131,25 @@ pub async fn create_scoreboard_window(
     .build()
     .map_err(|e| e.to_string())?;
 
-    // Position the window on the target monitor first
-    if let Some(monitor) = target_monitor {
-        let monitor_x = monitor.position().x;
-        let monitor_y = monitor.position().y;
-        let final_x = monitor_x + offset_x;
-        let final_y = monitor_y + offset_y;
-        
-        println!("  Target monitor position: ({}, {})", monitor_x, monitor_y);
-        println!("  Offsets: ({}, {})", offset_x, offset_y);
-        println!("  Final position: ({}, {})", final_x, final_y);
-        
-        // Move to target monitor before setting fullscreen
-        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { 
-            x: final_x, 
-            y: final_y 
-        })).map_err(|e| e.to_string())?;
-        
-        // Small delay to ensure positioning takes effect
-        std::thread::sleep(std::time::Duration::from_millis(100));
+    // Position the window at the specified offset (absolute screen position)
+    // offset_x and offset_y default to 0, placing window at top-left of screen
+    let final_x = offset_x;
+    let final_y = offset_y;
 
-        println!("  Window positioned");
-    } else {
-        println!("  Warning: No target monitor found for ID {}", monitor_id);
+    println!("  Positioning window at: ({}, {})", final_x, final_y);
+
+    window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+        x: final_x,
+        y: final_y
+    })).map_err(|e| e.to_string())?;
+
+    // Small delay to ensure positioning takes effect
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    println!("  Window positioned");
+
+    if target_monitor.is_none() {
+        println!("  Note: No target monitor found for ID {}, but window positioned at absolute coordinates", monitor_id);
     }
 
     // Show the window in windowed mode (user can toggle fullscreen manually)

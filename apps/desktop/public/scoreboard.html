@@ -1300,7 +1300,7 @@
 
         async function renderImageComponent(component) {
             const container = document.getElementById('scoreboardContainer');
-            
+
             const element = document.createElement('div');
             element.className = 'image-component';
             element.style.position = 'absolute';
@@ -1310,6 +1310,10 @@
             element.style.width = Math.round(component.size.width) + 'px';
             element.style.height = Math.round(component.size.height) + 'px';
             element.style.zIndex = component.zIndex || 1;
+
+            // Add component identifiers for live updates (like background swap)
+            element.setAttribute('data-component-id', component.id);
+            element.setAttribute('data-component-type', component.type);
 
             // Apply styling
             if (component.style) {
@@ -1825,41 +1829,54 @@
 
         // Update the background image on a running scoreboard
         async function updateBackgroundImage(newImageId) {
-            const container = document.getElementById('scoreboardContainer');
-            if (!container) return;
+            console.log('🖼️ [SCOREBOARD] updateBackgroundImage called with:', newImageId);
 
-            // Find all background components
-            const backgroundElements = container.querySelectorAll('.image-component');
+            const container = document.getElementById('scoreboardContainer');
+            if (!container) {
+                console.log('🖼️ [SCOREBOARD] Container not found');
+                return;
+            }
+
+            // Find background components by data-component-type attribute
+            const backgroundElements = container.querySelectorAll('[data-component-type="background"]');
+            console.log('🖼️ [SCOREBOARD] Found', backgroundElements.length, 'background components');
+
+            if (backgroundElements.length === 0) {
+                console.log('🖼️ [SCOREBOARD] No background components found, checking all image components...');
+                // Fallback: check all image components
+                const allImageComponents = container.querySelectorAll('.image-component');
+                console.log('🖼️ [SCOREBOARD] Total image components:', allImageComponents.length);
+            }
 
             for (const element of backgroundElements) {
-                // Check if this is a background component by checking z-index (backgrounds have z-index 0)
-                if (element.style.zIndex === '0' || element.style.zIndex === 0) {
-                    try {
-                        if (window.__TAURI__ && window.__TAURI__.core) {
-                            const { invoke } = window.__TAURI__.core;
-                            const imageData = await invoke('get_image_data', {
-                                imageId: newImageId
-                            });
+                try {
+                    if (window.__TAURI__ && window.__TAURI__.core) {
+                        const { invoke } = window.__TAURI__.core;
+                        console.log('🖼️ [SCOREBOARD] Loading image data for:', newImageId);
+                        const imageData = await invoke('get_image_data', {
+                            imageId: newImageId
+                        });
 
-                            // Find existing img or create new one
-                            let img = element.querySelector('img');
-                            if (!img) {
-                                img = document.createElement('img');
-                                img.style.width = '100%';
-                                img.style.height = '100%';
-                                img.style.objectFit = 'cover';
-                                element.innerHTML = '';
-                                element.appendChild(img);
-                            }
-
-                            img.src = imageData;
-                            img.alt = 'Background Image';
-
-                            console.log('🖼️ [SCOREBOARD] Background image updated to:', newImageId);
+                        // Find existing img or create new one
+                        let img = element.querySelector('img');
+                        if (!img) {
+                            img = document.createElement('img');
+                            img.style.width = '100%';
+                            img.style.height = '100%';
+                            img.style.objectFit = 'cover';
+                            element.innerHTML = '';
+                            element.appendChild(img);
                         }
-                    } catch (error) {
-                        console.error('🖼️ [SCOREBOARD] Failed to update background image:', error);
+
+                        img.src = imageData;
+                        img.alt = 'Background Image';
+
+                        console.log('🖼️ [SCOREBOARD] Background image updated successfully to:', newImageId);
+                    } else {
+                        console.log('🖼️ [SCOREBOARD] Tauri API not available');
                     }
+                } catch (error) {
+                    console.error('🖼️ [SCOREBOARD] Failed to update background image:', error);
                 }
             }
 
@@ -1868,6 +1885,7 @@
                 for (const component of scoreboardData.components) {
                     if (component.type === 'background') {
                         component.data.imageId = newImageId;
+                        console.log('🖼️ [SCOREBOARD] Updated scoreboardData component imageId');
                     }
                 }
             }
