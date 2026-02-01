@@ -14,7 +14,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { BracketSelector } from '@/components/ui/bracket-selector';
-import { TournamentTabs, type TournamentTab } from '@/components/ui/tournament-tabs';
 import { LiveMatchCard, PendingMatchCard, CompletedMatchCard, type MatchData } from '@/components/match-card';
 import { Spacing, Radius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-color';
@@ -38,9 +37,8 @@ export default function TournamentDetailScreen() {
   const tournamentId = id as Id<'tournaments'>;
   const colors = useThemeColors();
 
-  // State for bracket selection and tab navigation
+  // State for bracket selection
   const [selectedBracketId, setSelectedBracketId] = useState<Id<'tournamentBrackets'> | null>(null);
-  const [activeTab, setActiveTab] = useState<TournamentTab>('bracket');
 
   // Dynamic status colors based on theme
   const statusColors: Record<string, string> = {
@@ -70,14 +68,6 @@ export default function TournamentDetailScreen() {
   const allMatches = useQuery(
     api.matches.listMatches,
     !selectedBracketId ? { tournamentId } : 'skip'
-  );
-
-  // Get standings for round robin format
-  const standings = useQuery(
-    api.tournaments.getStandings,
-    tournament?.format === 'round_robin'
-      ? { tournamentId, bracketId: selectedBracketId ?? undefined }
-      : 'skip'
   );
 
   if (!tournament) {
@@ -113,24 +103,20 @@ export default function TournamentDetailScreen() {
         bracketName: m.bracketId ? brackets?.find((b) => b._id === m.bracketId)?.name : undefined,
       }));
 
+  // Filter out TBD matches (where participants aren't set yet)
+  const validMatches = matches.filter((m) => m.participant1 && m.participant2);
+
   // Separate matches by status
-  const liveMatches = matches.filter((m) => m.status === 'live');
-  const pendingMatches = matches.filter((m) => m.status === 'pending' || m.status === 'scheduled');
-  const completedMatches = matches.filter((m) => m.status === 'completed');
-
-  // Determine which format to use for bracket display
-  const resolvedFormat = selectedBracketId && bracketMatches
-    ? bracketMatches.format
-    : tournament.format;
-
-  const isRoundRobin = resolvedFormat === 'round_robin';
+  const liveMatches = validMatches.filter((m) => m.status === 'live');
+  const pendingMatches = validMatches.filter((m) => m.status === 'pending' || m.status === 'scheduled');
+  const completedMatches = validMatches.filter((m) => m.status === 'completed');
 
   const navigateToMatch = (matchId: string) => {
     router.push(`/(main)/tournament/match/${matchId}`);
   };
 
-  // Render bracket/standings content
-  const renderBracketContent = () => {
+  // Render matches content (all matches grouped by status)
+  const renderMatchesContent = () => {
     if (tournament.status === 'draft') {
       return (
         <Animated.View entering={FadeInDown.duration(600).delay(250)} style={styles.emptyState}>
@@ -145,180 +131,7 @@ export default function TournamentDetailScreen() {
       );
     }
 
-    if (isRoundRobin) {
-      return renderStandings();
-    }
-
-    return renderBracketVisualization();
-  };
-
-  // Render round robin standings
-  const renderStandings = () => {
-    if (!standings || standings.length === 0) {
-      return (
-        <View style={styles.emptyState}>
-          <ThemedText type="muted">No standings available</ThemedText>
-        </View>
-      );
-    }
-
-    return (
-      <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.section}>
-        <ThemedText type="label" style={[styles.sectionLabel, { color: colors.accent }]}>
-          STANDINGS
-        </ThemedText>
-        <View style={[styles.standingsContainer, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-          <View style={[styles.standingsHeader, { backgroundColor: colors.bgTertiary, borderBottomColor: colors.border }]}>
-            <ThemedText style={[styles.standingsHeaderCell, { color: colors.textMuted }]}>Rank</ThemedText>
-            <ThemedText style={[styles.standingsHeaderCell, styles.standingsName, { color: colors.textMuted }]}>Name</ThemedText>
-            <ThemedText style={[styles.standingsHeaderCell, { color: colors.textMuted }]}>W</ThemedText>
-            <ThemedText style={[styles.standingsHeaderCell, { color: colors.textMuted }]}>L</ThemedText>
-            <ThemedText style={[styles.standingsHeaderCell, { color: colors.textMuted }]}>D</ThemedText>
-            <ThemedText style={[styles.standingsHeaderCell, { color: colors.textMuted }]}>Pts</ThemedText>
-          </View>
-          {standings.map((participant, index) => (
-            <Animated.View
-              key={participant._id}
-              entering={FadeInRight.duration(400).delay(index * 50)}
-              style={[styles.standingsRow, { borderBottomColor: colors.border }]}
-            >
-              <ThemedText style={styles.standingsCell}>{index + 1}</ThemedText>
-              <ThemedText style={[styles.standingsCell, styles.standingsName]} numberOfLines={1}>
-                {participant.displayName}
-              </ThemedText>
-              <ThemedText style={styles.standingsCell}>{participant.wins}</ThemedText>
-              <ThemedText style={styles.standingsCell}>{participant.losses}</ThemedText>
-              <ThemedText style={styles.standingsCell}>{participant.draws}</ThemedText>
-              <ThemedText style={[styles.standingsCell, styles.standingsPoints, { color: colors.accent }]}>
-                {participant.points}
-              </ThemedText>
-            </Animated.View>
-          ))}
-        </View>
-      </Animated.View>
-    );
-  };
-
-  // Render elimination bracket visualization
-  const renderBracketVisualization = () => {
-    const bracketMatches = matches.filter((m) => !m.bracketType || m.bracketType === 'winners');
-
-    if (bracketMatches.length === 0) {
-      return (
-        <View style={styles.emptyState}>
-          <ThemedText type="muted">No bracket matches available</ThemedText>
-        </View>
-      );
-    }
-
-    // Group matches by round
-    const matchesByRound = bracketMatches.reduce(
-      (rounds, match) => {
-        if (!rounds[match.round]) rounds[match.round] = [];
-        rounds[match.round].push(match);
-        return rounds;
-      },
-      {} as Record<number, typeof bracketMatches>
-    );
-
-    return (
-      <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.section}>
-        <ThemedText type="label" style={[styles.sectionLabel, { color: colors.accent }]}>
-          BRACKET
-        </ThemedText>
-        <View style={styles.bracketContainer}>
-          {Object.entries(matchesByRound).map(([round, roundMatches]) => (
-            <View key={round} style={styles.bracketRound}>
-              <ThemedText style={[styles.roundLabel, { color: colors.textMuted }]}>Round {round}</ThemedText>
-              {roundMatches.map((match, index) => (
-                <Animated.View key={match._id} entering={FadeInRight.duration(400).delay(index * 50)}>
-                  <Pressable
-                    style={[styles.bracketMatch, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
-                    onPress={() => navigateToMatch(match._id)}
-                  >
-                    <View
-                      style={[
-                        styles.bracketParticipant,
-                        match.winnerId === match.participant1?._id && { backgroundColor: colors.accentGlow },
-                      ]}
-                    >
-                      <ThemedText style={styles.bracketName} numberOfLines={1}>
-                        {match.participant1?.displayName || 'TBD'}
-                      </ThemedText>
-                      <View style={styles.bracketScoreSection}>
-                        {match.tennisState ? (
-                          match.tennisState.sets.map((set: number[], i: number) => (
-                            <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
-                              <ThemedText style={[styles.bracketSetScoreText, (set[0] ?? 0) > (set[1] ?? 0) && { color: colors.accent }]}>
-                                {set[0] ?? 0}
-                              </ThemedText>
-                            </View>
-                          ))
-                        ) : match.volleyballState ? (
-                          match.volleyballState.sets.map((set: number[], i: number) => (
-                            <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
-                              <ThemedText style={[styles.bracketSetScoreText, (set[0] ?? 0) > (set[1] ?? 0) && { color: colors.accent }]}>
-                                {set[0] ?? 0}
-                              </ThemedText>
-                            </View>
-                          ))
-                        ) : (
-                          <ThemedText style={styles.bracketScore}>{match.participant1Score}</ThemedText>
-                        )}
-                      </View>
-                    </View>
-                    <View style={[styles.bracketDivider, { backgroundColor: colors.border }]} />
-                    <View
-                      style={[
-                        styles.bracketParticipant,
-                        match.winnerId === match.participant2?._id && { backgroundColor: colors.accentGlow },
-                      ]}
-                    >
-                      <ThemedText style={styles.bracketName} numberOfLines={1}>
-                        {match.participant2?.displayName || 'TBD'}
-                      </ThemedText>
-                      <View style={styles.bracketScoreSection}>
-                        {match.tennisState ? (
-                          match.tennisState.sets.map((set: number[], i: number) => (
-                            <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
-                              <ThemedText style={[styles.bracketSetScoreText, (set[1] ?? 0) > (set[0] ?? 0) && { color: colors.accent }]}>
-                                {set[1] ?? 0}
-                              </ThemedText>
-                            </View>
-                          ))
-                        ) : match.volleyballState ? (
-                          match.volleyballState.sets.map((set: number[], i: number) => (
-                            <View key={i} style={[styles.bracketSetScore, { backgroundColor: colors.bgTertiary }]}>
-                              <ThemedText style={[styles.bracketSetScoreText, (set[1] ?? 0) > (set[0] ?? 0) && { color: colors.accent }]}>
-                                {set[1] ?? 0}
-                              </ThemedText>
-                            </View>
-                          ))
-                        ) : (
-                          <ThemedText style={styles.bracketScore}>{match.participant2Score}</ThemedText>
-                        )}
-                      </View>
-                    </View>
-                    {match.status !== 'completed' && match.status !== 'bye' && (
-                      <View style={[styles.matchStatusBadge, { backgroundColor: colors.success + '20' }]}>
-                        <ThemedText style={[styles.matchStatusText, { color: colors.success }]}>
-                          {match.status === 'live' ? 'LIVE' : match.status.toUpperCase()}
-                        </ThemedText>
-                      </View>
-                    )}
-                  </Pressable>
-                </Animated.View>
-              ))}
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-    );
-  };
-
-  // Render matches content (all matches grouped by status)
-  const renderMatchesContent = () => {
-    if (matches.length === 0) {
+    if (validMatches.length === 0) {
       return (
         <View style={styles.emptyState}>
           <IconSymbol name="sportscourt" size={48} color={colors.textMuted} />
@@ -403,20 +216,6 @@ export default function TournamentDetailScreen() {
     );
   };
 
-  // Render content based on active tab
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'bracket':
-        return renderBracketContent();
-      case 'matches':
-        return renderMatchesContent();
-      case 'standings':
-        return renderStandings();
-      default:
-        return null;
-    }
-  };
-
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -479,19 +278,9 @@ export default function TournamentDetailScreen() {
           />
         )}
 
-        {/* Tournament Tabs */}
-        {(tournament.status === 'active' || tournament.status === 'completed') && (
-          <TournamentTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            showStandings={isRoundRobin}
-            liveMatchCount={liveMatches.length}
-          />
-        )}
-
-        {/* Tab Content */}
+        {/* Matches Content */}
         <View style={styles.tabContent}>
-          {renderTabContent()}
+          {renderMatchesContent()}
         </View>
 
         <View style={{ height: insets.bottom + Spacing.xl }} />
@@ -606,108 +395,6 @@ const styles = StyleSheet.create({
   liveLabel: {},
   matchesList: {
     gap: Spacing.sm,
-  },
-  // Standings styles
-  standingsContainer: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  standingsHeader: {
-    flexDirection: 'row',
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  standingsHeaderCell: {
-    width: 40,
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  standingsRow: {
-    flexDirection: 'row',
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  standingsCell: {
-    width: 40,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  standingsName: {
-    flex: 1,
-    textAlign: 'left',
-  },
-  standingsPoints: {
-    fontWeight: '700',
-  },
-  // Bracket styles
-  bracketContainer: {
-    gap: Spacing.lg,
-  },
-  bracketRound: {
-    gap: Spacing.sm,
-  },
-  roundLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bracketMatch: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: Spacing.sm,
-  },
-  bracketParticipant: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  bracketName: {
-    flex: 1,
-    fontSize: 14,
-  },
-  bracketScore: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: Spacing.md,
-  },
-  bracketScoreSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  bracketSetScore: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 4,
-  },
-  bracketSetScoreText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  bracketDivider: {
-    height: 1,
-  },
-  matchStatusBadge: {
-    position: 'absolute',
-    right: Spacing.sm,
-    top: '50%',
-    transform: [{ translateY: -10 }],
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  matchStatusText: {
-    fontSize: 10,
-    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
