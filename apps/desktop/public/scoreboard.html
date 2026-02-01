@@ -396,9 +396,15 @@
             
             // Initial scale calculation
             calculateAndApplyScale();
-            
+
+            // Auto-scale name components after initial render
+            setTimeout(() => autoScaleNameComponents(), 100);
+
             // Add window resize listener for responsive scaling
-            window.addEventListener('resize', calculateAndApplyScale);
+            window.addEventListener('resize', () => {
+                calculateAndApplyScale();
+                autoScaleNameComponents();
+            });
         }
 
         function calculateAndApplyScale() {
@@ -1014,6 +1020,69 @@
                     }, 600);
                 } else {
                     console.log(`🎾 [SCOREBOARD] ✅ ${componentType} for Player ${playerNumber} already shows: "${newValue}"`);
+                }
+            });
+
+            // Auto-scale name components after update
+            autoScaleNameComponents();
+        }
+
+        /**
+         * Auto-scales tennis name components to fit their container width.
+         * Only applies to player name and doubles name components.
+         */
+        function autoScaleNameComponents() {
+            const nameComponents = document.querySelectorAll(
+                '[data-component-type="tennis_player_name"], ' +
+                '[data-component-type="tennis_doubles_player_name"], ' +
+                '[data-component-type="tennis_team_names"], ' +
+                '[data-component-type="tennis_adaptive_team_display"]'
+            );
+
+            nameComponents.forEach(component => {
+                const containerWidth = component.offsetWidth;
+                const containerHeight = component.offsetHeight;
+
+                if (containerWidth === 0 || containerHeight === 0) return;
+
+                // Get the original font size from the element's style
+                const computedStyle = window.getComputedStyle(component);
+                const originalFontSize = parseFloat(computedStyle.fontSize);
+
+                // Store original font size if not already stored
+                if (!component.dataset.originalFontSize) {
+                    component.dataset.originalFontSize = originalFontSize;
+                }
+
+                const baseFontSize = parseFloat(component.dataset.originalFontSize);
+
+                // Create a temporary span to measure text width
+                const measureSpan = document.createElement('span');
+                measureSpan.style.visibility = 'hidden';
+                measureSpan.style.position = 'absolute';
+                measureSpan.style.whiteSpace = 'nowrap';
+                measureSpan.style.fontSize = baseFontSize + 'px';
+                measureSpan.style.fontFamily = computedStyle.fontFamily;
+                measureSpan.style.fontWeight = computedStyle.fontWeight;
+                measureSpan.textContent = component.textContent;
+                document.body.appendChild(measureSpan);
+
+                const textWidth = measureSpan.offsetWidth;
+                document.body.removeChild(measureSpan);
+
+                // Calculate the available width (accounting for padding)
+                const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+                const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+                const availableWidth = containerWidth - paddingLeft - paddingRight - 4; // 4px buffer
+
+                // Calculate scale factor if text is too wide
+                if (textWidth > availableWidth && textWidth > 0) {
+                    const scaleFactor = availableWidth / textWidth;
+                    const newFontSize = Math.max(baseFontSize * scaleFactor, 10); // Minimum 10px
+                    component.style.fontSize = newFontSize + 'px';
+                } else {
+                    // Reset to original font size if text fits
+                    component.style.fontSize = baseFontSize + 'px';
                 }
             });
         }
