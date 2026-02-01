@@ -267,15 +267,22 @@ function TournamentActions({
   const cancelTournament = useMutation(api.tournaments.cancelTournament);
   const deleteTournament = useMutation(api.tournaments.deleteTournament);
   const generateMatchScoresCSV = useAction(api.reports.generateMatchScoresCSV);
+  const generateScoringLogsCSV = useAction(api.scoringLogs.generateScoringLogsCSV);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingLogs, setDownloadingLogs] = useState(false);
   const [showBlankBracketModal, setShowBlankBracketModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Check if we can show the download button
   const exportInfo = useQuery(api.reports.hasCompletedTennisMatches, {
+    tournamentId: tournament._id as any,
+  });
+
+  // Check if scoring logs are enabled and have entries
+  const logsInfo = useQuery(api.scoringLogs.hasScoringLogs, {
     tournamentId: tournament._id as any,
   });
 
@@ -361,6 +368,35 @@ function TournamentActions({
     }
   };
 
+  const handleDownloadLogs = async () => {
+    setDownloadingLogs(true);
+    try {
+      const result = await generateScoringLogsCSV({
+        tournamentId: tournament._id as any,
+      });
+
+      if (result.logCount === 0) {
+        alert("No scoring logs to export.");
+        return;
+      }
+
+      // Create and trigger download
+      const blob = new Blob([result.csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to download logs");
+    } finally {
+      setDownloadingLogs(false);
+    }
+  };
+
   // Only show blank bracket option for elimination formats
   const supportsBlankBracket = tournament.format === "single_elimination" || tournament.format === "double_elimination";
 
@@ -425,6 +461,20 @@ function TournamentActions({
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             {downloading ? "Downloading..." : "Download Scores"}
+          </button>
+        )}
+        {/* Download Logs Button - shown when logs enabled and has entries */}
+        {logsInfo?.enabled && logsInfo?.logCount > 0 && (
+          <button
+            onClick={handleDownloadLogs}
+            disabled={downloadingLogs}
+            className="px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary bg-bg-elevated border border-border rounded-lg hover:text-text-primary hover:border-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            title={`Download ${logsInfo.logCount} scoring log${logsInfo.logCount !== 1 ? "s" : ""}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            {downloadingLogs ? "Downloading..." : "Download Logs"}
           </button>
         )}
       </div>

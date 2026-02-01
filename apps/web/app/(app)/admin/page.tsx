@@ -108,12 +108,25 @@ function UsersSection() {
   const [editingUser, setEditingUser] = useState<Id<"users"> | null>(null);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [togglingLogs, setTogglingLogs] = useState<Id<"users"> | null>(null);
 
   const users = useQuery(api.siteAdmin.listUsers, {
     search: debouncedSearch || undefined,
     limit: 50,
   });
   const updateUser = useMutation(api.siteAdmin.updateUserAsAdmin);
+  const toggleUserScoringLogs = useMutation(api.siteAdmin.toggleUserScoringLogs);
+
+  const handleToggleScoringLogs = async (userId: Id<"users">, currentEnabled: boolean) => {
+    setTogglingLogs(userId);
+    try {
+      await toggleUserScoringLogs({ userId, enabled: !currentEnabled });
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to toggle scoring logs");
+    } finally {
+      setTogglingLogs(null);
+    }
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -183,6 +196,9 @@ function UsersSection() {
                 <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wide text-text-muted">
                   Status
                 </th>
+                <th className="text-center px-6 py-4 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Scoring Logs
+                </th>
                 <th className="text-right px-6 py-4 text-xs font-semibold uppercase tracking-wide text-text-muted">
                   Actions
                 </th>
@@ -210,6 +226,9 @@ function UsersSection() {
                     <td className="px-6 py-4">
                       <Skeleton className="h-6 w-16 rounded-full" />
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      <Skeleton className="h-7 w-12 rounded-full mx-auto" />
+                    </td>
                     <td className="px-6 py-4">
                       <Skeleton className="h-8 w-16 rounded-lg ml-auto" />
                     </td>
@@ -217,7 +236,7 @@ function UsersSection() {
                 ))
               ) : users.users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <p className="text-text-muted">No users found</p>
                   </td>
                 </tr>
@@ -279,6 +298,23 @@ function UsersSection() {
                           Admin
                         </span>
                       )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleScoringLogs(user._id, user.scoringLogsEnabled)}
+                        disabled={togglingLogs === user._id}
+                        className={`relative w-12 h-7 rounded-full transition-colors disabled:opacity-50 ${
+                          user.scoringLogsEnabled ? "bg-accent" : "bg-bg-tertiary"
+                        }`}
+                        title={user.scoringLogsEnabled ? "Scoring logs enabled" : "Scoring logs disabled"}
+                      >
+                        <span
+                          className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                            user.scoringLogsEnabled ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-right">
                       {editingUser === user._id ? (

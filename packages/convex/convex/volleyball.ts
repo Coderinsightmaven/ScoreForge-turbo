@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { volleyballState } from "./schema";
 import type { Id, Doc } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // ============================================
 // Access Control Helpers
@@ -334,6 +335,40 @@ export const initVolleyballMatch = mutation({
       participant2Score: 0,
     });
 
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "init_match",
+        actorId: userId,
+        sport: "volleyball",
+        details: { firstServer: args.firstServer },
+        stateAfter: JSON.stringify(volleyballState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
+
     return null;
   },
 });
@@ -385,6 +420,45 @@ export const scoreVolleyballPoint = mutation({
     if (winner !== 1 && winner !== 2) {
       throw new Error("Winner must be 1 or 2");
     }
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+    const loggingEnabled = userScoringLogs?.enabled === true;
+    const stateBefore = loggingEnabled ? JSON.stringify(match.volleyballState) : undefined;
+
+    // Helper to log scoring action
+    const logAction = async (stateAfter: VolleyballState) => {
+      if (!loggingEnabled) return;
+
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "score_point",
+        actorId: userId,
+        sport: "volleyball",
+        details: { team: winner },
+        stateBefore,
+        stateAfter: JSON.stringify(stateAfter),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    };
 
     const state: VolleyballState = { ...match.volleyballState };
 
@@ -474,6 +548,7 @@ export const scoreVolleyballPoint = mutation({
           }
         }
 
+        await logAction(state);
         return null;
       }
     }
@@ -486,6 +561,7 @@ export const scoreVolleyballPoint = mutation({
       participant2Score: setsWonNow[1] ?? 0,
     });
 
+    await logAction(state);
     return null;
   },
 });
@@ -529,12 +605,49 @@ export const setVolleyballServer = mutation({
       throw new Error("Server must be 1 or 2");
     }
 
+    const newState = {
+      ...match.volleyballState,
+      servingTeam: args.servingTeam,
+    };
+
     await ctx.db.patch(args.matchId, {
-      volleyballState: {
-        ...match.volleyballState,
-        servingTeam: args.servingTeam,
-      },
+      volleyballState: newState,
     });
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the set_server action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "set_server",
+        actorId: userId,
+        sport: "volleyball",
+        details: { servingParticipant: args.servingTeam },
+        stateBefore: JSON.stringify(match.volleyballState),
+        stateAfter: JSON.stringify(newState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
 
     return null;
   },
@@ -587,12 +700,49 @@ export const adjustVolleyballScore = mutation({
     const newPoints = [...match.volleyballState.currentSetPoints];
     newPoints[team - 1] = Math.max(0, (newPoints[team - 1] ?? 0) + args.adjustment);
 
+    const newState = {
+      ...match.volleyballState,
+      currentSetPoints: newPoints,
+    };
+
     await ctx.db.patch(args.matchId, {
-      volleyballState: {
-        ...match.volleyballState,
-        currentSetPoints: newPoints,
-      },
+      volleyballState: newState,
     });
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the adjust_score action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "adjust_score",
+        actorId: userId,
+        sport: "volleyball",
+        details: { team: args.team, adjustment: args.adjustment },
+        stateBefore: JSON.stringify(match.volleyballState),
+        stateAfter: JSON.stringify(newState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
 
     return null;
   },
@@ -660,6 +810,41 @@ export const undoVolleyballPoint = mutation({
       participant1Score: setsWon[0] ?? 0,
       participant2Score: setsWon[1] ?? 0,
     });
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the undo action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "undo",
+        actorId: userId,
+        sport: "volleyball",
+        details: {},
+        stateBefore: JSON.stringify(match.volleyballState),
+        stateAfter: JSON.stringify(restoredState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
 
     return null;
   },

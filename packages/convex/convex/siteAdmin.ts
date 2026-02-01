@@ -55,6 +55,7 @@ export const listUsers = query({
         email: v.optional(v.string()),
         isSiteAdmin: v.boolean(),
         tournamentCount: v.number(),
+        scoringLogsEnabled: v.boolean(),
       })
     ),
     nextCursor: v.union(v.string(), v.null()),
@@ -106,7 +107,7 @@ export const listUsers = query({
         ? paginatedUsers[paginatedUsers.length - 1]?._id ?? null
         : null;
 
-    // Enrich with admin status and tournament count
+    // Enrich with admin status, tournament count, and scoring logs status
     const enrichedUsers = await Promise.all(
       paginatedUsers.map(async (user) => {
         const isAdmin = await isSiteAdmin(ctx, user._id);
@@ -117,6 +118,12 @@ export const listUsers = query({
           .withIndex("by_created_by", (q) => q.eq("createdBy", user._id))
           .collect();
 
+        // Check scoring logs status
+        const scoringLogsSettings = await ctx.db
+          .query("userScoringLogs")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .first();
+
         return {
           _id: user._id,
           _creationTime: user._creationTime,
@@ -124,6 +131,7 @@ export const listUsers = query({
           email: user.email,
           isSiteAdmin: isAdmin,
           tournamentCount: ownedTournaments.length,
+          scoringLogsEnabled: scoringLogsSettings?.enabled ?? false,
         };
       })
     );
@@ -587,5 +595,108 @@ export const initializeFirstAdmin = internalMutation({
     });
 
     return null;
+  },
+});
+
+// ============================================
+// User Scoring Logs Management
+// ============================================
+
+/**
+ * Get scoring logs setting for a specific user
+ */
+export const getUserScoringLogs = query({
+  args: {
+    userId: v.id("users"),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const currentUserId = await getAuthUserId(ctx);
+    if (currentUserId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Verify caller is site admin
+    if (!(await isSiteAdmin(ctx, currentUserId))) {
+      throw new Error("Not authorized: site admin access required");
+    }
+
+    const setting = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    return setting?.enabled ?? false;
+  },
+});
+
+/**
+ * Toggle scoring logs for a user (admin only)
+ */
+export const toggleUserScoringLogs = mutation({
+  args: {
+    userId: v.id("users"),
+    enabled: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const currentUserId = await getAuthUserId(ctx);
+    if (currentUserId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Verify caller is site admin
+    if (!(await isSiteAdmin(ctx, currentUserId))) {
+      throw new Error("Not authorized: site admin access required");
+    }
+
+    // Check if user exists
+    // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const existing = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (existing) {
+      // eslint-disable-next-line @convex-dev/explicit-table-ids -- _id is typed
+      await ctx.db.patch(existing._id, {
+        enabled: args.enabled,
+        updatedBy: currentUserId,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userScoringLogs", {
+        userId: args.userId,
+        enabled: args.enabled,
+        updatedBy: currentUserId,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return null;
+  },
+});
+
+/**
+ * Check if scoring logs are enabled for the current user
+ * (Used by scoring functions to determine if logging should occur)
+ */
+export const isUserScoringLogsEnabled = query({
+  args: {
+    userId: v.id("users"),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const setting = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    return setting?.enabled ?? false;
   },
 });

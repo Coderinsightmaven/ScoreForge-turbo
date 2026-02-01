@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { tennisState } from "./schema";
 import type { Id, Doc } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // ============================================
 // Access Control Helpers
@@ -472,6 +473,41 @@ export const initTennisMatch = mutation({
       participant2Score: 0,
     });
 
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      // Get participant names
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "init_match",
+        actorId: userId,
+        sport: "tennis",
+        details: { firstServer: args.firstServer },
+        stateAfter: JSON.stringify(tennisState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
+
     return null;
   },
 });
@@ -523,6 +559,45 @@ export const scoreTennisPoint = mutation({
     if (winner !== 1 && winner !== 2) {
       throw new Error("Winner must be 1 or 2");
     }
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+    const loggingEnabled = userScoringLogs?.enabled === true;
+    const stateBefore = loggingEnabled ? JSON.stringify(match.tennisState) : undefined;
+
+    // Helper to log scoring action
+    const logAction = async (stateAfter: TennisState) => {
+      if (!loggingEnabled) return;
+
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "score_point",
+        actorId: userId,
+        sport: "tennis",
+        details: { winnerParticipant: winner },
+        stateBefore,
+        stateAfter: JSON.stringify(stateAfter),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    };
 
     let state: TennisState = { ...match.tennisState };
 
@@ -604,6 +679,7 @@ export const scoreTennisPoint = mutation({
             }
           }
 
+          await logAction(state);
           return null;
         } else {
           // New set starts - alternate first server
@@ -702,6 +778,7 @@ export const scoreTennisPoint = mutation({
               }
             }
 
+            await logAction(state);
             return null;
           } else {
             // New set - alternate first server
@@ -730,6 +807,7 @@ export const scoreTennisPoint = mutation({
       participant2Score: p2Sets,
     });
 
+    await logAction(state);
     return null;
   },
 });
@@ -801,6 +879,41 @@ export const undoTennisPoint = mutation({
       participant2Score: p2Sets,
     });
 
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the undo action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "undo",
+        actorId: userId,
+        sport: "tennis",
+        details: {},
+        stateBefore: JSON.stringify(match.tennisState),
+        stateAfter: JSON.stringify(restoredState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
+
     return null;
   },
 });
@@ -844,12 +957,49 @@ export const setTennisServer = mutation({
       throw new Error("Server must be 1 or 2");
     }
 
+    const newState = {
+      ...match.tennisState,
+      servingParticipant: args.servingParticipant,
+    };
+
     await ctx.db.patch(args.matchId, {
-      tennisState: {
-        ...match.tennisState,
-        servingParticipant: args.servingParticipant,
-      },
+      tennisState: newState,
     });
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+
+    // Log the set_server action if logging is enabled for this user
+    if (userScoringLogs?.enabled === true) {
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get(match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get(match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action: "set_server",
+        actorId: userId,
+        sport: "tennis",
+        details: { servingParticipant: args.servingParticipant },
+        stateBefore: JSON.stringify(match.tennisState),
+        stateAfter: JSON.stringify(newState),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    }
 
     return null;
   },

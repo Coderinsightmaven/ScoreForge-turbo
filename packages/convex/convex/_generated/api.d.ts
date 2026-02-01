@@ -15,6 +15,7 @@ import type * as lib_bracketGenerator from "../lib/bracketGenerator.js";
 import type * as matches from "../matches.js";
 import type * as publicApi from "../publicApi.js";
 import type * as reports from "../reports.js";
+import type * as scoringLogs from "../scoringLogs.js";
 import type * as siteAdmin from "../siteAdmin.js";
 import type * as tennis from "../tennis.js";
 import type * as tournamentBrackets from "../tournamentBrackets.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   matches: typeof matches;
   publicApi: typeof publicApi;
   reports: typeof reports;
+  scoringLogs: typeof scoringLogs;
   siteAdmin: typeof siteAdmin;
   tennis: typeof tennis;
   tournamentBrackets: typeof tournamentBrackets;

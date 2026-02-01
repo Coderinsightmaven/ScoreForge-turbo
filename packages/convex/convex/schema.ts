@@ -161,6 +161,17 @@ export const themePreference = v.union(
 );
 
 /**
+ * Scoring log action types
+ */
+export const scoringLogAction = v.union(
+  v.literal("init_match"),
+  v.literal("score_point"),
+  v.literal("undo"),
+  v.literal("set_server"),
+  v.literal("adjust_score")
+);
+
+/**
  * Bracket status (for tournament brackets/categories)
  */
 export const bracketStatus = v.union(
@@ -176,6 +187,14 @@ export default defineSchema({
   userPreferences: defineTable({
     userId: v.id("users"),
     themePreference: themePreference,
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // User scoring logs settings - admin-controlled per-user logging
+  userScoringLogs: defineTable({
+    userId: v.id("users"),
+    enabled: v.boolean(),
+    updatedBy: v.id("users"), // admin who made the change
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
@@ -356,4 +375,30 @@ export default defineSchema({
     .index("by_bracket", ["bracketId"])
     .index("by_bracket_and_round", ["bracketId", "round"])
     .index("by_bracket_and_status", ["bracketId", "status"]),
+
+  // Scoring input logs - audit log for all scoring actions
+  scoringInputLogs: defineTable({
+    tournamentId: v.id("tournaments"),
+    matchId: v.id("matches"),
+    action: scoringLogAction,
+    actorId: v.id("users"),
+    timestamp: v.number(),
+    sport: presetSports,
+    details: v.object({
+      winnerParticipant: v.optional(v.number()),
+      servingParticipant: v.optional(v.number()),
+      team: v.optional(v.number()),
+      adjustment: v.optional(v.number()),
+      firstServer: v.optional(v.number()),
+    }),
+    stateBefore: v.optional(v.string()), // JSON-stringified state
+    stateAfter: v.optional(v.string()), // JSON-stringified state
+    participant1Name: v.optional(v.string()),
+    participant2Name: v.optional(v.string()),
+    round: v.number(),
+    matchNumber: v.number(),
+  })
+    .index("by_tournament", ["tournamentId"])
+    .index("by_match", ["matchId"])
+    .index("by_tournament_and_timestamp", ["tournamentId", "timestamp"]),
 });
