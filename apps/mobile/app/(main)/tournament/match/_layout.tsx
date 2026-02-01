@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { useThemeColors } from '@/hooks/use-theme-color';
 
-export default function TournamentLayout() {
+export default function MatchLayout() {
   const colors = useThemeColors();
 
   return (
@@ -11,8 +11,7 @@ export default function TournamentLayout() {
         contentStyle: { backgroundColor: colors.bgPrimary },
         animation: 'slide_from_right',
       }}>
-      <Stack.Screen name="[id]" />
-      <Stack.Screen name="match" />
+      <Stack.Screen name="[matchId]" />
     </Stack>
   );
 }

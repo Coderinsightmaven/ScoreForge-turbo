@@ -12,8 +12,7 @@ export default function MainLayout() {
         animation: 'slide_from_right',
       }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="tournament/[id]" />
-      <Stack.Screen name="tournament/match/[matchId]" />
+      <Stack.Screen name="tournament" />
     </Stack>
   );
 }
