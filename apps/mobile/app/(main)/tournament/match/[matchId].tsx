@@ -1,8 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View, Alert, ScrollView, useWindowDimensions, Dimensions } from 'react-native';
+import { Pressable, StyleSheet, View, Alert, ScrollView, useWindowDimensions } from 'react-native';
 import Animated, {
   FadeInDown,
-  FadeIn,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -30,14 +29,6 @@ function isDoublesName(name: string): boolean {
 function splitDoublesName(name: string): [string, string] {
   const parts = name.split(' / ');
   return [parts[0] ?? '', parts[1] ?? ''];
-}
-
-// Determine if name is too long and needs stacking
-// Threshold based on screen width and font size (36px at ~0.5 chars per px)
-function needsStackedLayout(name: string): boolean {
-  const screenWidth = Dimensions.get('window').width;
-  const maxCharsPerLine = Math.floor((screenWidth - 80) / 20); // Approximate based on font size 36
-  return name.length > maxCharsPerLine;
 }
 
 // Check if we should show the center scoreboard
@@ -326,9 +317,6 @@ export default function MatchScoreScreen() {
     const name2 = match.participant2?.displayName || 'Player 2';
     const showScoreboard = shouldShowScoreboard(name1, name2);
 
-    // Check if this is a doubles match (names contain " / ")
-    const isDoubles = isDoublesName(name1) || isDoublesName(name2);
-
     // Common scoreboard content - shared between portrait and landscape
     const scoreboardContent = (
       <>
@@ -567,7 +555,7 @@ export default function MatchScoreScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <ThemedText type="muted" style={styles.matchInfo}>
-              {match.bracket ? `${match.bracket} ` : ''}Round {match.round}
+              {match.bracketType ? `${match.bracketType} ` : ''}Round {match.round}
             </ThemedText>
             <ThemedText type="subtitle">Match {match.matchNumber}</ThemedText>
             {match.court && (

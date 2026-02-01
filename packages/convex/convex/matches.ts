@@ -382,6 +382,7 @@ export const listMyLiveMatches = query({
       _id: v.id("matches"),
       tournamentId: v.id("tournaments"),
       tournamentName: v.string(),
+      bracketName: v.optional(v.string()),
       sport: v.string(),
       round: v.number(),
       matchNumber: v.number(),
@@ -447,6 +448,7 @@ export const listMyLiveMatches = query({
       for (const match of liveMatches) {
         let participant1 = undefined;
         let participant2 = undefined;
+        let bracketName = undefined;
 
         if (match.participant1Id) {
           const p1 = await ctx.db.get(match.participant1Id);
@@ -468,10 +470,19 @@ export const listMyLiveMatches = query({
           }
         }
 
+        // Get bracket name if match belongs to a bracket
+        if (match.bracketId) {
+          const bracket = await ctx.db.get(match.bracketId);
+          if (bracket) {
+            bracketName = bracket.name;
+          }
+        }
+
         results.push({
           _id: match._id,
           tournamentId: tournament._id,
           tournamentName: tournament.name,
+          bracketName,
           sport: tournament.sport,
           round: match.round,
           matchNumber: match.matchNumber,

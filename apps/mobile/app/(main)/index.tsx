@@ -38,7 +38,6 @@ function getTennisPointDisplay(
   const p1 = points[0] ?? 0;
   const p2 = points[1] ?? 0;
   const myPoints = playerIndex === 0 ? p1 : p2;
-  const oppPoints = playerIndex === 0 ? p2 : p1;
 
   // Deuce handling
   if (p1 >= 3 && p2 >= 3) {
@@ -216,7 +215,7 @@ export default function HomeScreen() {
                           {tournament.name}
                         </ThemedText>
                         <ThemedText type="muted" style={styles.tournamentMeta}>
-                          {tournament.organizationName}
+                          {tournament.participantCount} participants
                         </ThemedText>
                       </View>
                     </View>
@@ -279,7 +278,7 @@ export default function HomeScreen() {
                     <AnimatedPressable
                       style={[styles.liveMatchCard, { backgroundColor: colors.bgCard, borderColor: colors.success + '50' }]}
                       onPress={() => router.push(`/(main)/tournament/match/${match._id}`)}>
-                      {/* Header with tournament name and live badge */}
+                      {/* Header with tournament name, bracket name, and live badge */}
                       <View style={[styles.matchCardHeader, { backgroundColor: colors.bgTertiary, borderBottomColor: colors.border }]}>
                         <View style={styles.matchCardHeaderLeft}>
                           <IconSymbol
@@ -288,7 +287,7 @@ export default function HomeScreen() {
                             color={colors.textMuted}
                           />
                           <ThemedText style={[styles.matchTournamentName, { color: colors.textMuted }]} numberOfLines={1}>
-                            {match.tournamentName}
+                            {match.tournamentName}{match.bracketName ? ` • ${match.bracketName}` : ''}
                           </ThemedText>
                         </View>
                         <View style={styles.liveBadge}>
@@ -456,7 +455,7 @@ export default function HomeScreen() {
                             {tournament.name}
                           </ThemedText>
                           <ThemedText type="muted" style={styles.tournamentMeta}>
-                            {tournament.organizationName}
+                            {tournament.participantCount} participants
                           </ThemedText>
                         </View>
                       </View>
