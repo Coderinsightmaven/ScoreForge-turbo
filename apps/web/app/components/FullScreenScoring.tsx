@@ -201,7 +201,6 @@ export function FullScreenScoring({
         await scoreVolleyballPoint({ matchId: matchId as any, winnerTeam: winner });
       }
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to score point");
     }
     setIsUpdating(false);
@@ -221,7 +220,6 @@ export function FullScreenScoring({
         await undoVolleyballPoint({ matchId: matchId as any });
       }
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to undo");
     }
     setIsUpdating(false);
@@ -442,7 +440,6 @@ export function FirstServerSetup({
         await startMatch({ matchId: matchId as any });
       }
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to start match");
     }
     setLoading(false);

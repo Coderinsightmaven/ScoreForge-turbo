@@ -130,7 +130,6 @@ export function TennisScoreboard({
         winnerParticipant: winner,
       });
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to score point");
     }
     setLoading(false);
@@ -143,7 +142,7 @@ export function TennisScoreboard({
         servingParticipant: server,
       });
     } catch (err) {
-      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to set server");
     }
   };
 
@@ -429,7 +428,6 @@ export function TennisMatchSetup({
       }
       onSetupComplete();
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to initialize match");
     }
     setLoading(false);

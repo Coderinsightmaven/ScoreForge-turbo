@@ -183,7 +183,6 @@ export default function TournamentDetailPage({
           <MatchesTab
             tournamentId={id}
             bracketId={selectedBracketId}
-            status={tournament.status}
           />
         )}
         {activeTab === "participants" && (
@@ -303,7 +302,6 @@ function TournamentActions({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to download scores");
     } finally {
       setDownloading(false);
@@ -316,7 +314,6 @@ function TournamentActions({
     try {
       await generateBracket({ tournamentId: tournament._id as any });
     } catch (err) {
-      console.error(err);
       const message = err instanceof Error ? err.message : "Failed to generate bracket";
       // Make the error message more user-friendly
       if (message.includes("Need at least 2 participants")) {
@@ -333,7 +330,8 @@ function TournamentActions({
     try {
       await startTournament({ tournamentId: tournament._id as any });
     } catch (err) {
-      console.error(err);
+      const message = err instanceof Error ? err.message : "Failed to start tournament";
+      setErrorMessage(message);
     }
     setLoading(false);
   };
@@ -344,7 +342,8 @@ function TournamentActions({
     try {
       await cancelTournament({ tournamentId: tournament._id as any });
     } catch (err) {
-      console.error(err);
+      const message = err instanceof Error ? err.message : "Failed to cancel tournament";
+      setErrorMessage(message);
     }
     setLoading(false);
   };
@@ -356,7 +355,8 @@ function TournamentActions({
       await deleteTournament({ tournamentId: tournament._id as any });
       window.location.href = `/tournaments`;
     } catch (err) {
-      console.error(err);
+      const message = err instanceof Error ? err.message : "Failed to delete tournament";
+      setErrorMessage(message);
       setDeleting(false);
     }
   };
@@ -547,7 +547,6 @@ function BlankBracketModal({
       });
       onClose();
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to generate blank bracket");
     }
     setGeneratingBlank(false);
@@ -802,7 +801,6 @@ function BracketTab({
         await generateTournamentBracket({ tournamentId: tournamentId as any });
       }
     } catch (err) {
-      console.error(err);
       const message = err instanceof Error ? err.message : "Failed to generate matches";
       // Make the error message more user-friendly
       if (message.includes("Need at least 2 participants")) {
@@ -1121,11 +1119,9 @@ function BracketTab({
 function MatchesTab({
   tournamentId,
   bracketId,
-  status,
 }: {
   tournamentId: string;
   bracketId: string | null;
-  status: string;
 }) {
   const matches = useQuery(api.matches.listMatches, {
     tournamentId: tournamentId as any,

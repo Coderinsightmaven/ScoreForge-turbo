@@ -359,7 +359,7 @@ function Scoreboard({
         participant2Score: newP2,
       });
     } catch (err) {
-      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to update score");
       setP1Score(match.participant1Score);
       setP2Score(match.participant2Score);
     }
@@ -508,7 +508,6 @@ function MatchActions({
     try {
       await startMatch({ matchId: match._id as any });
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to start match");
     }
     setLoading(false);
@@ -523,7 +522,6 @@ function MatchActions({
     try {
       await completeMatch({ matchId: match._id as any });
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to complete match");
     }
     setLoading(false);
@@ -652,7 +650,6 @@ function InlineFirstServerSetup({
         await startMatch({ matchId: matchId as any });
       }
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to start match");
     }
     setLoading(false);
@@ -786,7 +783,7 @@ function CourtInfo({
       setCourtValue(newValue);
       setIsEditing(false);
     } catch (err) {
-      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to update court");
     }
     setSaving(false);
   };

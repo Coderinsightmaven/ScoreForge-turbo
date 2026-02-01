@@ -68,7 +68,6 @@ export function VolleyballScoreboard({
         winnerTeam: winner,
       });
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to score point");
     }
     setLoading(false);
@@ -81,7 +80,7 @@ export function VolleyballScoreboard({
         servingTeam: server,
       });
     } catch (err) {
-      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to set server");
     }
   };
 
@@ -93,7 +92,6 @@ export function VolleyballScoreboard({
         adjustment,
       });
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to adjust score");
     }
   };
@@ -387,7 +385,6 @@ export function VolleyballMatchSetup({
       }
       onSetupComplete();
     } catch (err) {
-      console.error(err);
       alert(err instanceof Error ? err.message : "Failed to initialize match");
     }
     setLoading(false);

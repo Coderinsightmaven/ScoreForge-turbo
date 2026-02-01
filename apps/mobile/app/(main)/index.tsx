@@ -115,7 +115,11 @@ export default function HomeScreen() {
             await signOut();
             router.replace('/(auth)/sign-in');
           } catch (error) {
-            console.error('Sign out error:', error);
+            Alert.alert(
+              'Sign Out Failed',
+              'Unable to sign out. Please try again.',
+              [{ text: 'OK' }]
+            );
           } finally {
             setSigningOut(false);
           }

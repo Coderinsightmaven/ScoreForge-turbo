@@ -81,7 +81,7 @@ export function EditableBracket({
       });
       onParticipantUpdate?.(editingSlot, editValue.trim());
     } catch (err) {
-      console.error("Failed to update participant name:", err);
+      alert(err instanceof Error ? err.message : "Failed to update participant name");
     }
     setSaving(false);
     setEditingSlot(null);

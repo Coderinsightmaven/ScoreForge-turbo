@@ -128,7 +128,7 @@ function UsersSection() {
       await updateUser({ userId, name: editName.trim() });
       setEditingUser(null);
     } catch (error) {
-      console.error("Failed to update user:", error);
+      alert(error instanceof Error ? error.message : "Failed to update user");
     } finally {
       setSaving(false);
     }
