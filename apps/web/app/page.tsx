@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 export default function LandingPage(): React.ReactNode {
   return (
@@ -13,11 +11,11 @@ export default function LandingPage(): React.ReactNode {
       </AuthLoading>
 
       <Authenticated>
-        <RedirectToDashboard />
+        <LandingContent isAuthenticated />
       </Authenticated>
 
       <Unauthenticated>
-        <LandingContent />
+        <LandingContent isAuthenticated={false} />
       </Unauthenticated>
     </div>
   );
@@ -31,17 +29,7 @@ function LoadingScreen() {
   );
 }
 
-function RedirectToDashboard() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.push("/dashboard");
-  }, [router]);
-
-  return <LoadingScreen />;
-}
-
-function LandingContent() {
+function LandingContent({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <div>
       {/* Navigation */}
@@ -57,15 +45,26 @@ function LandingContent() {
           </Link>
 
           <div className="flex items-center gap-4">
-            <Link
-              href="/sign-in"
-              className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link href="/sign-up" className="btn-primary !py-2.5 !px-5 !min-h-0">
-              Get Started Free
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/dashboard" className="btn-primary !py-2.5 !px-5 !min-h-0">
+                Go to Dashboard
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
+                </svg>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link href="/sign-up" className="btn-primary !py-2.5 !px-5 !min-h-0">
+                  Get Started Free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -81,8 +80,8 @@ function LandingContent() {
               Create brackets, track scores in real-time, and manage your competitions — all in one simple place. Perfect for tennis and volleyball.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slideUp delay-2">
-              <Link href="/sign-up" className="btn-primary">
-                Start Your Tournament
+              <Link href={isAuthenticated ? "/dashboard" : "/sign-up"} className="btn-primary">
+                {isAuthenticated ? "Go to Dashboard" : "Start Your Tournament"}
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
                 </svg>
@@ -223,13 +222,15 @@ function LandingContent() {
         <div className="container">
           <div className="max-w-xl mx-auto text-center">
             <h2 className="text-title text-text-primary mb-4">
-              Ready to get started?
+              {isAuthenticated ? "Ready to create your next tournament?" : "Ready to get started?"}
             </h2>
             <p className="text-body-lg text-text-secondary mb-8">
-              Create your first tournament in less than a minute. It's free.
+              {isAuthenticated
+                ? "Head to your dashboard to create and manage tournaments."
+                : "Create your first tournament in less than a minute. It's free."}
             </p>
-            <Link href="/sign-up" className="btn-primary">
-              Create Your Tournament
+            <Link href={isAuthenticated ? "/dashboard" : "/sign-up"} className="btn-primary">
+              {isAuthenticated ? "Go to Dashboard" : "Create Your Tournament"}
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
               </svg>
