@@ -10,7 +10,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export function SignInScreen() {
@@ -62,14 +61,7 @@ export function SignInScreen() {
   };
 
   return (
-    <View className="flex-1">
-      <LinearGradient
-        colors={['#1f2937', '#111827', '#0f172a']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="absolute inset-0"
-      />
-
+    <View className="flex-1 bg-gray-50">
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -82,20 +74,19 @@ export function SignInScreen() {
               <View className="mb-6 h-20 w-20 items-center justify-center rounded-2xl bg-amber-500 shadow-lg">
                 <Text className="text-4xl font-bold text-white">S</Text>
               </View>
-              <Text className="text-3xl font-bold text-white">ScoreForge</Text>
               <Text className="mt-2 text-base text-gray-400">Tournament Scoring Made Simple</Text>
             </View>
 
             {/* Features Pills */}
             <View className="mb-10 flex-row flex-wrap justify-center gap-2">
-              <View className="rounded-full bg-white/10 px-4 py-2">
-                <Text className="text-sm text-gray-300">Live Scoring</Text>
+              <View className="rounded-full bg-gray-100 px-4 py-2">
+                <Text className="text-sm text-gray-500">Live Scoring</Text>
               </View>
-              <View className="rounded-full bg-white/10 px-4 py-2">
-                <Text className="text-sm text-gray-300">Real-time Updates</Text>
+              <View className="rounded-full bg-gray-100 px-4 py-2">
+                <Text className="text-sm text-gray-500">Real-time Updates</Text>
               </View>
-              <View className="rounded-full bg-white/10 px-4 py-2">
-                <Text className="text-sm text-gray-300">Multi-sport</Text>
+              <View className="rounded-full bg-gray-100 px-4 py-2">
+                <Text className="text-sm text-gray-500">Multi-sport</Text>
               </View>
             </View>
 
