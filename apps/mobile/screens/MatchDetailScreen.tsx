@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react';
 import { api } from '@repo/convex';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Id } from '@repo/convex/dataModel';
 
@@ -80,7 +80,7 @@ export function MatchDetailScreen({ matchId, onBack, onStartScoring }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-3">
         <TouchableOpacity onPress={onBack} className="mr-3 p-1">
@@ -101,7 +101,7 @@ export function MatchDetailScreen({ matchId, onBack, onStartScoring }: Props) {
         </View>
       </View>
 
-      <View className="flex-1 p-4">
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         {/* Score Card */}
         <View className="mb-4 rounded-2xl bg-white p-6 shadow-sm">
           <View className="mb-4 flex-row items-center justify-center">
@@ -235,7 +235,7 @@ export function MatchDetailScreen({ matchId, onBack, onStartScoring }: Props) {
             </Text>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
