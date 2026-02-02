@@ -165,16 +165,40 @@ const mutate = useMutation(api.file.mutation);
 ## Mobile App Patterns
 
 ### Structure
-- Simple Expo app with `index.js` entry point and `App.tsx` root component
-- Components in `components/` directory
+- Expo app with `index.js` entry point and `App.tsx` root component
+- `screens/` - Screen components (login, tournaments, matches, scoring)
+- `providers/` - Context providers (ConvexProvider with SecureStore)
+- `components/` - Reusable UI components
+
+### Authentication
+- Uses `@convex-dev/auth` with `expo-secure-store` for token persistence
+- Login-only (no sign-up on mobile - users create accounts on web)
+- Auth state managed via `Authenticated`, `Unauthenticated`, `AuthLoading` components
+
+### Screens & Navigation
+State-based navigation in `HomeScreen.tsx`:
+- `TournamentsScreen` - List tournaments user owns or is assigned to score
+- `TournamentDetailScreen` - Match list with status filtering
+- `MatchDetailScreen` - Match info and "Start Scoring" button
+- `TennisScoringScreen` - Full tennis scoring (sets, games, points, tiebreaks, undo)
+- `VolleyballScoringScreen` - Volleyball scoring (sets, points, undo)
+
+### Scoring Flow
+1. Select tournament → Select match → Start Scoring
+2. Choose first server to initialize match state
+3. Tap player/team name to score points
+4. Undo button reverts last action (uses history array)
+5. Match auto-completes when winner determined
 
 ### Styling
 - Uses NativeWind (Tailwind CSS for React Native)
 - Import `global.css` in App.tsx for styles
 - Configure in `tailwind.config.js` with `nativewind/preset`
+- Dark theme for scoring screens, light theme for lists
 
 ### Environment
 - Convex URL: `EXPO_PUBLIC_CONVEX_URL`
+- Copy from web app's `NEXT_PUBLIC_CONVEX_URL`
 
 ## Web App Theme
 
