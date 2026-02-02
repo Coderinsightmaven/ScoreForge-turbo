@@ -265,11 +265,14 @@ export default defineSchema({
     volleyballConfig: v.optional(volleyballConfig),
     // Available courts for this tournament
     courts: v.optional(v.array(v.string())),
+    // 6-char alphanumeric code for temporary scorer login
+    scorerCode: v.optional(v.string()),
   })
     .index("by_created_by", ["createdBy"])
     .index("by_created_by_and_status", ["createdBy", "status"])
     .index("by_status", ["status"])
-    .index("by_sport", ["sport"]),
+    .index("by_sport", ["sport"])
+    .index("by_scorer_code", ["scorerCode"]),
 
   // Tournament participants - teams, doubles, or individuals registered for a tournament
   tournamentParticipants: defineTable({
@@ -401,4 +404,27 @@ export default defineSchema({
     .index("by_tournament", ["tournamentId"])
     .index("by_match", ["matchId"])
     .index("by_tournament_and_timestamp", ["tournamentId", "timestamp"]),
+
+  // Temporary scorers - lightweight accounts for tournament-specific scoring
+  temporaryScorers: defineTable({
+    tournamentId: v.id("tournaments"),
+    username: v.string(), // Simple identifier (e.g., "Court1")
+    pinHash: v.string(), // Hashed 4-6 digit PIN
+    displayName: v.string(), // Shown in UI
+    createdBy: v.id("users"), // Tournament owner
+    createdAt: v.number(),
+    isActive: v.boolean(),
+  })
+    .index("by_tournament", ["tournamentId"])
+    .index("by_tournament_and_username", ["tournamentId", "username"]),
+
+  // Temporary scorer sessions - tracks active sessions for temp scorers
+  temporaryScorerSessions: defineTable({
+    scorerId: v.id("temporaryScorers"),
+    token: v.string(), // Session token
+    createdAt: v.number(),
+    expiresAt: v.number(), // 24 hours from creation
+  })
+    .index("by_token", ["token"])
+    .index("by_scorer", ["scorerId"]),
 });

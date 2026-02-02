@@ -76,30 +76,34 @@ export function HomeScreen() {
 
   // Default: Tournaments list with header
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-        <View>
-          <Text className="text-xl font-bold text-gray-900">
-            {user?.name ? `Hi, ${user.name.split(' ')[0]}` : 'Tournaments'}
-          </Text>
-          <Text className="text-sm text-gray-500">ScoreForge Mobile</Text>
-        </View>
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            className="h-10 w-10 items-center justify-center rounded-full bg-amber-500"
-            onPress={() => signOut()}>
-            <Text className="text-lg font-bold text-white">
-              {user?.name?.[0]?.toUpperCase() ?? '?'}
+    <View className="flex-1 bg-white">
+      <SafeAreaView className="flex-1" edges={['top']}>
+        {/* Header */}
+        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+          <View>
+            <Text className="text-xl font-bold text-gray-900">
+              {user?.name ? `Hi, ${user.name.split(' ')[0]}` : 'Tournaments'}
             </Text>
-          </TouchableOpacity>
+            <Text className="text-sm text-gray-500">ScoreForge Mobile</Text>
+          </View>
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              className="h-10 w-10 items-center justify-center rounded-full bg-amber-500"
+              onPress={() => signOut()}>
+              <Text className="text-lg font-bold text-white">
+                {user?.name?.[0]?.toUpperCase() ?? '?'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Tournaments List */}
-      <TournamentsScreen
-        onSelectTournament={(tournamentId) => setScreen({ type: 'tournament', tournamentId })}
-      />
-    </SafeAreaView>
+        {/* Tournaments List */}
+        <View className="flex-1 bg-gray-50">
+          <TournamentsScreen
+            onSelectTournament={(tournamentId) => setScreen({ type: 'tournament', tournamentId })}
+          />
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }

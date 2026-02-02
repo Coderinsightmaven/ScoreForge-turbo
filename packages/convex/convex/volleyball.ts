@@ -10,13 +10,35 @@ import { internal } from "./_generated/api";
 // ============================================
 
 /**
- * Check if user can score tournament matches (owner or assigned scorer)
+ * Check if user can score tournament matches (owner, assigned scorer, or temp scorer)
  */
 async function canScoreTournament(
   ctx: { db: any },
   tournament: Doc<"tournaments">,
-  userId: Id<"users">
+  userId: Id<"users"> | null,
+  tempScorerToken?: string
 ): Promise<boolean> {
+  // Check temp scorer token if provided
+  if (tempScorerToken) {
+    const session = await ctx.db
+      .query("temporaryScorerSessions")
+      .withIndex("by_token", (q: any) => q.eq("token", tempScorerToken))
+      .first();
+
+    if (session && session.expiresAt > Date.now()) {
+      const tempScorer = await ctx.db.get(session.scorerId);
+      if (tempScorer && tempScorer.isActive && tempScorer.tournamentId === tournament._id) {
+        return true;
+      }
+    }
+    // Invalid token - fall through to check regular auth
+  }
+
+  // No userId means not authenticated
+  if (!userId) {
+    return false;
+  }
+
   // Owner can always score
   if (tournament.createdBy === userId) {
     return true;
@@ -37,8 +59,28 @@ async function canScoreTournament(
 async function getTournamentRole(
   ctx: { db: any },
   tournament: Doc<"tournaments">,
-  userId: Id<"users">
-): Promise<"owner" | "scorer" | null> {
+  userId: Id<"users"> | null,
+  tempScorerToken?: string
+): Promise<"owner" | "scorer" | "temp_scorer" | null> {
+  // Check temp scorer token if provided
+  if (tempScorerToken) {
+    const session = await ctx.db
+      .query("temporaryScorerSessions")
+      .withIndex("by_token", (q: any) => q.eq("token", tempScorerToken))
+      .first();
+
+    if (session && session.expiresAt > Date.now()) {
+      const tempScorer = await ctx.db.get(session.scorerId);
+      if (tempScorer && tempScorer.isActive && tempScorer.tournamentId === tournament._id) {
+        return "temp_scorer";
+      }
+    }
+  }
+
+  if (!userId) {
+    return null;
+  }
+
   if (tournament.createdBy === userId) {
     return "owner";
   }
@@ -191,7 +233,8 @@ export const getVolleyballMatch = query({
       volleyballState: v.optional(volleyballState),
       myRole: v.union(
         v.literal("owner"),
-        v.literal("scorer")
+        v.literal("scorer"),
+        v.literal("temp_scorer")
       ),
       sport: v.string(),
     }),
@@ -199,9 +242,6 @@ export const getVolleyballMatch = query({
   ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return null;
-    }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
@@ -213,7 +253,7 @@ export const getVolleyballMatch = query({
       return null;
     }
 
-    // Check if user has access (owner or scorer)
+    // Check if user has access (owner, scorer, or temp scorer)
     const role = await getTournamentRole(ctx, tournament, userId);
     if (!role) {
       return null;

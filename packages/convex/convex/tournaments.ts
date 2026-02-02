@@ -37,15 +37,33 @@ async function canManageTournament(
 
 /**
  * Check if user can score a tournament
- * Creator can score, or user must be in tournamentScorers
+ * Creator can score, user in tournamentScorers can score, or temp scorer with valid token
  */
 async function canScoreTournament(
   ctx: QueryCtx | MutationCtx,
   tournamentId: Id<"tournaments">,
-  userId: Id<"users">
+  userId: Id<"users"> | null,
+  tempScorerToken?: string
 ): Promise<boolean> {
   const tournament = await ctx.db.get(tournamentId);
   if (!tournament) return false;
+
+  // Check temp scorer token if provided
+  if (tempScorerToken) {
+    const session = await ctx.db
+      .query("temporaryScorerSessions")
+      .withIndex("by_token", (q) => q.eq("token", tempScorerToken))
+      .first();
+
+    if (session && session.expiresAt > Date.now()) {
+      const tempScorer = await ctx.db.get(session.scorerId);
+      if (tempScorer && tempScorer.isActive && tempScorer.tournamentId === tournamentId) {
+        return true;
+      }
+    }
+  }
+
+  if (!userId) return false;
   if (tournament.createdBy === userId) return true;
 
   const scorer = await ctx.db
@@ -59,15 +77,33 @@ async function canScoreTournament(
 
 /**
  * Get user's role for a tournament
- * Returns "owner" if creator, "scorer" if assigned scorer, null if no access
+ * Returns "owner" if creator, "scorer" if assigned scorer, "temp_scorer" if temp scorer, null if no access
  */
 async function getTournamentRole(
   ctx: QueryCtx | MutationCtx,
   tournamentId: Id<"tournaments">,
-  userId: Id<"users">
-): Promise<"owner" | "scorer" | null> {
+  userId: Id<"users"> | null,
+  tempScorerToken?: string
+): Promise<"owner" | "scorer" | "temp_scorer" | null> {
   const tournament = await ctx.db.get(tournamentId);
   if (!tournament) return null;
+
+  // Check temp scorer token if provided
+  if (tempScorerToken) {
+    const session = await ctx.db
+      .query("temporaryScorerSessions")
+      .withIndex("by_token", (q) => q.eq("token", tempScorerToken))
+      .first();
+
+    if (session && session.expiresAt > Date.now()) {
+      const tempScorer = await ctx.db.get(session.scorerId);
+      if (tempScorer && tempScorer.isActive && tempScorer.tournamentId === tournamentId) {
+        return "temp_scorer";
+      }
+    }
+  }
+
+  if (!userId) return null;
   if (tournament.createdBy === userId) return "owner";
 
   const scorer = await ctx.db
@@ -114,15 +150,12 @@ export const getTournament = query({
       createdBy: v.id("users"),
       participantCount: v.number(),
       bracketCount: v.number(),
-      myRole: v.union(v.literal("owner"), v.literal("scorer")),
+      myRole: v.union(v.literal("owner"), v.literal("scorer"), v.literal("temp_scorer")),
     }),
     v.null()
   ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return null;
-    }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {

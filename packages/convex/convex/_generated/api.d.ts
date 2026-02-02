@@ -17,6 +17,7 @@ import type * as publicApi from "../publicApi.js";
 import type * as reports from "../reports.js";
 import type * as scoringLogs from "../scoringLogs.js";
 import type * as siteAdmin from "../siteAdmin.js";
+import type * as temporaryScorers from "../temporaryScorers.js";
 import type * as tennis from "../tennis.js";
 import type * as tournamentBrackets from "../tournamentBrackets.js";
 import type * as tournamentParticipants from "../tournamentParticipants.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   reports: typeof reports;
   scoringLogs: typeof scoringLogs;
   siteAdmin: typeof siteAdmin;
+  temporaryScorers: typeof temporaryScorers;
   tennis: typeof tennis;
   tournamentBrackets: typeof tournamentBrackets;
   tournamentParticipants: typeof tournamentParticipants;

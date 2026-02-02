@@ -9,13 +9,35 @@ import type { Id, Doc } from "./_generated/dataModel";
 // ============================================
 
 /**
- * Check if user can score tournament matches (owner or assigned scorer)
+ * Check if user can score tournament matches (owner, assigned scorer, or temp scorer)
  */
 async function canScoreTournament(
   ctx: { db: any },
   tournament: Doc<"tournaments">,
-  userId: Id<"users">
+  userId: Id<"users"> | null,
+  tempScorerToken?: string
 ): Promise<boolean> {
+  // Check temp scorer token if provided
+  if (tempScorerToken) {
+    const session = await ctx.db
+      .query("temporaryScorerSessions")
+      .withIndex("by_token", (q: any) => q.eq("token", tempScorerToken))
+      .first();
+
+    if (session && session.expiresAt > Date.now()) {
+      const tempScorer = await ctx.db.get(session.scorerId);
+      if (tempScorer && tempScorer.isActive && tempScorer.tournamentId === tournament._id) {
+        return true;
+      }
+    }
+    // Invalid token - fall through to check regular auth
+  }
+
+  // No userId means not authenticated
+  if (!userId) {
+    return false;
+  }
+
   // Owner can always score
   if (tournament.createdBy === userId) {
     return true;
@@ -36,8 +58,28 @@ async function canScoreTournament(
 async function getTournamentRole(
   ctx: { db: any },
   tournament: Doc<"tournaments">,
-  userId: Id<"users">
-): Promise<"owner" | "scorer" | null> {
+  userId: Id<"users"> | null,
+  tempScorerToken?: string
+): Promise<"owner" | "scorer" | "temp_scorer" | null> {
+  // Check temp scorer token if provided
+  if (tempScorerToken) {
+    const session = await ctx.db
+      .query("temporaryScorerSessions")
+      .withIndex("by_token", (q: any) => q.eq("token", tempScorerToken))
+      .first();
+
+    if (session && session.expiresAt > Date.now()) {
+      const tempScorer = await ctx.db.get(session.scorerId);
+      if (tempScorer && tempScorer.isActive && tempScorer.tournamentId === tournament._id) {
+        return "temp_scorer";
+      }
+    }
+  }
+
+  if (!userId) {
+    return null;
+  }
+
   if (tournament.createdBy === userId) {
     return "owner";
   }
@@ -274,7 +316,8 @@ export const getMatch = query({
       nextMatchId: v.optional(v.id("matches")),
       myRole: v.union(
         v.literal("owner"),
-        v.literal("scorer")
+        v.literal("scorer"),
+        v.literal("temp_scorer")
       ),
       sport: v.string(),
       tournamentStatus: v.union(
