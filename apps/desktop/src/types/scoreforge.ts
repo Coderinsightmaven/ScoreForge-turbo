@@ -83,7 +83,7 @@ export interface ScoreForgeMatch {
   id: string;
   round: number;
   matchNumber: number;
-  bracket?: string;
+  bracketType?: string;
   court?: string;
   status: ScoreForgeMatchStatus;
   scores: {
@@ -106,8 +106,8 @@ export interface ScoreForgeMatch {
 // Tournament Types
 // ============================================
 
-export type ScoreForgeSport = 'tennis' | 'volleyball' | 'basketball' | 'soccer' | 'other';
-export type ScoreForgeFormat = 'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss';
+export type ScoreForgeSport = 'tennis' | 'volleyball';
+export type ScoreForgeFormat = 'single_elimination' | 'double_elimination' | 'round_robin';
 export type ScoreForgeTournamentStatus = 'draft' | 'active' | 'completed' | 'cancelled';
 
 export interface ScoreForgeTennisConfig {
@@ -152,7 +152,7 @@ export type ScoreForgeBracketStatus = 'draft' | 'active' | 'completed';
 
 export interface ScoreForgeBracket {
   id: string;
-  tournamentId: string;
+  tournamentId?: string;
   name: string;
   description?: string;
   format?: ScoreForgeFormat;

@@ -28,7 +28,8 @@ export default function MatchDetailPage({
 
   const canScore =
     match.myRole === "owner" ||
-    match.myRole === "scorer";
+    match.myRole === "scorer" ||
+    match.myRole === "temp_scorer";
 
   // Check if this is a bye match (only one participant)
   const isByeMatch =
