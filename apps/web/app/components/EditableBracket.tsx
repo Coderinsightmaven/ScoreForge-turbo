@@ -11,6 +11,21 @@ type Participant = {
   isPlaceholder?: boolean;
 };
 
+type TennisState = {
+  sets: [number, number][];
+  currentSetGames: [number, number];
+  currentGamePoints: [number, number];
+  isMatchComplete: boolean;
+  isTiebreak?: boolean;
+  tiebreakPoints?: [number, number];
+};
+
+type VolleyballState = {
+  sets: [number, number][];
+  currentSetPoints: [number, number];
+  isMatchComplete: boolean;
+};
+
 type Match = {
   _id: string;
   round: number;
@@ -26,8 +41,8 @@ type Match = {
   scheduledTime?: number;
   court?: string;
   nextMatchId?: string;
-  tennisState?: any;
-  volleyballState?: any;
+  tennisState?: TennisState;
+  volleyballState?: VolleyballState;
 };
 
 type EditableBracketProps = {
@@ -119,6 +134,45 @@ export function EditableBracket({
     return `Round ${round}`;
   };
 
+  // Get scores for a participant (tennis or volleyball)
+  const getParticipantScores = (match: Match, participantIndex: 0 | 1) => {
+    if (match.tennisState) {
+      const { sets, currentSetGames, isMatchComplete } = match.tennisState;
+      const scores: { games: number; isCurrentSet: boolean }[] = [];
+
+      // Add completed sets
+      sets.forEach((set) => {
+        scores.push({ games: set[participantIndex], isCurrentSet: false });
+      });
+
+      // Add current set if match is in progress (not complete and has games played)
+      if (!isMatchComplete && (currentSetGames[0] > 0 || currentSetGames[1] > 0)) {
+        scores.push({ games: currentSetGames[participantIndex], isCurrentSet: true });
+      }
+
+      return scores;
+    }
+
+    if (match.volleyballState) {
+      const { sets, currentSetPoints, isMatchComplete } = match.volleyballState;
+      const scores: { games: number; isCurrentSet: boolean }[] = [];
+
+      // Add completed sets
+      sets.forEach((set) => {
+        scores.push({ games: set[participantIndex], isCurrentSet: false });
+      });
+
+      // Add current set if match is in progress
+      if (!isMatchComplete && (currentSetPoints[0] > 0 || currentSetPoints[1] > 0)) {
+        scores.push({ games: currentSetPoints[participantIndex], isCurrentSet: true });
+      }
+
+      return scores;
+    }
+
+    return [];
+  };
+
   const renderParticipantSlot = (participant: Participant | undefined, slotNumber: 1 | 2, match: Match) => {
     if (!participant) {
       return (
@@ -132,6 +186,9 @@ export function EditableBracket({
     const isEditing = editingSlot === participant._id;
     const isWinner = match.winnerId === participant._id;
     const isPlaceholder = participant.isPlaceholder;
+    const participantIndex = slotNumber === 1 ? 0 : 1;
+    const scores = getParticipantScores(match, participantIndex as 0 | 1);
+    const hasScores = scores.length > 0;
 
     if (isEditing) {
       return (
@@ -184,6 +241,24 @@ export function EditableBracket({
             </span>
           )}
         </span>
+        {hasScores && (
+          <div className="flex items-center gap-1">
+            {scores.map((score, idx) => (
+              <span
+                key={idx}
+                className={`w-5 text-center text-xs font-semibold ${
+                  score.isCurrentSet
+                    ? "text-brand"
+                    : isWinner
+                      ? "text-brand"
+                      : "text-text-secondary"
+                }`}
+              >
+                {score.games}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
