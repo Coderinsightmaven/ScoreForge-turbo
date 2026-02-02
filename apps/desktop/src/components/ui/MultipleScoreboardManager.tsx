@@ -340,6 +340,8 @@ export const MultipleScoreboardManager: React.FC<MultipleScoreboardManagerProps>
       setNewOffsetX(0);
       setNewOffsetY(0);
       setSelectedMatchId('');
+      // Reload saved scoreboards to ensure dropdown properly re-renders
+      await loadSavedScoreboards();
     }
   };
 
