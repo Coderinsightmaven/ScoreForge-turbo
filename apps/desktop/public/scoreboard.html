@@ -1486,9 +1486,8 @@
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
                     element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
-                if (component.style.borderRadius) {
-                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
-                }
+                // Force square corners - ignore borderRadius from component style
+                element.style.borderRadius = '0';
                 if (component.style.opacity) {
                     element.style.opacity = component.style.opacity;
                 }
@@ -1568,9 +1567,8 @@
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
                     element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
-                if (component.style.borderRadius) {
-                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
-                }
+                // Force square corners - ignore borderRadius from component style
+                element.style.borderRadius = '0';
                 if (component.style.opacity) {
                     element.style.opacity = component.style.opacity;
                 }
@@ -1705,9 +1703,8 @@
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
                     element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
-                if (component.style.borderRadius) {
-                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
-                }
+                // Force square corners - ignore borderRadius from component style
+                element.style.borderRadius = '0';
                 if (component.style.opacity !== undefined) {
                     element.style.opacity = component.style.opacity;
                 }
@@ -1822,9 +1819,8 @@
                     const borderColor = component.style.borderColor === 'transparent' ? 'transparent' : (component.style.borderColor || '#000');
                     element.style.border = `${Math.round(component.style.borderWidth)}px solid ${borderColor}`;
                 }
-                if (component.style.borderRadius) {
-                    element.style.borderRadius = Math.round(component.style.borderRadius) + 'px';
-                }
+                // Force square corners - ignore borderRadius from component style
+                element.style.borderRadius = '0';
                 if (component.style.opacity !== undefined) {
                     element.style.opacity = component.style.opacity;
                 }
