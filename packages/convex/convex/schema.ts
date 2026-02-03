@@ -374,4 +374,12 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_scorer", ["scorerId"])
     .index("by_expires_at", ["expiresAt"]),
+
+  // Login rate limiting for temporary scorers (brute-force protection)
+  loginRateLimits: defineTable({
+    identifier: v.string(), // Tournament code + username combo, or just tournament code
+    attemptCount: v.number(),
+    windowStart: v.number(),
+    lockedUntil: v.optional(v.number()), // Account lockout timestamp
+  }).index("by_identifier", ["identifier"]),
 });

@@ -597,6 +597,19 @@ export const updateScore = mutation({
       throw errors.unauthorized();
     }
 
+    // Validate score bounds (prevent data corruption)
+    const MAX_SCORE = 999;
+    const MIN_SCORE = 0;
+    if (args.participant1Score < MIN_SCORE || args.participant1Score > MAX_SCORE) {
+      throw errors.invalidInput(`Score must be between ${MIN_SCORE} and ${MAX_SCORE}`);
+    }
+    if (args.participant2Score < MIN_SCORE || args.participant2Score > MAX_SCORE) {
+      throw errors.invalidInput(`Score must be between ${MIN_SCORE} and ${MAX_SCORE}`);
+    }
+    if (!Number.isInteger(args.participant1Score) || !Number.isInteger(args.participant2Score)) {
+      throw errors.invalidInput("Scores must be whole numbers");
+    }
+
     // Can only update live or scheduled matches
     if (match.status !== "live" && match.status !== "scheduled" && match.status !== "pending") {
       throw errors.invalidState("Cannot update score for this match");

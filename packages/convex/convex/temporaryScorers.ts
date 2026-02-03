@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { errors } from "./lib/errors";
+import bcrypt from "bcryptjs";
 
 const SCORER_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SESSION_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -9,6 +10,19 @@ const PIN_HASH_PREFIX = "pbkdf2_sha256";
 const PIN_HASH_ITERATIONS = 120_000;
 const PIN_SALT_BYTES = 16;
 const PIN_HASH_BYTES = 32;
+const BCRYPT_ROUNDS = 10;
+
+// Rate limiting configuration
+const LOGIN_RATE_LIMIT = {
+  maxAttempts: 5, // Max attempts before lockout
+  windowMs: 15 * 60 * 1000, // 15 minute window
+  lockoutMs: 30 * 60 * 1000, // 30 minute lockout after too many failures
+};
+
+const CODE_LOOKUP_RATE_LIMIT = {
+  maxAttempts: 10, // Max code lookups per window
+  windowMs: 60 * 1000, // 1 minute window
+};
 
 function randomInt(maxExclusive: number): number {
   if (maxExclusive <= 0 || maxExclusive > 0x100000000) {
@@ -107,7 +121,17 @@ function hashPinLegacy(pin: string): string {
   return Math.abs(hash).toString(36);
 }
 
+/**
+ * Hash a PIN using bcrypt
+ */
 async function hashPin(pin: string): Promise<string> {
+  return bcrypt.hash(pin, BCRYPT_ROUNDS);
+}
+
+/**
+ * Legacy PBKDF2 hash function for backward compatibility
+ */
+async function hashPinPbkdf2(pin: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
@@ -159,43 +183,226 @@ function parsePinHash(hash: string): { iterations: number; salt: Uint8Array; has
 }
 
 /**
- * Verify a PIN against its hash
+ * Check if hash is a bcrypt hash (starts with $2a$, $2b$, or $2y$)
  */
-async function verifyPin(pin: string, hash: string): Promise<boolean> {
-  const parsed = parsePinHash(hash);
-  if (!parsed) {
-    return hashPinLegacy(pin) === hash;
-  }
-
-  const salt = new Uint8Array(parsed.salt);
-  const expected = new Uint8Array(parsed.hash);
-
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(pin),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"]
-  );
-
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt,
-      iterations: parsed.iterations,
-    },
-    key,
-    expected.length * 8
-  );
-
-  const derived = new Uint8Array(derivedBits);
-  return constantTimeEqual(derived, expected);
+function isBcryptHash(hash: string): boolean {
+  return hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$");
 }
 
-function isLegacyPinHash(hash: string): boolean {
-  return !hash.startsWith(`${PIN_HASH_PREFIX}$`);
+/**
+ * Check if hash is a legacy simple hash (not PBKDF2 or bcrypt)
+ */
+function isLegacySimpleHash(hash: string): boolean {
+  return !hash.startsWith(`${PIN_HASH_PREFIX}$`) && !isBcryptHash(hash);
+}
+
+/**
+ * Check if hash needs upgrade (not bcrypt)
+ */
+function needsHashUpgrade(hash: string): boolean {
+  return !isBcryptHash(hash);
+}
+
+/**
+ * Verify a PIN against its hash (supports bcrypt, PBKDF2, and legacy formats)
+ */
+async function verifyPin(pin: string, hash: string): Promise<boolean> {
+  // Try bcrypt first (new format)
+  if (isBcryptHash(hash)) {
+    return bcrypt.compare(pin, hash);
+  }
+
+  // Try PBKDF2 (previous format)
+  const parsed = parsePinHash(hash);
+  if (parsed) {
+    const salt = new Uint8Array(parsed.salt);
+    const expected = new Uint8Array(parsed.hash);
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(pin),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"]
+    );
+
+    const derivedBits = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        hash: "SHA-256",
+        salt,
+        iterations: parsed.iterations,
+      },
+      key,
+      expected.length * 8
+    );
+
+    const derived = new Uint8Array(derivedBits);
+    return constantTimeEqual(derived, expected);
+  }
+
+  // Fall back to legacy simple hash
+  return hashPinLegacy(pin) === hash;
+}
+
+// ============================================
+// Rate Limiting Helpers
+// ============================================
+
+/**
+ * Check if an identifier is rate limited for login attempts
+ */
+async function checkLoginRateLimit(
+  ctx: { db: any },
+  identifier: string
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const now = Date.now();
+  const windowStart = now - LOGIN_RATE_LIMIT.windowMs;
+
+  const rateLimit = await ctx.db
+    .query("loginRateLimits")
+    .withIndex("by_identifier", (q: any) => q.eq("identifier", identifier))
+    .first();
+
+  if (!rateLimit) {
+    return { allowed: true };
+  }
+
+  // Check if locked out
+  if (rateLimit.lockedUntil && rateLimit.lockedUntil > now) {
+    return { allowed: false, retryAfter: rateLimit.lockedUntil - now };
+  }
+
+  // Check if window expired (reset attempts)
+  if (rateLimit.windowStart < windowStart) {
+    return { allowed: true };
+  }
+
+  // Check attempt count
+  if (rateLimit.attemptCount >= LOGIN_RATE_LIMIT.maxAttempts) {
+    return { allowed: false, retryAfter: LOGIN_RATE_LIMIT.lockoutMs };
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Record a failed login attempt
+ */
+async function recordFailedLogin(ctx: { db: any }, identifier: string): Promise<void> {
+  const now = Date.now();
+  const windowStart = now - LOGIN_RATE_LIMIT.windowMs;
+
+  const rateLimit = await ctx.db
+    .query("loginRateLimits")
+    .withIndex("by_identifier", (q: any) => q.eq("identifier", identifier))
+    .first();
+
+  if (!rateLimit) {
+    await ctx.db.insert("loginRateLimits", {
+      identifier,
+      attemptCount: 1,
+      windowStart: now,
+    });
+  } else if (rateLimit.windowStart < windowStart) {
+    // Window expired, reset
+    await ctx.db.patch(rateLimit._id, {
+      attemptCount: 1,
+      windowStart: now,
+      lockedUntil: undefined,
+    });
+  } else {
+    // Increment attempt count
+    const newCount = rateLimit.attemptCount + 1;
+    const update: any = {
+      attemptCount: newCount,
+    };
+
+    // Lock account if max attempts exceeded
+    if (newCount >= LOGIN_RATE_LIMIT.maxAttempts) {
+      update.lockedUntil = now + LOGIN_RATE_LIMIT.lockoutMs;
+    }
+
+    await ctx.db.patch(rateLimit._id, update);
+  }
+}
+
+/**
+ * Clear login rate limit on successful login
+ */
+async function clearLoginRateLimit(ctx: { db: any }, identifier: string): Promise<void> {
+  const rateLimit = await ctx.db
+    .query("loginRateLimits")
+    .withIndex("by_identifier", (q: any) => q.eq("identifier", identifier))
+    .first();
+
+  if (rateLimit) {
+    await ctx.db.delete(rateLimit._id);
+  }
+}
+
+/**
+ * Check rate limit for tournament code lookups
+ */
+async function checkCodeLookupRateLimit(
+  ctx: { db: any },
+  code: string
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const now = Date.now();
+  const windowStart = now - CODE_LOOKUP_RATE_LIMIT.windowMs;
+  const identifier = `code_lookup:${code}`;
+
+  const rateLimit = await ctx.db
+    .query("loginRateLimits")
+    .withIndex("by_identifier", (q: any) => q.eq("identifier", identifier))
+    .first();
+
+  if (!rateLimit) {
+    return { allowed: true };
+  }
+
+  // Check if window expired
+  if (rateLimit.windowStart < windowStart) {
+    return { allowed: true };
+  }
+
+  if (rateLimit.attemptCount >= CODE_LOOKUP_RATE_LIMIT.maxAttempts) {
+    return { allowed: false, retryAfter: rateLimit.windowStart + CODE_LOOKUP_RATE_LIMIT.windowMs - now };
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Record a code lookup attempt
+ */
+async function recordCodeLookup(ctx: { db: any }, code: string): Promise<void> {
+  const now = Date.now();
+  const windowStart = now - CODE_LOOKUP_RATE_LIMIT.windowMs;
+  const identifier = `code_lookup:${code}`;
+
+  const rateLimit = await ctx.db
+    .query("loginRateLimits")
+    .withIndex("by_identifier", (q: any) => q.eq("identifier", identifier))
+    .first();
+
+  if (!rateLimit) {
+    await ctx.db.insert("loginRateLimits", {
+      identifier,
+      attemptCount: 1,
+      windowStart: now,
+    });
+  } else if (rateLimit.windowStart < windowStart) {
+    await ctx.db.patch(rateLimit._id, {
+      attemptCount: 1,
+      windowStart: now,
+    });
+  } else {
+    await ctx.db.patch(rateLimit._id, {
+      attemptCount: rateLimit.attemptCount + 1,
+    });
+  }
 }
 
 // ============================================
@@ -205,6 +412,7 @@ function isLegacyPinHash(hash: string): boolean {
 /**
  * Get tournament by scorer code (public - no auth required)
  * Returns minimal tournament info for login screen
+ * Note: Rate limiting is handled client-side for queries
  */
 export const getTournamentByCode = query({
   args: { code: v.string() },
@@ -663,6 +871,7 @@ export const deleteTemporaryScorer = mutation({
 /**
  * Sign in as a temporary scorer (no auth required)
  * Returns a session token if credentials are valid
+ * Includes rate limiting to prevent brute-force attacks
  */
 export const signIn = mutation({
   args: {
@@ -686,6 +895,17 @@ export const signIn = mutation({
     const normalizedCode = args.code.toUpperCase().trim();
     const normalizedUsername = args.username.trim().toLowerCase();
 
+    // Rate limit identifier combines code and username to prevent targeted attacks
+    const rateLimitId = `login:${normalizedCode}:${normalizedUsername}`;
+
+    // Check rate limit before processing
+    const rateCheck = await checkLoginRateLimit(ctx, rateLimitId);
+    if (!rateCheck.allowed) {
+      // Return null to avoid leaking that rate limit was hit
+      // The client should implement exponential backoff
+      return null;
+    }
+
     // Find tournament by code
     const tournament = await ctx.db
       .query("tournaments")
@@ -693,6 +913,8 @@ export const signIn = mutation({
       .first();
 
     if (!tournament) {
+      // Record failed attempt (use just the code to prevent username enumeration)
+      await recordFailedLogin(ctx, `login:${normalizedCode}:*`);
       return null; // Invalid code
     }
 
@@ -705,20 +927,28 @@ export const signIn = mutation({
       .first();
 
     if (!scorer) {
+      await recordFailedLogin(ctx, rateLimitId);
       return null; // Invalid username
     }
 
     if (!scorer.isActive) {
+      await recordFailedLogin(ctx, rateLimitId);
       return null; // Scorer deactivated
     }
 
     // Verify PIN
     const pinValid = await verifyPin(args.pin, scorer.pinHash);
     if (!pinValid) {
+      await recordFailedLogin(ctx, rateLimitId);
       return null; // Invalid PIN
     }
 
-    if (isLegacyPinHash(scorer.pinHash)) {
+    // Clear rate limit on successful login
+    await clearLoginRateLimit(ctx, rateLimitId);
+    await clearLoginRateLimit(ctx, `login:${normalizedCode}:*`);
+
+    // Upgrade hash to bcrypt if needed
+    if (needsHashUpgrade(scorer.pinHash)) {
       const upgradedHash = await hashPin(args.pin);
       await ctx.db.patch(scorer._id, { pinHash: upgradedHash });
     }

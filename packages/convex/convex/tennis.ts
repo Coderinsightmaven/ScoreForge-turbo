@@ -483,6 +483,11 @@ export const initTennisMatch = mutation({
       throw errors.unauthorized();
     }
 
+    // Validate both participants are assigned (prevent initializing with TBD participants)
+    if (!match.participant1Id || !match.participant2Id) {
+      throw errors.invalidState("Both participants must be assigned before initializing the match");
+    }
+
     // Validate first server
     if (args.firstServer !== 1 && args.firstServer !== 2) {
       throw errors.invalidInput("First server must be 1 or 2");
@@ -581,6 +586,11 @@ export const scoreTennisPoint = mutation({
     const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
     if (!hasAccess) {
       throw errors.unauthorized();
+    }
+
+    // Validate both participants are assigned (prevent scoring with TBD participants)
+    if (!match.participant1Id || !match.participant2Id) {
+      throw errors.invalidState("Both participants must be assigned before scoring");
     }
 
     if (match.status !== "live") {
@@ -975,13 +985,11 @@ export const setTennisServer = mutation({
   args: {
     matchId: v.id("matches"),
     servingParticipant: v.number(), // 1 or 2
+    tempScorerToken: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
@@ -993,8 +1001,8 @@ export const setTennisServer = mutation({
       throw errors.notFound("Tournament");
     }
 
-    // Check user's access (owner or scorer can change server)
-    const hasAccess = await canScoreTournament(ctx, tournament, userId);
+    // Check user's access (owner, scorer, or temp scorer can change server)
+    const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
     if (!hasAccess) {
       throw errors.unauthorized();
     }

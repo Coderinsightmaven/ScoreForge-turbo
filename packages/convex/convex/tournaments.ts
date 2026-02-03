@@ -784,6 +784,19 @@ export const deleteTournament = mutation({
       throw errors.unauthorized("Only the tournament owner can delete it");
     }
 
+    // Only allow deletion of draft or cancelled tournaments
+    // Active or completed tournaments should be cancelled first to preserve audit trail
+    if (tournament.status === "active") {
+      throw errors.invalidState(
+        "Cannot delete an active tournament. Cancel it first to preserve match history."
+      );
+    }
+    if (tournament.status === "completed") {
+      throw errors.invalidState(
+        "Cannot delete a completed tournament. Historical data is preserved for record-keeping."
+      );
+    }
+
     // Delete all matches
     const matches = await ctx.db
       .query("matches")

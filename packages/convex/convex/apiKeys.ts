@@ -217,15 +217,25 @@ export const deleteApiKey = mutation({
 // Internal helper for validating API keys
 // ============================================
 
+import type { Id } from "./_generated/dataModel";
+
 /**
- * Validate an API key and return the user ID if valid
- * This is exported for use by publicApi.ts
+ * Result type for API key validation
+ */
+export interface ApiKeyValidationResult {
+  userId: Id<"users">;
+  keyId: Id<"apiKeys">;
+}
+
+/**
+ * Validate an API key and return the user ID and key ID if valid.
+ * This is the canonical validation function - use this everywhere.
  * Note: lastUsedAt is not updated here since queries have read-only db access
  */
 export async function validateApiKey(
   ctx: { db: any },
   apiKey: string
-): Promise<{ userId: string } | null> {
+): Promise<ApiKeyValidationResult | null> {
   const hashedKey = await hashKey(apiKey);
 
   const keyRecord = await ctx.db
@@ -242,7 +252,8 @@ export async function validateApiKey(
   }
 
   return {
-    userId: keyRecord.userId,
+    userId: keyRecord.userId as Id<"users">,
+    keyId: keyRecord._id as Id<"apiKeys">,
   };
 }
 

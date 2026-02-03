@@ -7,7 +7,7 @@ import {
   tennisState,
   tennisConfig,
 } from "./schema";
-import { hashKey } from "./apiKeys";
+import { validateApiKey } from "./apiKeys";
 import type { Id } from "./_generated/dataModel";
 
 // Rate limiting configuration
@@ -65,35 +65,6 @@ const tournamentReturn = v.object({
   tennisConfig: v.optional(tennisConfig),
   courts: v.optional(v.array(v.string())),
 });
-
-// ============================================
-// Internal helper for API key validation
-// ============================================
-
-async function validateApiKeyInternal(
-  ctx: { db: any },
-  apiKey: string
-): Promise<{ userId: Id<"users">; keyId: Id<"apiKeys"> } | null> {
-  const hashedKey = await hashKey(apiKey);
-
-  const keyRecord = await ctx.db
-    .query("apiKeys")
-    .withIndex("by_key", (q: any) => q.eq("key", hashedKey))
-    .first();
-
-  if (!keyRecord) {
-    return null;
-  }
-
-  if (!keyRecord.isActive) {
-    return null;
-  }
-
-  return {
-    userId: keyRecord.userId,
-    keyId: keyRecord._id,
-  };
-}
 
 /**
  * Check if an API key has exceeded its rate limit
@@ -214,7 +185,7 @@ export const getMatch = mutation({
   ),
   handler: async (ctx, args) => {
     // Validate API key
-    const keyValidation = await validateApiKeyInternal(ctx, args.apiKey);
+    const keyValidation = await validateApiKey(ctx, args.apiKey);
     if (!keyValidation) {
       return { error: "Invalid or inactive API key" };
     }
@@ -352,7 +323,7 @@ export const listMatches = mutation({
   ),
   handler: async (ctx, args) => {
     // Validate API key
-    const keyValidation = await validateApiKeyInternal(ctx, args.apiKey);
+    const keyValidation = await validateApiKey(ctx, args.apiKey);
     if (!keyValidation) {
       return { error: "Invalid or inactive API key" };
     }
@@ -587,7 +558,7 @@ export const listTournaments = mutation({
   ),
   handler: async (ctx, args) => {
     // Validate API key
-    const keyValidation = await validateApiKeyInternal(ctx, args.apiKey);
+    const keyValidation = await validateApiKey(ctx, args.apiKey);
     if (!keyValidation) {
       return { error: "Invalid or inactive API key" };
     }
@@ -679,7 +650,7 @@ export const listBrackets = mutation({
   ),
   handler: async (ctx, args) => {
     // Validate API key
-    const keyValidation = await validateApiKeyInternal(ctx, args.apiKey);
+    const keyValidation = await validateApiKey(ctx, args.apiKey);
     if (!keyValidation) {
       return { error: "Invalid or inactive API key" };
     }
