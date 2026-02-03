@@ -10,21 +10,28 @@
         .tennis-component {
             padding-left: 16px !important;
         }
-        body { 
-            font-family: Arial, sans-serif; 
-            background: #000; 
-            color: #fff; 
-            overflow: hidden; 
-            height: 100vh; 
-            width: 100vw; 
+        html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
             margin: 0;
             padding: 0;
             position: relative;
         }
-        .scoreboard-container { 
-            position: absolute; 
+        .scoreboard-container {
+            position: absolute;
+            top: 0;
+            left: 0;
             background: #000;
-            /* Dimensions, scaling and positioning will be set dynamically */
+            /* Dimensions and scaling will be set dynamically */
         }
         .image-component {
             position: absolute;
@@ -405,6 +412,26 @@
                 calculateAndApplyScale();
                 autoScaleNameComponents();
             });
+
+            // Handle fullscreen changes - ensures position reset when exiting fullscreen
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+        }
+
+        function handleFullscreenChange() {
+            // Small delay to let the browser settle after fullscreen transition
+            setTimeout(() => {
+                // Force reset position to 0,0
+                const container = document.getElementById('scoreboardContainer');
+                if (container) {
+                    container.style.left = '0px';
+                    container.style.top = '0px';
+                }
+                calculateAndApplyScale();
+                autoScaleNameComponents();
+            }, 100);
         }
 
         function calculateAndApplyScale() {
