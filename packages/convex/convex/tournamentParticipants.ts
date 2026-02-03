@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { participantTypes } from "./schema";
 import type { Id, Doc } from "./_generated/dataModel";
+import { errors } from "./lib/errors";
 
 // ============================================
 // Access Control Helpers
@@ -124,18 +125,18 @@ export const listParticipants = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check if user has access (owner or scorer)
     const hasAccess = await canViewTournament(ctx, tournament, userId);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     let participants;
@@ -278,35 +279,35 @@ export const addParticipant = mutation({
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
     if (!authUserId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can add participants
     const canManage = await canManageTournament(tournament, authUserId);
     if (!canManage) {
-      throw new Error("Not authorized. Only the tournament owner can add participants.");
+      throw errors.unauthorized("Only the tournament owner can add participants");
     }
 
     // Check tournament status
     if (tournament.status !== "draft") {
-      throw new Error("Tournament is not in draft status");
+      throw errors.invalidState("Tournament is not in draft status");
     }
 
     // Verify the bracket exists and belongs to this tournament
     const bracket = await ctx.db.get(args.bracketId);
     if (!bracket) {
-      throw new Error("Bracket not found");
+      throw errors.notFound("Bracket");
     }
     if (bracket.tournamentId !== args.tournamentId) {
-      throw new Error("Bracket does not belong to this tournament");
+      throw errors.invalidInput("Bracket does not belong to this tournament");
     }
     if (bracket.status !== "draft") {
-      throw new Error("Bracket is not in draft status");
+      throw errors.invalidState("Bracket is not in draft status");
     }
 
     // Use bracket's participantType if set, otherwise fallback to tournament
@@ -319,7 +320,7 @@ export const addParticipant = mutation({
         .withIndex("by_bracket", (q: any) => q.eq("bracketId", args.bracketId))
         .collect();
       if (bracketParticipants.length >= bracket.maxParticipants) {
-        throw new Error("Bracket is full");
+        throw errors.limitExceeded("Bracket is full");
       }
     }
 
@@ -335,7 +336,7 @@ export const addParticipant = mutation({
     switch (participantType) {
       case "individual":
         if (!args.playerName?.trim()) {
-          throw new Error("Player name is required for individual tournaments");
+          throw errors.invalidInput("Player name is required for individual tournaments");
         }
         displayName = capitalizeProperName(args.playerName);
         participantData.playerName = displayName;
@@ -343,7 +344,7 @@ export const addParticipant = mutation({
 
       case "doubles":
         if (!args.player1Name?.trim() || !args.player2Name?.trim()) {
-          throw new Error("Both player names are required for doubles tournaments");
+          throw errors.invalidInput("Both player names are required for doubles tournaments");
         }
         const p1 = capitalizeProperName(args.player1Name);
         const p2 = capitalizeProperName(args.player2Name);
@@ -354,14 +355,14 @@ export const addParticipant = mutation({
 
       case "team":
         if (!args.teamName?.trim()) {
-          throw new Error("Team name is required for team tournaments");
+          throw errors.invalidInput("Team name is required for team tournaments");
         }
         displayName = capitalizeProperName(args.teamName);
         participantData.teamName = displayName;
         break;
 
       default:
-        throw new Error("Invalid tournament participant type");
+        throw errors.invalidInput("Invalid tournament participant type");
     }
 
     const participantId = await ctx.db.insert("tournamentParticipants", {
@@ -401,28 +402,28 @@ export const updateParticipant = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const participant = await ctx.db.get(args.participantId);
     if (!participant) {
-      throw new Error("Participant not found");
+      throw errors.notFound("Participant");
     }
 
     const tournament = await ctx.db.get(participant.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can update participants
     const canManage = await canManageTournament(tournament, userId);
     if (!canManage) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only update before tournament starts
     if (tournament.status !== "draft") {
-      throw new Error("Cannot update participants after tournament has started");
+      throw errors.invalidState("Cannot update participants after tournament has started");
     }
 
     // Build updates based on participant type
@@ -477,28 +478,28 @@ export const removeParticipant = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const participant = await ctx.db.get(args.participantId);
     if (!participant) {
-      throw new Error("Participant not found");
+      throw errors.notFound("Participant");
     }
 
     const tournament = await ctx.db.get(participant.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can remove participants
     const canManage = await canManageTournament(tournament, userId);
     if (!canManage) {
-      throw new Error("Not authorized to remove participants");
+      throw errors.unauthorized("Only the tournament owner can remove participants");
     }
 
     // Can only remove before tournament starts
     if (tournament.status !== "draft") {
-      throw new Error("Cannot remove participants after tournament has started");
+      throw errors.invalidState("Cannot remove participants after tournament has started");
     }
 
     await ctx.db.delete(args.participantId);
@@ -518,28 +519,28 @@ export const updateSeeding = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const participant = await ctx.db.get(args.participantId);
     if (!participant) {
-      throw new Error("Participant not found");
+      throw errors.notFound("Participant");
     }
 
     const tournament = await ctx.db.get(participant.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can update seeding
     const canManage = await canManageTournament(tournament, userId);
     if (!canManage) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only update seeding before tournament starts
     if (tournament.status !== "draft") {
-      throw new Error("Cannot update seeding after tournament has started");
+      throw errors.invalidState("Cannot update seeding after tournament has started");
     }
 
     await ctx.db.patch(args.participantId, { seed: args.seed });
@@ -564,23 +565,23 @@ export const updateSeedingBatch = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can update seeding
     const canManage = await canManageTournament(tournament, userId);
     if (!canManage) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only update seeding before tournament starts
     if (tournament.status !== "draft") {
-      throw new Error("Cannot update seeding after tournament has started");
+      throw errors.invalidState("Cannot update seeding after tournament has started");
     }
 
     // Update all seedings
@@ -615,23 +616,23 @@ export const updatePlaceholderName = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const participant = await ctx.db.get(args.participantId);
     if (!participant) {
-      throw new Error("Participant not found");
+      throw errors.notFound("Participant");
     }
 
     const tournament = await ctx.db.get(participant.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can update placeholder names
     const canManage = await canManageTournament(tournament, userId);
     if (!canManage) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Build updates based on participant type

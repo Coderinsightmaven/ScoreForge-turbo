@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { errors } from "./lib/errors";
 
 const API_KEY_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -129,7 +130,7 @@ export const generateApiKey = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Generate the key
@@ -163,17 +164,17 @@ export const revokeApiKey = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const apiKey = await ctx.db.get(args.keyId);
     if (!apiKey) {
-      throw new Error("API key not found");
+      throw errors.notFound("API key");
     }
 
     // Only the owner can revoke their API keys
     if (apiKey.userId !== userId) {
-      throw new Error("Not authorized. You can only revoke your own API keys.");
+      throw errors.unauthorized("You can only revoke your own API keys");
     }
 
     await ctx.db.patch(args.keyId, {
@@ -193,17 +194,17 @@ export const deleteApiKey = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const apiKey = await ctx.db.get(args.keyId);
     if (!apiKey) {
-      throw new Error("API key not found");
+      throw errors.notFound("API key");
     }
 
     // Only the owner can delete their API keys
     if (apiKey.userId !== userId) {
-      throw new Error("Not authorized. You can only delete your own API keys.");
+      throw errors.unauthorized("You can only delete your own API keys");
     }
 
     await ctx.db.delete(args.keyId);

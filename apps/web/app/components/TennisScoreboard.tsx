@@ -3,6 +3,7 @@
 import { useMutation } from "convex/react";
 import { api } from "@repo/convex";
 import { useState } from "react";
+import { getDisplayMessage } from "@/lib/errors";
 
 type TennisState = {
   sets: number[][];
@@ -130,7 +131,7 @@ export function TennisScoreboard({
         winnerParticipant: winner,
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to score point");
+      alert(getDisplayMessage(err) || "Failed to score point");
     }
     setLoading(false);
   };
@@ -142,7 +143,7 @@ export function TennisScoreboard({
         servingParticipant: server,
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to set server");
+      alert(getDisplayMessage(err) || "Failed to set server");
     }
   };
 
@@ -421,7 +422,7 @@ export function TennisMatchSetup({
       }
       onSetupComplete();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to initialize match");
+      alert(getDisplayMessage(err) || "Failed to initialize match");
     }
     setLoading(false);
   };

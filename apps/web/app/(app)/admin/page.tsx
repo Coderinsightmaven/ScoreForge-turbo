@@ -5,6 +5,7 @@ import { api } from "@repo/convex";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Id } from "@repo/convex/dataModel";
+import { getDisplayMessage } from "@/lib/errors";
 
 type Tab = "users" | "admins" | "settings";
 
@@ -309,7 +310,7 @@ function AdminsSection() {
     try {
       await revokeAdmin({ userId });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to revoke admin");
+      setError(getDisplayMessage(err) || "Failed to revoke admin");
     } finally {
       setRevoking(null);
     }
@@ -323,7 +324,7 @@ function AdminsSection() {
       setShowAddModal(false);
       setSearchQuery("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to grant admin");
+      setError(getDisplayMessage(err) || "Failed to grant admin");
     } finally {
       setGranting(false);
     }
@@ -516,7 +517,7 @@ function SettingsSection() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      setError(getDisplayMessage(err) || "Failed to save settings");
     } finally {
       setSaving(false);
     }

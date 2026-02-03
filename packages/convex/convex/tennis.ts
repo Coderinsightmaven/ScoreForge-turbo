@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { tennisState } from "./schema";
 import type { Id, Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
+import { errors } from "./lib/errors";
 
 // ============================================
 // Access Control Helpers
@@ -463,33 +464,33 @@ export const initTennisMatch = mutation({
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Tournament must be active to initialize matches
     if (tournament.status !== "active") {
-      throw new Error("Tournament must be started before matches can begin");
+      throw errors.invalidState("Tournament must be started before matches can begin");
     }
 
     // Check user's access (owner, scorer, or temp scorer can init matches)
     const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Validate first server
     if (args.firstServer !== 1 && args.firstServer !== 2) {
-      throw new Error("First server must be 1 or 2");
+      throw errors.invalidInput("First server must be 1 or 2");
     }
 
     // Get tennis config from tournament
     if (!tournament.tennisConfig) {
-      throw new Error("Tournament does not have tennis configuration. Please update the tournament settings.");
+      throw errors.invalidState("Tournament does not have tennis configuration. Please update the tournament settings");
     }
 
     const { isAdScoring, setsToWin } = tournament.tennisConfig;
@@ -568,35 +569,35 @@ export const scoreTennisPoint = mutation({
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check user's access (owner, scorer, or temp scorer can score)
     const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     if (match.status !== "live") {
-      throw new Error("Match is not live");
+      throw errors.invalidState("Match is not live");
     }
 
     if (!match.tennisState) {
-      throw new Error("Tennis state not initialized");
+      throw errors.invalidState("Tennis state not initialized");
     }
 
     if (match.tennisState.isMatchComplete) {
-      throw new Error("Match is already complete");
+      throw errors.invalidState("Match is already complete");
     }
 
     const winner = args.winnerParticipant as 1 | 2;
     if (winner !== 1 && winner !== 2) {
-      throw new Error("Winner must be 1 or 2");
+      throw errors.invalidInput("Winner must be 1 or 2");
     }
 
     // Check if scoring logs are enabled for this user
@@ -877,27 +878,27 @@ export const undoTennisPoint = mutation({
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check user's access (owner, scorer, or temp scorer can undo)
     const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     if (!match.tennisState) {
-      throw new Error("Tennis state not initialized");
+      throw errors.invalidState("Tennis state not initialized");
     }
 
     const history = match.tennisState.history;
     if (!history || history.length === 0) {
-      throw new Error("No history available to undo");
+      throw errors.invalidState("No history available to undo");
     }
 
     // Get the previous state from history
@@ -979,31 +980,31 @@ export const setTennisServer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check user's access (owner or scorer can change server)
     const hasAccess = await canScoreTournament(ctx, tournament, userId);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     if (!match.tennisState) {
-      throw new Error("Tennis state not initialized");
+      throw errors.invalidState("Tennis state not initialized");
     }
 
     if (args.servingParticipant !== 1 && args.servingParticipant !== 2) {
-      throw new Error("Server must be 1 or 2");
+      throw errors.invalidInput("Server must be 1 or 2");
     }
 
     const newState = {

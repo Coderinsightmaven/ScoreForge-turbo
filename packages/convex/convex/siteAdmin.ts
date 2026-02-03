@@ -7,6 +7,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { errors } from "./lib/errors";
 
 /**
  * Helper to check if a user is a site admin
@@ -63,12 +64,12 @@ export const listUsers = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     const limit = args.limit ?? 20;
@@ -252,12 +253,12 @@ export const getUser = query({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (currentUserId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
@@ -308,12 +309,12 @@ export const listSiteAdmins = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     const admins = await ctx.db.query("siteAdmins").collect();
@@ -361,12 +362,12 @@ export const getSystemSettings = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     const settings = await ctx.db
@@ -424,19 +425,19 @@ export const grantSiteAdmin = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (currentUserId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     // Check if user exists
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
     const user = await ctx.db.get(args.userId);
     if (!user) {
-      throw new Error("User not found");
+      throw errors.notFound("User");
     }
 
     // Check if already an admin
@@ -446,7 +447,7 @@ export const grantSiteAdmin = mutation({
       .first();
 
     if (existing) {
-      throw new Error("User is already a site admin");
+      throw errors.conflict("User is already a site admin");
     }
 
     await ctx.db.insert("siteAdmins", {
@@ -470,17 +471,17 @@ export const revokeSiteAdmin = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (currentUserId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     // Cannot revoke own admin status
     if (args.userId === currentUserId) {
-      throw new Error("Cannot revoke your own admin status");
+      throw errors.invalidInput("Cannot revoke your own admin status");
     }
 
     // Find the admin record
@@ -490,13 +491,13 @@ export const revokeSiteAdmin = mutation({
       .first();
 
     if (!adminRecord) {
-      throw new Error("User is not a site admin");
+      throw errors.notFound("Site admin record for user");
     }
 
     // Check that we're not removing the last admin
     const allAdmins = await ctx.db.query("siteAdmins").collect();
     if (allAdmins.length <= 1) {
-      throw new Error("Cannot remove the last site admin");
+      throw errors.invalidState("Cannot remove the last site admin");
     }
 
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- _id is typed as Id<"siteAdmins">
@@ -518,19 +519,19 @@ export const updateUserAsAdmin = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (currentUserId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     // Check if user exists
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
     const user = await ctx.db.get(args.userId);
     if (!user) {
-      throw new Error("User not found");
+      throw errors.notFound("User");
     }
 
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
@@ -554,12 +555,12 @@ export const updateSystemSettings = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     const existing = await ctx.db
@@ -670,16 +671,14 @@ export const initializeFirstAdmin = internalMutation({
     // Check if there are already any admins
     const existingAdmins = await ctx.db.query("siteAdmins").collect();
     if (existingAdmins.length > 0) {
-      throw new Error(
-        "Site admins already exist. Use grantSiteAdmin mutation instead."
-      );
+      throw errors.invalidState("Site admins already exist. Use grantSiteAdmin mutation instead");
     }
 
     // Check if user exists
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
     const user = await ctx.db.get(args.userId);
     if (!user) {
-      throw new Error("User not found");
+      throw errors.notFound("User");
     }
 
     // Create the first admin (no grantedBy since this is bootstrap)
@@ -717,12 +716,12 @@ export const getUserScoringLogs = query({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (currentUserId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     const setting = await ctx.db
@@ -746,19 +745,19 @@ export const toggleUserScoringLogs = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (currentUserId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
-      throw new Error("Not authorized: site admin access required");
+      throw errors.unauthorized("Site admin access required");
     }
 
     // Check if user exists
     // eslint-disable-next-line @convex-dev/explicit-table-ids -- userId is typed as Id<"users">
     const user = await ctx.db.get(args.userId);
     if (!user) {
-      throw new Error("User not found");
+      throw errors.notFound("User");
     }
 
     const existing = await ctx.db

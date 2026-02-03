@@ -2,6 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { api } from "@repo/convex";
+import { getDisplayMessage } from "@/lib/errors";
 import { useState, useCallback } from "react";
 import Link from "next/link";
 
@@ -173,7 +174,7 @@ export function FullScreenScoring({
     try {
       await scoreTennisPoint({ matchId: matchId as any, winnerParticipant: winner });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to score point");
+      alert(getDisplayMessage(err) || "Failed to score point");
     }
     setIsUpdating(false);
   };
@@ -188,7 +189,7 @@ export function FullScreenScoring({
     try {
       await undoTennisPoint({ matchId: matchId as any });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to undo");
+      alert(getDisplayMessage(err) || "Failed to undo");
     }
     setIsUpdating(false);
   };
@@ -347,7 +348,7 @@ export function FirstServerSetup({
         await startMatch({ matchId: matchId as any });
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to start match");
+      alert(getDisplayMessage(err) || "Failed to start match");
     }
     setLoading(false);
   };

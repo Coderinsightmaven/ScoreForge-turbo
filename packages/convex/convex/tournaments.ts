@@ -16,6 +16,7 @@ import {
   generateDoubleEliminationBracket,
   generateRoundRobinSchedule,
 } from "./lib/bracketGenerator";
+import { errors } from "./lib/errors";
 
 // ============================================
 // Helper functions for access control
@@ -255,18 +256,18 @@ export const getBracket = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check if user has access to this tournament
     const role = await getTournamentRole(ctx, args.tournamentId, userId);
     if (!role) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Get all matches for the tournament
@@ -545,18 +546,18 @@ export const getStandings = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check if user has access
     const role = await getTournamentRole(ctx, args.tournamentId, userId);
     if (!role) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Get participants (optionally filtered by bracket)
@@ -639,7 +640,7 @@ export const createTournament = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Check if user is a site admin (exempt from limits)
@@ -667,15 +668,15 @@ export const createTournament = mutation({
         .collect();
 
       if (existingTournaments.length >= maxTournaments) {
-        throw new Error(
-          `You have reached the maximum number of tournaments (${maxTournaments}). Please delete an existing tournament or contact an administrator.`
+        throw errors.limitExceeded(
+          `You have reached the maximum number of tournaments (${maxTournaments}). Please delete an existing tournament or contact an administrator`
         );
       }
     }
 
     // Validate tennis config for tennis tournaments
     if (args.sport === "tennis" && !args.tennisConfig) {
-      throw new Error("Tennis configuration is required for tennis tournaments");
+      throw errors.invalidInput("Tennis configuration is required for tennis tournaments");
     }
 
     const tournamentId = await ctx.db.insert("tournaments", {
@@ -729,22 +730,22 @@ export const updateTournament = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can update
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can update it.");
+      throw errors.unauthorized("Only the tournament owner can update it");
     }
 
     // Can only update draft tournaments
     if (tournament.status !== "draft") {
-      throw new Error("Cannot update tournament after it has started");
+      throw errors.invalidState("Cannot update tournament after it has started");
     }
 
     const updates: Partial<typeof tournament> = {};
@@ -770,17 +771,17 @@ export const deleteTournament = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can delete
     if (tournament.createdBy !== userId) {
-      throw new Error("Only the tournament owner can delete it");
+      throw errors.unauthorized("Only the tournament owner can delete it");
     }
 
     // Delete all matches
@@ -861,7 +862,7 @@ async function generateBracketMatches(
       matchData = generateRoundRobinSchedule(participantIds);
       break;
     default:
-      throw new Error("Unknown tournament format");
+      throw errors.invalidInput("Unknown tournament format");
   }
 
   // Insert matches and build ID map for next match linking
@@ -945,8 +946,7 @@ async function generateBracketMatches(
             if ((hasP1 || hasP2) && !(hasP1 && hasP2)) {
               const feederMatches = await ctx.db
                 .query("matches")
-                .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
-                .filter((q) => q.eq(q.field("nextMatchId"), fullMatch.nextMatchId))
+                .withIndex("by_next_match", (q) => q.eq("nextMatchId", fullMatch.nextMatchId))
                 .collect();
 
               const allFeedersComplete = feederMatches.every(
@@ -1021,7 +1021,7 @@ async function generateBracketMatchesForBracket(
       matchData = generateRoundRobinSchedule(participantIds);
       break;
     default:
-      throw new Error("Unknown tournament format");
+      throw errors.invalidInput("Unknown tournament format");
   }
 
   // Insert matches and build ID map for next match linking
@@ -1113,22 +1113,22 @@ export const generateBracket = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can generate bracket
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can generate the bracket.");
+      throw errors.unauthorized("Only the tournament owner can generate the bracket");
     }
 
     // Can only generate bracket for draft tournaments
     if (tournament.status !== "draft") {
-      throw new Error("Can only generate bracket for draft tournaments");
+      throw errors.invalidState("Can only generate bracket for draft tournaments");
     }
 
     // Get participants that are NOT assigned to a specific bracket
@@ -1142,7 +1142,7 @@ export const generateBracket = mutation({
     const participants = allParticipants.filter((p) => !p.bracketId);
 
     if (participants.length < 2) {
-      throw new Error("Need at least 2 participants to generate bracket. For multi-bracket tournaments, generate matches for each bracket individually.");
+      throw errors.invalidInput("Need at least 2 participants to generate bracket. For multi-bracket tournaments, generate matches for each bracket individually");
     }
 
     // Delete any existing matches (for regeneration)
@@ -1173,22 +1173,22 @@ export const startTournament = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can start
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can start it.");
+      throw errors.unauthorized("Only the tournament owner can start it");
     }
 
     // Can only start draft tournaments
     if (tournament.status !== "draft") {
-      throw new Error("Tournament has already started or is cancelled");
+      throw errors.invalidState("Tournament has already started or is cancelled");
     }
 
     // Check if this tournament has brackets
@@ -1235,7 +1235,7 @@ export const startTournament = mutation({
       }
 
       if (totalParticipants < 2) {
-        throw new Error("Need at least 2 participants across all brackets to start tournament");
+        throw errors.invalidInput("Need at least 2 participants across all brackets to start tournament");
       }
     } else {
       // Single-bracket tournament: use tournament-level participants
@@ -1245,7 +1245,7 @@ export const startTournament = mutation({
         .collect();
 
       if (participants.length < 2) {
-        throw new Error("Need at least 2 participants to start tournament");
+        throw errors.invalidInput("Need at least 2 participants to start tournament");
       }
 
       // Check if bracket already exists
@@ -1305,22 +1305,22 @@ export const generateBlankBracket = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can generate blank bracket
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can generate a blank bracket.");
+      throw errors.unauthorized("Only the tournament owner can generate a blank bracket");
     }
 
     // Can only generate for draft tournaments
     if (tournament.status !== "draft") {
-      throw new Error("Can only generate blank bracket for draft tournaments");
+      throw errors.invalidState("Can only generate blank bracket for draft tournaments");
     }
 
     // Validate bracket size (must be power of 2 and between 2 and 128)
@@ -1331,12 +1331,12 @@ export const generateBlankBracket = mutation({
     if (!validSizes.includes(actualSize)) {
       actualSize = nextPowerOf2(actualSize);
       if (actualSize > 128) {
-        throw new Error("Bracket size must be 128 or less");
+        throw errors.invalidInput("Bracket size must be 128 or less");
       }
     }
 
     if (actualSize < 2) {
-      throw new Error("Bracket size must be at least 2");
+      throw errors.invalidInput("Bracket size must be at least 2");
     }
 
     // Get existing participants
@@ -1499,21 +1499,21 @@ export const cancelTournament = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can cancel
     if (tournament.createdBy !== userId) {
-      throw new Error("Only the tournament owner can cancel it");
+      throw errors.unauthorized("Only the tournament owner can cancel it");
     }
 
     if (tournament.status === "completed" || tournament.status === "cancelled") {
-      throw new Error("Tournament is already completed or cancelled");
+      throw errors.invalidState("Tournament is already completed or cancelled");
     }
 
     await ctx.db.patch(args.tournamentId, {

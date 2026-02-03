@@ -11,6 +11,7 @@ import { Skeleton, SkeletonBracket, SkeletonTabs } from "@/app/components/Skelet
 import { EditableBracket } from "@/app/components/EditableBracket";
 import { BracketSelector } from "@/app/components/BracketSelector";
 import { BracketManagementModal } from "@/app/components/BracketManagementModal";
+import { getDisplayMessage } from "@/lib/errors";
 
 type Tab = "bracket" | "matches" | "participants" | "standings" | "scorers";
 
@@ -305,7 +306,7 @@ function TournamentActions({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to download scores");
+      alert(getDisplayMessage(err) || "Failed to download scores");
     } finally {
       setDownloading(false);
     }
@@ -317,7 +318,7 @@ function TournamentActions({
     try {
       await generateBracket({ tournamentId: tournament._id as any });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to generate bracket";
+      const message = getDisplayMessage(err) || "Failed to generate bracket";
       // Make the error message more user-friendly
       if (message.includes("Need at least 2 participants")) {
         setErrorMessage("Each bracket needs at least 2 participants to generate matches. Please add participants to your brackets first, or generate matches for each bracket individually from the Bracket tab.");
@@ -333,7 +334,7 @@ function TournamentActions({
     try {
       await startTournament({ tournamentId: tournament._id as any });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to start tournament";
+      const message = getDisplayMessage(err) || "Failed to start tournament";
       setErrorMessage(message);
     }
     setLoading(false);
@@ -345,7 +346,7 @@ function TournamentActions({
     try {
       await cancelTournament({ tournamentId: tournament._id as any });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to cancel tournament";
+      const message = getDisplayMessage(err) || "Failed to cancel tournament";
       setErrorMessage(message);
     }
     setLoading(false);
@@ -358,7 +359,7 @@ function TournamentActions({
       await deleteTournament({ tournamentId: tournament._id as any });
       window.location.href = `/tournaments`;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete tournament";
+      const message = getDisplayMessage(err) || "Failed to delete tournament";
       setErrorMessage(message);
       setDeleting(false);
     }
@@ -387,7 +388,7 @@ function TournamentActions({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to download logs");
+      alert(getDisplayMessage(err) || "Failed to download logs");
     } finally {
       setDownloadingLogs(false);
     }
@@ -593,7 +594,7 @@ function BlankBracketModal({
       });
       onClose();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to generate blank bracket");
+      alert(getDisplayMessage(err) || "Failed to generate blank bracket");
     }
     setGeneratingBlank(false);
   };
@@ -831,7 +832,7 @@ function BracketTab({
         await generateTournamentBracket({ tournamentId: tournamentId as any });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to generate matches";
+      const message = getDisplayMessage(err) || "Failed to generate matches";
       // Make the error message more user-friendly
       if (message.includes("Need at least 2 participants")) {
         setErrorMessage("This bracket needs at least 2 participants to generate matches. Please add more participants first.");
@@ -1533,7 +1534,7 @@ function ScorersTab({
       setShowAddModal(false);
       setEmail("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to assign scorer");
+      setError(getDisplayMessage(err) || "Failed to assign scorer");
     } finally {
       setLoading(false);
     }
@@ -1548,7 +1549,7 @@ function ScorersTab({
         userId: userId as any,
       });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to remove scorer");
+      alert(getDisplayMessage(err) || "Failed to remove scorer");
     } finally {
       setRemovingId(null);
     }
@@ -1568,7 +1569,7 @@ function ScorersTab({
       setTempUsername("");
       setTempDisplayName("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create temporary scorer");
+      setError(getDisplayMessage(err) || "Failed to create temporary scorer");
     } finally {
       setLoading(false);
     }
@@ -1579,7 +1580,7 @@ function ScorersTab({
     try {
       await deactivateTempScorer({ scorerId: scorerId as any });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to deactivate scorer");
+      alert(getDisplayMessage(err) || "Failed to deactivate scorer");
     }
   };
 
@@ -1587,7 +1588,7 @@ function ScorersTab({
     try {
       await reactivateTempScorer({ scorerId: scorerId as any });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to reactivate scorer");
+      alert(getDisplayMessage(err) || "Failed to reactivate scorer");
     }
   };
 
@@ -1597,7 +1598,7 @@ function ScorersTab({
       const newPin = await resetTempScorerPin({ scorerId: scorerId as any });
       setResetPinResult({ scorerId, pin: newPin });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to reset PIN");
+      alert(getDisplayMessage(err) || "Failed to reset PIN");
     }
   };
 
@@ -1606,7 +1607,7 @@ function ScorersTab({
     try {
       await deleteTempScorer({ scorerId: scorerId as any });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete scorer");
+      alert(getDisplayMessage(err) || "Failed to delete scorer");
     }
   };
 

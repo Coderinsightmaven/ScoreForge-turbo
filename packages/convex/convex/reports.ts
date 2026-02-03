@@ -3,6 +3,7 @@ import { query, action } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id, Doc } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import { errors } from "./lib/errors";
 
 // ============================================
 // Access Control Helpers
@@ -68,13 +69,13 @@ export const getTournamentMatchScores = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Verify tournament exists and is tennis
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.sport !== "tennis") {
@@ -84,7 +85,7 @@ export const getTournamentMatchScores = query({
     // Check if user has access
     const role = await getTournamentRole(ctx, args.tournamentId, userId);
     if (!role) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Get all completed matches (optionally filtered by bracket)

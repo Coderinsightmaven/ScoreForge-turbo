@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronLeft, CheckCircle, X, Key, Copy, AlertCircle } from "lucide-react";
+import { getDisplayMessage } from "@/lib/errors";
 
 export default function SettingsPage(): React.ReactNode {
   const user = useQuery(api.users.currentUser);
@@ -53,7 +54,7 @@ export default function SettingsPage(): React.ReactNode {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update profile");
+      setError(getDisplayMessage(err) || "Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -67,7 +68,7 @@ export default function SettingsPage(): React.ReactNode {
       await deleteAccount();
       await signOut();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete account");
+      alert(getDisplayMessage(err) || "Failed to delete account");
       setDeleting(false);
     }
   };
@@ -337,7 +338,7 @@ function ApiKeysSection() {
       setShowNewKey(result.fullKey);
       setNewKeyName("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create API key");
+      setError(getDisplayMessage(err) || "Failed to create API key");
     } finally {
       setIsCreating(false);
     }
@@ -347,7 +348,7 @@ function ApiKeysSection() {
     try {
       await revokeApiKey({ keyId: keyId as any });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to revoke API key");
+      setError(getDisplayMessage(err) || "Failed to revoke API key");
     }
   };
 
@@ -356,7 +357,7 @@ function ApiKeysSection() {
     try {
       await deleteApiKey({ keyId: keyId as any });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete API key");
+      setError(getDisplayMessage(err) || "Failed to delete API key");
     }
   };
 

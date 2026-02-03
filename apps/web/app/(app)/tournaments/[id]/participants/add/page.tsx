@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { use } from "react";
+import { getDisplayMessage } from "@/lib/errors";
 
 /**
  * Format a full name to abbreviated format (e.g., "Joe Berry" -> "J. Berry")
@@ -168,7 +169,7 @@ export default function AddParticipantPage({
 
       router.push(`/tournaments/${tournamentId}?tab=participants`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add participant");
+      setError(getDisplayMessage(err) || "Failed to add participant");
       setLoading(false);
     }
   };

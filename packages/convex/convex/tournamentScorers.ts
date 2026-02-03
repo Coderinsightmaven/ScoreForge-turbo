@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { errors } from "./lib/errors";
 
 /**
  * List scorers assigned to a tournament
@@ -68,17 +69,17 @@ export const assignScorer = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (!currentUserId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only tournament owner can assign scorers
     if (tournament.createdBy !== currentUserId) {
-      throw new Error("Not authorized. Only the tournament owner can assign scorers.");
+      throw errors.unauthorized("Only the tournament owner can assign scorers");
     }
 
     // Find user by email
@@ -89,12 +90,12 @@ export const assignScorer = mutation({
       .first();
 
     if (!targetUser) {
-      throw new Error("User not found. They must create an account first.");
+      throw errors.notFound("User. They must create an account first");
     }
 
     // Cannot assign yourself
     if (targetUser._id === currentUserId) {
-      throw new Error("You don't need to assign yourself - you already have full access as the owner.");
+      throw errors.invalidInput("You don't need to assign yourself - you already have full access as the owner");
     }
 
     // Check if already assigned
@@ -106,7 +107,7 @@ export const assignScorer = mutation({
       .first();
 
     if (existing) {
-      throw new Error("User is already assigned to this tournament");
+      throw errors.conflict("User is already assigned to this tournament");
     }
 
     const scorerId = await ctx.db.insert("tournamentScorers", {
@@ -132,28 +133,28 @@ export const assignScorerById = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (!currentUserId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only tournament owner can assign scorers
     if (tournament.createdBy !== currentUserId) {
-      throw new Error("Not authorized. Only the tournament owner can assign scorers.");
+      throw errors.unauthorized("Only the tournament owner can assign scorers");
     }
 
     // Verify user exists
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
-      throw new Error("User not found");
+      throw errors.notFound("User");
     }
 
     // Cannot assign yourself
     if (args.userId === currentUserId) {
-      throw new Error("You don't need to assign yourself - you already have full access as the owner.");
+      throw errors.invalidInput("You don't need to assign yourself - you already have full access as the owner");
     }
 
     // Check if already assigned
@@ -165,7 +166,7 @@ export const assignScorerById = mutation({
       .first();
 
     if (existing) {
-      throw new Error("User is already assigned to this tournament");
+      throw errors.conflict("User is already assigned to this tournament");
     }
 
     const scorerId = await ctx.db.insert("tournamentScorers", {
@@ -191,17 +192,17 @@ export const removeScorer = mutation({
   handler: async (ctx, args) => {
     const currentUserId = await getAuthUserId(ctx);
     if (!currentUserId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only tournament owner can remove scorers
     if (tournament.createdBy !== currentUserId) {
-      throw new Error("Not authorized. Only the tournament owner can remove scorers.");
+      throw errors.unauthorized("Only the tournament owner can remove scorers");
     }
 
     // Find the assignment
@@ -213,7 +214,7 @@ export const removeScorer = mutation({
       .first();
 
     if (!assignment) {
-      throw new Error("User is not assigned to this tournament");
+      throw errors.notFound("User assignment for this tournament");
     }
 
     await ctx.db.delete(assignment._id);

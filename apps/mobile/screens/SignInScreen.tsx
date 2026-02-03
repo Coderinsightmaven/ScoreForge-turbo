@@ -2,6 +2,7 @@ import { useAuthActions } from '@convex-dev/auth/react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@repo/convex';
 import { useState } from 'react';
+import { getDisplayMessage } from '../utils/errors';
 import {
   View,
   Text,
@@ -141,7 +142,7 @@ export function SignInScreen({ onTempScorerLogin }: SignInScreenProps) {
         });
       }
     } catch (err) {
-      setError('Failed to sign in. Please try again.');
+      setError(getDisplayMessage(err));
     } finally {
       setLoading(false);
     }

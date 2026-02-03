@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Id } from '@repo/convex/dataModel';
 import { useRef, useCallback } from 'react';
+import { getDisplayMessage } from '../utils/errors';
 
 type Props = {
   matchId: Id<'matches'>;
@@ -76,8 +77,8 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
       if (match.status === 'pending' || match.status === 'scheduled') {
         await startMatch({ matchId, tempScorerToken });
       }
-    } catch {
-      Alert.alert('Error', 'Failed to start match');
+    } catch (err) {
+      Alert.alert('Error', getDisplayMessage(err));
     }
   };
 
@@ -86,16 +87,16 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
     triggerFlash(participant === 1 ? flash1 : flash2);
     try {
       await scorePoint({ matchId, winnerParticipant: participant, tempScorerToken });
-    } catch {
-      Alert.alert('Error', 'Failed to score point');
+    } catch (err) {
+      Alert.alert('Error', getDisplayMessage(err));
     }
   };
 
   const handleUndo = async () => {
     try {
       await undoPoint({ matchId, tempScorerToken });
-    } catch {
-      Alert.alert('Error', 'Cannot undo');
+    } catch (err) {
+      Alert.alert('Error', getDisplayMessage(err));
     }
   };
 

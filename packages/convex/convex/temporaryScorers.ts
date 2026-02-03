@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { errors } from "./lib/errors";
 
 const SCORER_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SESSION_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -373,16 +374,16 @@ export const generateTournamentScorerCode = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can generate a scorer code.");
+      throw errors.unauthorized("Only the tournament owner can generate a scorer code");
     }
 
     // Generate unique code
@@ -399,7 +400,7 @@ export const generateTournamentScorerCode = mutation({
     }
 
     if (attempts >= 10) {
-      throw new Error("Failed to generate unique scorer code. Please try again.");
+      throw errors.internal("Failed to generate unique scorer code. Please try again");
     }
 
     await ctx.db.patch(args.tournamentId, { scorerCode: code });
@@ -425,26 +426,26 @@ export const createTemporaryScorer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can create temporary scorers.");
+      throw errors.unauthorized("Only the tournament owner can create temporary scorers");
     }
 
     // Validate username
     const normalizedUsername = args.username.trim().toLowerCase();
     if (normalizedUsername.length < 1 || normalizedUsername.length > 20) {
-      throw new Error("Username must be between 1 and 20 characters");
+      throw errors.invalidInput("Username must be between 1 and 20 characters");
     }
 
     if (!/^[a-z0-9_-]+$/.test(normalizedUsername)) {
-      throw new Error("Username can only contain letters, numbers, underscores, and hyphens");
+      throw errors.invalidInput("Username can only contain letters, numbers, underscores, and hyphens");
     }
 
     // Check for duplicate username in this tournament
@@ -456,7 +457,7 @@ export const createTemporaryScorer = mutation({
       .first();
 
     if (existing) {
-      throw new Error("A scorer with this username already exists for this tournament");
+      throw errors.conflict("A scorer with this username already exists for this tournament");
     }
 
     // Generate scorer code if tournament doesn't have one
@@ -507,21 +508,21 @@ export const deactivateTemporaryScorer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const scorer = await ctx.db.get(args.scorerId);
     if (!scorer) {
-      throw new Error("Scorer not found");
+      throw errors.notFound("Scorer");
     }
 
     const tournament = await ctx.db.get(scorer.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can deactivate scorers.");
+      throw errors.unauthorized("Only the tournament owner can deactivate scorers");
     }
 
     await ctx.db.patch(args.scorerId, { isActive: false });
@@ -549,21 +550,21 @@ export const reactivateTemporaryScorer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const scorer = await ctx.db.get(args.scorerId);
     if (!scorer) {
-      throw new Error("Scorer not found");
+      throw errors.notFound("Scorer");
     }
 
     const tournament = await ctx.db.get(scorer.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can reactivate scorers.");
+      throw errors.unauthorized("Only the tournament owner can reactivate scorers");
     }
 
     await ctx.db.patch(args.scorerId, { isActive: true });
@@ -581,21 +582,21 @@ export const resetTemporaryScorerPin = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const scorer = await ctx.db.get(args.scorerId);
     if (!scorer) {
-      throw new Error("Scorer not found");
+      throw errors.notFound("Scorer");
     }
 
     const tournament = await ctx.db.get(scorer.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can reset PINs.");
+      throw errors.unauthorized("Only the tournament owner can reset PINs");
     }
 
     // Generate new PIN
@@ -627,21 +628,21 @@ export const deleteTemporaryScorer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const scorer = await ctx.db.get(args.scorerId);
     if (!scorer) {
-      throw new Error("Scorer not found");
+      throw errors.notFound("Scorer");
     }
 
     const tournament = await ctx.db.get(scorer.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized. Only the tournament owner can delete scorers.");
+      throw errors.unauthorized("Only the tournament owner can delete scorers");
     }
 
     // Delete all sessions for this scorer

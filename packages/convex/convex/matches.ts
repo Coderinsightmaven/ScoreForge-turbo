@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { matchStatus, tennisState, tennisConfig } from "./schema";
 import type { Id, Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
+import { errors } from "./lib/errors";
 
 // ============================================
 // Access Control Helpers
@@ -577,28 +578,28 @@ export const updateScore = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check user's access (owner or scorer can update scores)
     const hasAccess = await canScoreTournament(ctx, tournament, userId);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only update live or scheduled matches
     if (match.status !== "live" && match.status !== "scheduled" && match.status !== "pending") {
-      throw new Error("Cannot update score for this match");
+      throw errors.invalidState("Cannot update score for this match");
     }
 
     await ctx.db.patch(args.matchId, {
@@ -624,33 +625,33 @@ export const startMatch = mutation({
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Tournament must be active to start matches
     if (tournament.status !== "active") {
-      throw new Error("Tournament must be started before matches can begin");
+      throw errors.invalidState("Tournament must be started before matches can begin");
     }
 
     // Check user's access (owner, scorer, or temp scorer can start matches)
     const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only start pending or scheduled matches
     if (match.status !== "pending" && match.status !== "scheduled") {
-      throw new Error("Match cannot be started");
+      throw errors.invalidState("Match cannot be started");
     }
 
     // Need both participants
     if (!match.participant1Id || !match.participant2Id) {
-      throw new Error("Both participants must be assigned before starting");
+      throw errors.invalidState("Both participants must be assigned before starting");
     }
 
     await ctx.db.patch(args.matchId, {
@@ -674,28 +675,28 @@ export const completeMatch = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Check user's access (owner or scorer can complete matches)
     const hasAccess = await canScoreTournament(ctx, tournament, userId);
     if (!hasAccess) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only complete live matches
     if (match.status !== "live") {
-      throw new Error("Match is not live");
+      throw errors.invalidState("Match is not live");
     }
 
     // Determine winner based on scores if not provided
@@ -710,7 +711,7 @@ export const completeMatch = mutation({
         winnerId = match.participant2Id;
         loserId = match.participant1Id;
       } else if (tournament.format !== "round_robin") {
-        throw new Error("Cannot complete match with tied score in elimination format");
+        throw errors.invalidInput("Cannot complete match with tied score in elimination format");
       }
     } else {
       loserId =
@@ -836,27 +837,27 @@ export const scheduleMatch = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can schedule matches
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only schedule pending matches
     if (match.status !== "pending") {
-      throw new Error("Match cannot be scheduled");
+      throw errors.invalidState("Match cannot be scheduled");
     }
 
     await ctx.db.patch(args.matchId, {
@@ -881,27 +882,27 @@ export const updateMatchCourt = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const match = await ctx.db.get(args.matchId);
     if (!match) {
-      throw new Error("Match not found");
+      throw errors.notFound("Match");
     }
 
     const tournament = await ctx.db.get(match.tournamentId);
     if (!tournament) {
-      throw new Error("Tournament not found");
+      throw errors.notFound("Tournament");
     }
 
     // Only owner can update court
     if (tournament.createdBy !== userId) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Can only update court for pending, scheduled, or live matches
     if (match.status === "completed" || match.status === "bye") {
-      throw new Error("Cannot update court for this match");
+      throw errors.invalidState("Cannot update court for this match");
     }
 
     await ctx.db.patch(args.matchId, {

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@repo/convex";
+import { getDisplayMessage } from "@/lib/errors";
 
 type Participant = {
   _id: string;
@@ -89,7 +90,7 @@ export function EditableBracket({
       });
       onParticipantUpdate?.(editingSlot, editValue.trim());
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update participant name");
+      alert(getDisplayMessage(err) || "Failed to update participant name");
     }
     setSaving(false);
     setEditingSlot(null);

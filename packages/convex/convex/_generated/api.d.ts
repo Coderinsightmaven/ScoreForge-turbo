@@ -12,6 +12,7 @@ import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as lib_bracketGenerator from "../lib/bracketGenerator.js";
+import type * as lib_errors from "../lib/errors.js";
 import type * as matches from "../matches.js";
 import type * as publicApi from "../publicApi.js";
 import type * as reports from "../reports.js";
@@ -24,7 +25,6 @@ import type * as tournamentParticipants from "../tournamentParticipants.js";
 import type * as tournamentScorers from "../tournamentScorers.js";
 import type * as tournaments from "../tournaments.js";
 import type * as users from "../users.js";
-import type * as volleyball from "../volleyball.js";
 
 import type {
   ApiFromModules,
@@ -37,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
   "lib/bracketGenerator": typeof lib_bracketGenerator;
+  "lib/errors": typeof lib_errors;
   matches: typeof matches;
   publicApi: typeof publicApi;
   reports: typeof reports;
@@ -49,7 +50,6 @@ declare const fullApi: ApiFromModules<{
   tournamentScorers: typeof tournamentScorers;
   tournaments: typeof tournaments;
   users: typeof users;
-  volleyball: typeof volleyball;
 }>;
 
 /**

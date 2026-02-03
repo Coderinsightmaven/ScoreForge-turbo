@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChevronLeft, Plus, X, Check, Loader2, AlertCircle } from "lucide-react";
+import { getDisplayMessage } from "@/lib/errors";
 
 type Sport = "tennis";
 type Format = "single_elimination" | "double_elimination" | "round_robin";
@@ -63,7 +64,7 @@ export default function NewTournamentPage(): React.ReactNode {
 
       router.push(`/tournaments/${tournamentId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create tournament");
+      setError(getDisplayMessage(err));
       setIsSubmitting(false);
     }
   };

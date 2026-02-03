@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import { scoringLogAction, presetSports } from "./schema";
+import { errors } from "./lib/errors";
 
 // ============================================
 // Access Control Helpers
@@ -120,13 +121,13 @@ export const getTournamentLogs = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // Check if user has access
     const role = await getTournamentRole(ctx, args.tournamentId, userId);
     if (!role) {
-      throw new Error("Not authorized");
+      throw errors.unauthorized();
     }
 
     // Get logs based on filter

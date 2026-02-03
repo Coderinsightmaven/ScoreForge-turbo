@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { themePreference } from "./schema";
+import { errors } from "./lib/errors";
 
 export const currentUser = query({
   args: {},
@@ -36,7 +37,7 @@ export const updateProfile = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const updates: { name?: string; image?: string } = {};
@@ -141,7 +142,7 @@ export const setThemePreference = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     const existing = await ctx.db
@@ -175,7 +176,7 @@ export const deleteAccount = mutation({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
-      throw new Error("Not authenticated");
+      throw errors.unauthenticated();
     }
 
     // 1. Delete user preferences

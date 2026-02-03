@@ -71,30 +71,10 @@ pub struct TiebreakScore {
     pub player2: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: Option<T>,
-    pub error: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreboardInfo {
     pub id: String,
     pub name: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MatchInfo {
-    #[serde(rename = "matchId")]
-    pub match_id: String,
-    #[serde(rename = "player1Name")]
-    pub player1_name: String,
-    #[serde(rename = "player2Name")]
-    pub player2_name: String,
-    pub tournament: String,
-    pub round: String,
-    pub status: String,
 }
 
 // Global state for WebSocket connections
