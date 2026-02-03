@@ -16,44 +16,42 @@ import type {
 import type { TennisLiveData } from '../types/scoreboard';
 
 /**
- * Calls a Convex mutation function via HTTP POST.
+ * Calls a ScoreForge HTTP API endpoint.
  *
- * Convex exposes mutations at: POST {convexUrl}/api/mutation
- * Body: { path: "file:functionName", args: {...} }
+ * Uses the public HTTP API routes which provide proper CORS support
+ * and are designed for external access.
  */
-async function callConvexMutation<T>(
+async function callHttpApi<T>(
   convexUrl: string,
-  functionPath: string,
-  args: Record<string, unknown>
+  endpoint: string,
+  params: Record<string, string | number | undefined>
 ): Promise<T> {
   // Ensure URL ends without trailing slash
   const baseUrl = convexUrl.replace(/\/$/, '');
 
-  const response = await fetch(`${baseUrl}/api/mutation`, {
-    method: 'POST',
+  // Build query string from params, filtering out undefined values
+  const queryParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) {
+      queryParams.set(key, String(value));
+    }
+  }
+
+  const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      path: functionPath,
-      args: args,
-      format: 'json',
-    }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Convex API error (${response.status}): ${errorText}`);
+    throw new Error(`ScoreForge API error (${response.status}): ${errorText}`);
   }
 
-  const result = await response.json();
-
-  // Convex returns { status: "success", value: ... } or { status: "error", errorMessage: ... }
-  if (result.status === 'error') {
-    throw new Error(result.errorMessage || 'Unknown Convex error');
-  }
-
-  return result.value as T;
+  return response.json() as Promise<T>;
 }
 
 /**
@@ -137,7 +135,7 @@ export class ScoreForgeApiService {
    * Fetches a single match by ID.
    */
   async getMatch(config: ScoreForgeConfig, matchId: string): Promise<ScoreForgeGetMatchResponse> {
-    return callConvexMutation<ScoreForgeGetMatchResponse>(config.convexUrl, 'publicApi:getMatch', {
+    return callHttpApi<ScoreForgeGetMatchResponse>(config.convexUrl, '/api/public/match', {
       apiKey: config.apiKey,
       matchId: matchId,
     });
@@ -156,7 +154,7 @@ export class ScoreForgeApiService {
       bracketId?: string;
     }
   ): Promise<ScoreForgeListMatchesResponse> {
-    return callConvexMutation<ScoreForgeListMatchesResponse>(config.convexUrl, 'publicApi:listMatches', {
+    return callHttpApi<ScoreForgeListMatchesResponse>(config.convexUrl, '/api/public/matches', {
       apiKey: config.apiKey,
       tournamentId: tournamentId,
       ...filters,
@@ -170,7 +168,7 @@ export class ScoreForgeApiService {
     config: ScoreForgeConfig,
     tournamentId: string
   ): Promise<ScoreForgeListBracketsResponse> {
-    return callConvexMutation<ScoreForgeListBracketsResponse>(config.convexUrl, 'publicApi:listBrackets', {
+    return callHttpApi<ScoreForgeListBracketsResponse>(config.convexUrl, '/api/public/brackets', {
       apiKey: config.apiKey,
       tournamentId: tournamentId,
     });
@@ -183,15 +181,13 @@ export class ScoreForgeApiService {
     config: ScoreForgeConfig,
     status?: 'draft' | 'active' | 'completed' | 'cancelled'
   ): Promise<ScoreForgeListTournamentsResponse> {
-    const args: Record<string, unknown> = { apiKey: config.apiKey };
-    if (status) {
-      args.status = status;
-    }
-
-    return callConvexMutation<ScoreForgeListTournamentsResponse>(
+    return callHttpApi<ScoreForgeListTournamentsResponse>(
       config.convexUrl,
-      'publicApi:listTournaments',
-      args
+      '/api/public/tournaments',
+      {
+        apiKey: config.apiKey,
+        status: status,
+      }
     );
   }
 
