@@ -16,6 +16,20 @@ import type {
 import type { TennisLiveData } from '../types/scoreboard';
 
 /**
+ * Converts a Convex cloud URL to the HTTP site URL.
+ *
+ * Convex HTTP routes are served from .convex.site domain,
+ * not .convex.cloud which is used for the SDK.
+ *
+ * Example: https://foo-123.convex.cloud -> https://foo-123.convex.site
+ */
+function getHttpSiteUrl(convexUrl: string): string {
+  return convexUrl
+    .replace(/\/$/, '')
+    .replace('.convex.cloud', '.convex.site');
+}
+
+/**
  * Calls a ScoreForge HTTP API endpoint.
  *
  * Uses the public HTTP API routes which provide proper CORS support
@@ -26,8 +40,8 @@ async function callHttpApi<T>(
   endpoint: string,
   params: Record<string, string | number | undefined>
 ): Promise<T> {
-  // Ensure URL ends without trailing slash
-  const baseUrl = convexUrl.replace(/\/$/, '');
+  // Convert to HTTP site URL (Convex HTTP routes use .convex.site)
+  const baseUrl = getHttpSiteUrl(convexUrl);
 
   // Build query string from params, filtering out undefined values
   const queryParams = new URLSearchParams();
