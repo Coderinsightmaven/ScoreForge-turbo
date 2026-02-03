@@ -478,35 +478,7 @@
             }
         }
 
-        // ScoreForge polling interval reference
-        let pollingInterval = null;
-
-        // Convert Convex cloud URL to HTTP site URL
-        function getHttpSiteUrl(convexUrl) {
-            return convexUrl
-                .replace(/\/$/, '')
-                .replace('.convex.cloud', '.convex.site');
-        }
-
-        // Fetch match data from ScoreForge HTTP API
-        async function fetchScoreForgeMatch(config) {
-            const baseUrl = getHttpSiteUrl(config.convexUrl);
-            const url = `${baseUrl}/api/public/match?apiKey=${encodeURIComponent(config.apiKey)}&matchId=${encodeURIComponent(config.matchId)}`;
-
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`ScoreForge API error (${response.status}): ${errorText}`);
-            }
-
-            return response.json();
-        }
-
-        // ScoreForge HTTP polling (replaces Convex subscription since public API uses mutations)
+        // ScoreForge real-time subscription using watchMatch query
         function startScoreForgeSubscription() {
             const config = scoreboardData.scoreForgeConfig;
             if (!config) {
@@ -514,48 +486,46 @@
                 return;
             }
 
-            console.log('🎾 [SCOREBOARD] Starting ScoreForge polling for match:', config.matchId);
+            console.log('🎾 [SCOREBOARD] Starting ScoreForge real-time subscription for match:', config.matchId);
 
-            // Clean up existing polling
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
-
-            // Clean up old Convex subscription if any
+            // Clean up existing subscription
             if (unsubscribe) {
                 unsubscribe();
                 unsubscribe = null;
             }
 
-            // Fetch immediately
-            fetchAndUpdateMatch(config);
-
-            // Poll every 2 seconds
-            pollingInterval = setInterval(() => {
-                fetchAndUpdateMatch(config);
-            }, 2000);
-
-            console.log('🎾 [SCOREBOARD] ScoreForge polling active (2s interval)');
-        }
-
-        async function fetchAndUpdateMatch(config) {
-            try {
-                const result = await fetchScoreForgeMatch(config);
-
-                if (result.error) {
-                    console.error('🎾 [SCOREBOARD] ScoreForge API error:', result.error);
-                    return;
-                }
-
-                if (result.match) {
-                    console.log('🎾 [SCOREBOARD] Received ScoreForge update:', result.match.id);
-                    const tennisData = transformScoreForgeToTennisData(result.match);
-                    updateTennisComponents(tennisData);
-                }
-            } catch (error) {
-                console.error('🎾 [SCOREBOARD] Failed to fetch match:', error.message);
+            // Create client if needed
+            if (!convexClient) {
+                const baseUrl = config.convexUrl.replace(/\/$/, '');
+                console.log('🎾 [SCOREBOARD] Creating Convex client for:', baseUrl);
+                convexClient = new convex.ConvexClient(baseUrl);
             }
+
+            // Subscribe using watchMatch query for real-time updates
+            unsubscribe = convexClient.onUpdate(
+                "publicApi:watchMatch",
+                { apiKey: config.apiKey, matchId: config.matchId },
+                (result) => {
+                    if (result === undefined) {
+                        // Initial loading state
+                        console.log('🎾 [SCOREBOARD] Waiting for ScoreForge data...');
+                        return;
+                    }
+
+                    if (result.error) {
+                        console.error('🎾 [SCOREBOARD] ScoreForge subscription error:', result.error);
+                        return;
+                    }
+
+                    if (result.match) {
+                        console.log('🎾 [SCOREBOARD] Received ScoreForge update:', result.match.id);
+                        const tennisData = transformScoreForgeToTennisData(result.match);
+                        updateTennisComponents(tennisData);
+                    }
+                }
+            );
+
+            console.log('🎾 [SCOREBOARD] ScoreForge real-time subscription active');
         }
 
         function transformScoreForgeToTennisData(match) {

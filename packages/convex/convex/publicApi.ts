@@ -1,4 +1,4 @@
-import { mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import {
   matchStatus,
@@ -158,6 +158,141 @@ export const _trackApiUsage = internalMutation({
   handler: async (ctx, args) => {
     await trackApiUsage(ctx, args.keyId);
     return null;
+  },
+});
+
+// ============================================
+// Public API Queries (for real-time subscriptions)
+// ============================================
+
+/**
+ * Watch a single match by ID - for real-time subscriptions
+ *
+ * This is a query (not mutation) so it can be used with Convex's
+ * real-time subscription system. No rate limiting since subscriptions
+ * are persistent connections.
+ *
+ * Requires a valid API key for the user that owns the tournament.
+ */
+export const watchMatch = query({
+  args: {
+    apiKey: v.string(),
+    matchId: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      match: matchReturn,
+      tournament: tournamentReturn,
+    }),
+    v.object({
+      error: v.string(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    // Validate API key (no rate limiting for subscriptions)
+    const keyValidation = await validateApiKey(ctx, args.apiKey);
+    if (!keyValidation) {
+      return { error: "Invalid or inactive API key" };
+    }
+
+    // Parse match ID
+    let matchId: Id<"matches">;
+    try {
+      matchId = args.matchId as Id<"matches">;
+    } catch {
+      return { error: "Invalid match ID format" };
+    }
+
+    // Get the match
+    const match = await ctx.db.get(matchId);
+    if (!match) {
+      return { error: "Match not found" };
+    }
+
+    // Get the tournament
+    const tournament = await ctx.db.get(match.tournamentId);
+    if (!tournament) {
+      return { error: "Tournament not found" };
+    }
+
+    // Verify the user owns this tournament
+    if (tournament.createdBy !== keyValidation.userId) {
+      return { error: "API key not authorized for this tournament" };
+    }
+
+    // Get participant details
+    let participant1 = undefined;
+    let participant2 = undefined;
+
+    if (match.participant1Id) {
+      const p1 = await ctx.db.get(match.participant1Id);
+      if (p1) {
+        participant1 = {
+          id: p1._id,
+          displayName: p1.displayName,
+          type: p1.type,
+          playerName: p1.playerName,
+          player1Name: p1.player1Name,
+          player2Name: p1.player2Name,
+          teamName: p1.teamName,
+          seed: p1.seed,
+          wins: p1.wins,
+          losses: p1.losses,
+          draws: p1.draws,
+        };
+      }
+    }
+
+    if (match.participant2Id) {
+      const p2 = await ctx.db.get(match.participant2Id);
+      if (p2) {
+        participant2 = {
+          id: p2._id,
+          displayName: p2.displayName,
+          type: p2.type,
+          playerName: p2.playerName,
+          player1Name: p2.player1Name,
+          player2Name: p2.player2Name,
+          teamName: p2.teamName,
+          seed: p2.seed,
+          wins: p2.wins,
+          losses: p2.losses,
+          draws: p2.draws,
+        };
+      }
+    }
+
+    return {
+      match: {
+        id: match._id,
+        round: match.round,
+        matchNumber: match.matchNumber,
+        bracketType: match.bracketType,
+        court: match.court,
+        status: match.status,
+        scores: {
+          participant1: match.participant1Score,
+          participant2: match.participant2Score,
+        },
+        timestamps: {
+          scheduledTime: match.scheduledTime,
+          startedAt: match.startedAt,
+          completedAt: match.completedAt,
+        },
+        participant1,
+        participant2,
+        winnerId: match.winnerId,
+        tennisState: match.tennisState,
+      },
+      tournament: {
+        id: tournament._id,
+        name: tournament.name,
+        sport: tournament.sport,
+        format: tournament.format,
+        tennisConfig: tournament.tennisConfig,
+        courts: tournament.courts,
+      },
+    };
   },
 });
 
