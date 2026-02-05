@@ -289,55 +289,68 @@ export const getBracketMatches = query({
       .withIndex("by_bracket", (q: any) => q.eq("bracketId", args.bracketId))
       .collect();
 
-    // Get participant details
-    const matchesWithParticipants = await Promise.all(
-      matches.map(async (match: Doc<"matches">) => {
-        let participant1 = undefined;
-        let participant2 = undefined;
+    // Batch-fetch all unique participant IDs to avoid N+1 queries
+    const participantIds = new Set<Id<"tournamentParticipants">>();
+    for (const match of matches) {
+      if (match.participant1Id) participantIds.add(match.participant1Id);
+      if (match.participant2Id) participantIds.add(match.participant2Id);
+    }
 
-        if (match.participant1Id) {
-          const p1 = await ctx.db.get(match.participant1Id);
-          if (p1) {
-            participant1 = {
-              _id: p1._id,
-              displayName: p1.displayName,
-              seed: p1.seed,
-              isPlaceholder: p1.isPlaceholder,
-            };
-          }
-        }
-
-        if (match.participant2Id) {
-          const p2 = await ctx.db.get(match.participant2Id);
-          if (p2) {
-            participant2 = {
-              _id: p2._id,
-              displayName: p2.displayName,
-              seed: p2.seed,
-              isPlaceholder: p2.isPlaceholder,
-            };
-          }
-        }
-
-        return {
-          _id: match._id,
-          round: match.round,
-          matchNumber: match.matchNumber,
-          bracketType: match.bracketType,
-          bracketPosition: match.bracketPosition,
-          participant1,
-          participant2,
-          participant1Score: match.participant1Score,
-          participant2Score: match.participant2Score,
-          winnerId: match.winnerId,
-          status: match.status,
-          scheduledTime: match.scheduledTime,
-          court: match.court,
-          nextMatchId: match.nextMatchId,
-          tennisState: match.tennisState,
-        };
-      })
+    const participantDocs = await Promise.all(
+      [...participantIds].map((id) => ctx.db.get(id))
     );
+    const participantMap = new Map<string, Doc<"tournamentParticipants">>();
+    for (const doc of participantDocs) {
+      if (doc) participantMap.set(doc._id, doc);
+    }
+
+    // Enrich matches with participant details using the pre-fetched map
+    const matchesWithParticipants = matches.map((match: Doc<"matches">) => {
+      let participant1 = undefined;
+      let participant2 = undefined;
+
+      if (match.participant1Id) {
+        const p1 = participantMap.get(match.participant1Id);
+        if (p1) {
+          participant1 = {
+            _id: p1._id,
+            displayName: p1.displayName,
+            seed: p1.seed,
+            isPlaceholder: p1.isPlaceholder,
+          };
+        }
+      }
+
+      if (match.participant2Id) {
+        const p2 = participantMap.get(match.participant2Id);
+        if (p2) {
+          participant2 = {
+            _id: p2._id,
+            displayName: p2.displayName,
+            seed: p2.seed,
+            isPlaceholder: p2.isPlaceholder,
+          };
+        }
+      }
+
+      return {
+        _id: match._id,
+        round: match.round,
+        matchNumber: match.matchNumber,
+        bracketType: match.bracketType,
+        bracketPosition: match.bracketPosition,
+        participant1,
+        participant2,
+        participant1Score: match.participant1Score,
+        participant2Score: match.participant2Score,
+        winnerId: match.winnerId,
+        status: match.status,
+        scheduledTime: match.scheduledTime,
+        court: match.court,
+        nextMatchId: match.nextMatchId,
+        tennisState: match.tennisState,
+      };
+    });
 
     const resolvedFormat = bracket.format || tournament.format;
 

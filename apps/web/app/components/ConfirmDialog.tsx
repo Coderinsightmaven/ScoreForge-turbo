@@ -55,6 +55,7 @@ export function ConfirmDialog({
           <div className="flex gap-3">
             <button
               onClick={onCancel}
+              autoFocus
               className="flex-1 h-9 px-4 py-2 rounded-md text-sm font-medium transition-all border border-border bg-background text-foreground hover:bg-accent"
             >
               Cancel

@@ -124,6 +124,16 @@ const getValueFromPath = (obj: Record<string, unknown>, path: string): unknown =
   }, obj);
 };
 
+// Debounced save: coalesces rapid state changes into a single save
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+const debouncedSave = (saveFn: () => Promise<void>) => {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    saveFn();
+  }, 100);
+};
+
 export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
@@ -167,9 +177,7 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
       }));
       
       // Auto-save after adding connection
-      setTimeout(() => {
-        get().saveConnections();
-      }, 100);
+      debouncedSave(() => get().saveConnections());
       
       return id;
     },
@@ -217,7 +225,7 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
       }));
       
       // Auto-save after removing connection
-      setTimeout(() => get().saveConnections(), 100);
+      debouncedSave(() => get().saveConnections());
     },
 
     activateConnection: (id) => {
@@ -277,7 +285,7 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
         ],
       }));
       // Auto-save after adding binding
-      setTimeout(() => get().saveConnections(), 100);
+      debouncedSave(() => get().saveConnections());
     },
 
     removeComponentBinding: (componentId) => {
@@ -287,7 +295,7 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
         ),
       }));
       // Auto-save after removing binding
-      setTimeout(() => get().saveConnections(), 100);
+      debouncedSave(() => get().saveConnections());
     },
 
     updateComponentBinding: (componentId, updates) => {
@@ -299,7 +307,7 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
         ),
       }));
       // Auto-save after updating binding
-      setTimeout(() => get().saveConnections(), 100);
+      debouncedSave(() => get().saveConnections());
     },
 
     getComponentBinding: (componentId) => {
@@ -551,7 +559,7 @@ export const useLiveDataStore = create<LiveDataStoreState & LiveDataActions>()(
         get().startScoreForgePolling(connectionId);
 
         // Save connections
-        setTimeout(() => get().saveConnections(), 100);
+        debouncedSave(() => get().saveConnections());
 
         return connectionId;
       } catch (error) {

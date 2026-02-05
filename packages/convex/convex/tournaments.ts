@@ -277,55 +277,68 @@ export const getBracket = query({
       .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
       .collect();
 
-    // Get participant details
-    const matchesWithParticipants = await Promise.all(
-      matches.map(async (match) => {
-        let participant1 = undefined;
-        let participant2 = undefined;
+    // Batch-fetch all unique participant IDs to avoid N+1 queries
+    const participantIds = new Set<Id<"tournamentParticipants">>();
+    for (const match of matches) {
+      if (match.participant1Id) participantIds.add(match.participant1Id);
+      if (match.participant2Id) participantIds.add(match.participant2Id);
+    }
 
-        if (match.participant1Id) {
-          const p1 = await ctx.db.get(match.participant1Id);
-          if (p1) {
-            participant1 = {
-              _id: p1._id,
-              displayName: p1.displayName,
-              seed: p1.seed,
-              isPlaceholder: p1.isPlaceholder,
-            };
-          }
-        }
-
-        if (match.participant2Id) {
-          const p2 = await ctx.db.get(match.participant2Id);
-          if (p2) {
-            participant2 = {
-              _id: p2._id,
-              displayName: p2.displayName,
-              seed: p2.seed,
-              isPlaceholder: p2.isPlaceholder,
-            };
-          }
-        }
-
-        return {
-          _id: match._id,
-          round: match.round,
-          matchNumber: match.matchNumber,
-          bracketType: match.bracketType,
-          bracketPosition: match.bracketPosition,
-          participant1,
-          participant2,
-          participant1Score: match.participant1Score,
-          participant2Score: match.participant2Score,
-          winnerId: match.winnerId,
-          status: match.status,
-          scheduledTime: match.scheduledTime,
-          court: match.court,
-          nextMatchId: match.nextMatchId,
-          tennisState: match.tennisState,
-        };
-      })
+    const participantDocs = await Promise.all(
+      [...participantIds].map((id) => ctx.db.get(id))
     );
+    const participantMap = new Map<string, Doc<"tournamentParticipants">>();
+    for (const doc of participantDocs) {
+      if (doc) participantMap.set(doc._id, doc);
+    }
+
+    // Enrich matches with participant details using the pre-fetched map
+    const matchesWithParticipants = matches.map((match) => {
+      let participant1 = undefined;
+      let participant2 = undefined;
+
+      if (match.participant1Id) {
+        const p1 = participantMap.get(match.participant1Id);
+        if (p1) {
+          participant1 = {
+            _id: p1._id,
+            displayName: p1.displayName,
+            seed: p1.seed,
+            isPlaceholder: p1.isPlaceholder,
+          };
+        }
+      }
+
+      if (match.participant2Id) {
+        const p2 = participantMap.get(match.participant2Id);
+        if (p2) {
+          participant2 = {
+            _id: p2._id,
+            displayName: p2.displayName,
+            seed: p2.seed,
+            isPlaceholder: p2.isPlaceholder,
+          };
+        }
+      }
+
+      return {
+        _id: match._id,
+        round: match.round,
+        matchNumber: match.matchNumber,
+        bracketType: match.bracketType,
+        bracketPosition: match.bracketPosition,
+        participant1,
+        participant2,
+        participant1Score: match.participant1Score,
+        participant2Score: match.participant2Score,
+        winnerId: match.winnerId,
+        status: match.status,
+        scheduledTime: match.scheduledTime,
+        court: match.court,
+        nextMatchId: match.nextMatchId,
+        tennisState: match.tennisState,
+      };
+    });
 
     return {
       format: tournament.format,
@@ -453,42 +466,6 @@ export const listMyTournaments = query({
       isOwner: boolean;
     }> = [];
 
-    // Helper to process a tournament
-    const processTournament = async (tournament: Doc<"tournaments">, isOwner: boolean) => {
-      if (processedTournamentIds.has(tournament._id)) return;
-      if (args.status && tournament.status !== args.status) return;
-
-      const participants = await ctx.db
-        .query("tournamentParticipants")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-
-      const liveMatches = await ctx.db
-        .query("matches")
-        .withIndex("by_tournament_and_status", (q) =>
-          q.eq("tournamentId", tournament._id).eq("status", "live")
-        )
-        .collect();
-
-      results.push({
-        _id: tournament._id,
-        _creationTime: tournament._creationTime,
-        name: tournament.name,
-        description: tournament.description,
-        sport: tournament.sport,
-        format: tournament.format,
-        participantType: tournament.participantType,
-        maxParticipants: tournament.maxParticipants,
-        status: tournament.status,
-        startDate: tournament.startDate,
-        participantCount: participants.length,
-        liveMatchCount: liveMatches.length,
-        isOwner,
-      });
-
-      processedTournamentIds.add(tournament._id);
-    };
-
     // Get tournaments user created (owns)
     let ownedTournaments;
     if (args.status) {
@@ -505,21 +482,79 @@ export const listMyTournaments = query({
         .collect();
     }
 
-    for (const tournament of ownedTournaments) {
-      await processTournament(tournament, true);
-    }
-
     // Get tournaments user is assigned to as scorer
     const scorerAssignments = await ctx.db
       .query("tournamentScorers")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    for (const assignment of scorerAssignments) {
-      const tournament = await ctx.db.get(assignment.tournamentId);
-      if (tournament) {
-        await processTournament(tournament, false);
-      }
+    // Fetch scorer tournaments that aren't already owned
+    const ownedIds = new Set(ownedTournaments.map((t) => t._id as string));
+    const scorerTournamentDocs = await Promise.all(
+      scorerAssignments
+        .filter((a) => !ownedIds.has(a.tournamentId))
+        .map((a) => ctx.db.get(a.tournamentId))
+    );
+    const scorerTournaments = scorerTournamentDocs.filter(
+      (t): t is Doc<"tournaments"> => t !== null
+    );
+
+    // Combine all tournaments for batch processing
+    const allTournaments: Array<{ tournament: Doc<"tournaments">; isOwner: boolean }> = [];
+    for (const t of ownedTournaments) {
+      allTournaments.push({ tournament: t, isOwner: true });
+    }
+    for (const t of scorerTournaments) {
+      allTournaments.push({ tournament: t, isOwner: false });
+    }
+
+    // Filter by status if specified, and deduplicate
+    const filteredTournaments = allTournaments.filter(({ tournament }) => {
+      if (processedTournamentIds.has(tournament._id)) return false;
+      if (args.status && tournament.status !== args.status) return false;
+      processedTournamentIds.add(tournament._id);
+      return true;
+    });
+
+    // Batch-fetch participant counts and live match counts for all tournaments
+    const [participantCounts, liveMatchCounts] = await Promise.all([
+      Promise.all(
+        filteredTournaments.map(({ tournament }) =>
+          ctx.db
+            .query("tournamentParticipants")
+            .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+            .collect()
+        )
+      ),
+      Promise.all(
+        filteredTournaments.map(({ tournament }) =>
+          ctx.db
+            .query("matches")
+            .withIndex("by_tournament_and_status", (q) =>
+              q.eq("tournamentId", tournament._id).eq("status", "live")
+            )
+            .collect()
+        )
+      ),
+    ]);
+
+    for (let i = 0; i < filteredTournaments.length; i++) {
+      const { tournament, isOwner } = filteredTournaments[i]!;
+      results.push({
+        _id: tournament._id,
+        _creationTime: tournament._creationTime,
+        name: tournament.name,
+        description: tournament.description,
+        sport: tournament.sport,
+        format: tournament.format,
+        participantType: tournament.participantType,
+        maxParticipants: tournament.maxParticipants,
+        status: tournament.status,
+        startDate: tournament.startDate,
+        participantCount: participantCounts[i]!.length,
+        liveMatchCount: liveMatchCounts[i]!.length,
+        isOwner,
+      });
     }
 
     // Sort by creation time descending (newest first)
@@ -1401,7 +1436,14 @@ export const generateBlankBracket = mutation({
     const assignedParticipantIds = new Set<string>();
 
     if (args.seedAssignments) {
+      // Validate no duplicate seeds
+      const seenSeeds = new Set<number>();
       for (const assignment of args.seedAssignments) {
+        if (seenSeeds.has(assignment.seed)) {
+          throw new Error(`Duplicate seed assignment: seed ${assignment.seed} is assigned more than once`);
+        }
+        seenSeeds.add(assignment.seed);
+
         if (assignment.seed >= 1 && assignment.seed <= actualSize) {
           // Verify this participant exists and belongs to this tournament
           const participant = existingParticipants.find(p => p._id === assignment.participantId);

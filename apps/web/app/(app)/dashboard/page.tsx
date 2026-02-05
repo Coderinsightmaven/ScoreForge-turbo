@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Trophy } from "lucide-react";
+import { FORMAT_LABELS, type TournamentFormat } from "@/app/lib/constants";
 
 type Filter = "all" | "active" | "draft" | "completed";
 
@@ -74,13 +75,15 @@ export default function DashboardPage(): React.ReactNode {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           {/* Filters */}
           {tournaments.length > 0 && (
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="tablist">
               {filters.map((f) => (
                 <Button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
                   variant={filter === f.value ? "default" : "secondary"}
                   size="sm"
+                  role="tab"
+                  aria-selected={filter === f.value}
                 >
                   {f.label}
                 </Button>
@@ -147,11 +150,7 @@ function TournamentCard({
     tennis: "Tennis",
   };
 
-  const formatLabels: Record<string, string> = {
-    single_elimination: "Single Elimination",
-    double_elimination: "Double Elimination",
-    round_robin: "Round Robin",
-  };
+  const formatLabels = FORMAT_LABELS;
 
   const statusVariants: Record<string, "muted" | "success" | "brand" | "destructive"> = {
     draft: "muted",
@@ -185,7 +184,7 @@ function TournamentCard({
           {/* Details */}
           <div className="space-y-1 text-small text-muted-foreground">
             <p>{sportLabels[tournament.sport] || tournament.sport}</p>
-            <p>{formatLabels[tournament.format] || tournament.format}</p>
+            <p>{formatLabels[tournament.format as TournamentFormat] || tournament.format}</p>
             <p>{tournament.participantCount} of {tournament.maxParticipants} players</p>
           </div>
 

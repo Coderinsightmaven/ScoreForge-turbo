@@ -1,0 +1,9 @@
+node_modules
+.next
+dist
+build
+target
+bun.lock
+*.lock
+.turbo
+packages/convex/convex/_generated

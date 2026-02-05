@@ -154,19 +154,23 @@ function App() {
     }
   };
 
-  // Auto-fit canvas when window resizes
+  // Auto-fit canvas when window resizes (debounced)
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
+      clearTimeout(timer);
       if (config) {
-        // Small delay to ensure layout has updated
-        setTimeout(() => {
+        timer = setTimeout(() => {
           handleFitToScreen();
         }, 100);
       }
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [config, handleFitToScreen]);
 
 

@@ -8,17 +8,19 @@ import { use } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Skeleton, SkeletonBracket, SkeletonTabs } from "@/app/components/Skeleton";
 import { BracketSelector } from "@/app/components/BracketSelector";
-import { BracketManagementModal } from "@/app/components/BracketManagementModal";
+import dynamic from "next/dynamic";
+const BracketManagementModal = dynamic(() => import("@/app/components/BracketManagementModal").then(m => ({ default: m.BracketManagementModal })));
 import { getDisplayMessage } from "@/lib/errors";
 import { Id } from "@repo/convex/dataModel";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/app/components/ConfirmDialog";
+import { FORMAT_LABELS, STATUS_STYLES } from "@/app/lib/constants";
 import { ScorersTab } from "./components/ScorersTab";
 import { BracketTab } from "./components/BracketTab";
 import { MatchesTab } from "./components/MatchesTab";
 import { ParticipantsTab } from "./components/ParticipantsTab";
 import { StandingsTab } from "./components/StandingsTab";
-import { BlankBracketModal } from "./components/BlankBracketModal";
+const BlankBracketModal = dynamic(() => import("./components/BlankBracketModal").then(m => ({ default: m.BlankBracketModal })));
 
 type Tab = "bracket" | "matches" | "participants" | "standings" | "scorers";
 
@@ -58,18 +60,8 @@ export default function TournamentDetailPage({
     tennis: "🎾",
   };
 
-  const statusStyles: Record<string, string> = {
-    draft: "text-muted-foreground bg-secondary",
-    active: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20",
-    completed: "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/20",
-    cancelled: "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20",
-  };
-
-  const formatLabels: Record<string, string> = {
-    single_elimination: "Single Elimination",
-    double_elimination: "Double Elimination",
-    round_robin: "Round Robin",
-  };
+  const statusStyles = STATUS_STYLES;
+  const formatLabels = FORMAT_LABELS;
 
   const canManage = tournament.myRole === "owner";
 
@@ -155,11 +147,13 @@ export default function TournamentDetailPage({
 
       {/* Tabs */}
       <nav className="bg-secondary border-b border-border sticky top-[var(--nav-height)] z-50">
-        <div className="flex gap-1 max-w-[var(--content-max)] mx-auto px-6">
+        <div className="flex gap-1 max-w-[var(--content-max)] mx-auto px-6" role="tablist">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium -mb-px border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? "text-foreground border-amber-500"

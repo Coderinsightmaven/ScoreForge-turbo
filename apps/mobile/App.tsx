@@ -13,6 +13,7 @@ import {
   TempScorerSession,
   TempScorerContextType,
 } from './contexts/TempScorerContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import './global.css';
 
@@ -116,8 +117,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ConvexProvider>
-      <AppContent />
-    </ConvexProvider>
+    <ErrorBoundary>
+      <ConvexProvider>
+        <AppContent />
+      </ConvexProvider>
+    </ErrorBoundary>
   );
 }

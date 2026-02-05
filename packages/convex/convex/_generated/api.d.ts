@@ -12,6 +12,7 @@ import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as httpApi from "../httpApi.js";
 import type * as lib_bracketGenerator from "../lib/bracketGenerator.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_validation from "../lib/validation.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
   http: typeof http;
+  httpApi: typeof httpApi;
   "lib/bracketGenerator": typeof lib_bracketGenerator;
   "lib/errors": typeof lib_errors;
   "lib/validation": typeof lib_validation;

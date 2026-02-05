@@ -140,6 +140,7 @@ function UsersSection() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search users by name or email..."
+          aria-label="Search users"
           className="input pl-12"
         />
       </div>

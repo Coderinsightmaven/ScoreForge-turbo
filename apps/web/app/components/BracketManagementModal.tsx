@@ -6,14 +6,12 @@ import { api } from "@repo/convex";
 import { Id } from "@repo/convex/dataModel";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { FORMAT_LABELS, PARTICIPANT_TYPE_LABELS, type TournamentFormat, type ParticipantType } from "@/app/lib/constants";
 
 type BracketManagementModalProps = {
   tournamentId: string;
   onClose: () => void;
 };
-
-type TournamentFormat = "single_elimination" | "double_elimination" | "round_robin";
-type ParticipantType = "individual" | "doubles" | "team";
 
 export function BracketManagementModal({
   tournamentId,
@@ -105,17 +103,8 @@ export function BracketManagementModal({
     }
   };
 
-  const formatLabels: Record<TournamentFormat, string> = {
-    single_elimination: "Single Elimination",
-    double_elimination: "Double Elimination",
-    round_robin: "Round Robin",
-  };
-
-  const participantTypeLabels: Record<ParticipantType, string> = {
-    individual: "Individual",
-    doubles: "Doubles",
-    team: "Team",
-  };
+  const formatLabels = FORMAT_LABELS;
+  const participantTypeLabels = PARTICIPANT_TYPE_LABELS;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

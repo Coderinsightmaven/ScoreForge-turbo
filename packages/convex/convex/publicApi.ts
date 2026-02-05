@@ -541,73 +541,62 @@ export const listMatches = mutation({
       matches = matches.filter((m) => m.court === args.court);
     }
 
-    // Enrich with participant details
-    const enrichedMatches = await Promise.all(
-      matches.map(async (match) => {
-        let participant1 = undefined;
-        let participant2 = undefined;
-
-        if (match.participant1Id) {
-          const p1 = await ctx.db.get(match.participant1Id);
-          if (p1) {
-            participant1 = {
-              id: p1._id,
-              displayName: p1.displayName,
-              type: p1.type,
-              playerName: p1.playerName,
-              player1Name: p1.player1Name,
-              player2Name: p1.player2Name,
-              teamName: p1.teamName,
-              seed: p1.seed,
-              wins: p1.wins,
-              losses: p1.losses,
-              draws: p1.draws,
-            };
-          }
-        }
-
-        if (match.participant2Id) {
-          const p2 = await ctx.db.get(match.participant2Id);
-          if (p2) {
-            participant2 = {
-              id: p2._id,
-              displayName: p2.displayName,
-              type: p2.type,
-              playerName: p2.playerName,
-              player1Name: p2.player1Name,
-              player2Name: p2.player2Name,
-              teamName: p2.teamName,
-              seed: p2.seed,
-              wins: p2.wins,
-              losses: p2.losses,
-              draws: p2.draws,
-            };
-          }
-        }
-
-        return {
-          id: match._id,
-          round: match.round,
-          matchNumber: match.matchNumber,
-          bracketType: match.bracketType,
-          court: match.court,
-          status: match.status,
-          scores: {
-            participant1: match.participant1Score,
-            participant2: match.participant2Score,
-          },
-          timestamps: {
-            scheduledTime: match.scheduledTime,
-            startedAt: match.startedAt,
-            completedAt: match.completedAt,
-          },
-          participant1,
-          participant2,
-          winnerId: match.winnerId,
-          tennisState: match.tennisState,
-        };
-      })
+    // Batch-fetch all participants to avoid N+1 queries
+    const participantIds = new Set<Id<"tournamentParticipants">>();
+    for (const match of matches) {
+      if (match.participant1Id) participantIds.add(match.participant1Id);
+      if (match.participant2Id) participantIds.add(match.participant2Id);
+    }
+    const participantDocs = await Promise.all(
+      [...participantIds].map((id) => ctx.db.get(id))
     );
+    const participantMap = new Map(
+      participantDocs
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id as string, p])
+    );
+
+    const formatParticipant = (id: Id<"tournamentParticipants"> | undefined) => {
+      if (!id) return undefined;
+      const p = participantMap.get(id as string);
+      if (!p) return undefined;
+      return {
+        id: p._id,
+        displayName: p.displayName,
+        type: p.type,
+        playerName: p.playerName,
+        player1Name: p.player1Name,
+        player2Name: p.player2Name,
+        teamName: p.teamName,
+        seed: p.seed,
+        wins: p.wins,
+        losses: p.losses,
+        draws: p.draws,
+      };
+    };
+
+    // Enrich with participant details
+    const enrichedMatches = matches.map((match) => ({
+      id: match._id,
+      round: match.round,
+      matchNumber: match.matchNumber,
+      bracketType: match.bracketType,
+      court: match.court,
+      status: match.status,
+      scores: {
+        participant1: match.participant1Score,
+        participant2: match.participant2Score,
+      },
+      timestamps: {
+        scheduledTime: match.scheduledTime,
+        startedAt: match.startedAt,
+        completedAt: match.completedAt,
+      },
+      participant1: formatParticipant(match.participant1Id),
+      participant2: formatParticipant(match.participant2Id),
+      winnerId: match.winnerId,
+      tennisState: match.tennisState,
+    }));
 
     // Sort matches based on sortBy parameter
     const sortBy = args.sortBy || "round";

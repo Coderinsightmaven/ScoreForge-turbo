@@ -146,6 +146,9 @@ export function TournamentDetailScreen({ tournamentId, onBack, onSelectMatch }: 
           data={matches}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f59e0b" />
           }

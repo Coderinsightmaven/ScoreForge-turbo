@@ -6,6 +6,7 @@ import type { Id } from "@repo/convex/dataModel";
 import { use, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { FORMAT_LABELS } from "@/app/lib/constants";
 
 export default function PrintBracketPage({
   params,
@@ -123,11 +124,7 @@ export default function PrintBracketPage({
     return `Round ${round}`;
   };
 
-  const formatLabels: Record<string, string> = {
-    single_elimination: "Single Elimination",
-    double_elimination: "Double Elimination",
-    round_robin: "Round Robin",
-  };
+  const formatLabels = FORMAT_LABELS;
 
   return (
     <div className="min-h-screen bg-white">
