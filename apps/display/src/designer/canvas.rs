@@ -8,43 +8,49 @@ pub fn show_canvas(ui: &mut egui::Ui, state: &mut AppState) {
     let (response, painter) = ui.allocate_painter(available, Sense::click_and_drag());
     let canvas_origin = response.rect.min.to_vec2();
 
+    let project = state.active_project();
+
     // Adjust pan to include canvas widget offset
-    let effective_pan = state.canvas_pan + canvas_origin;
+    let effective_pan = project.canvas_pan + canvas_origin;
 
     // Handle zoom (scroll wheel)
     let scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
     if scroll_delta != 0.0 && response.hovered() {
         let zoom_factor = if scroll_delta > 0.0 { 1.1 } else { 1.0 / 1.1 };
-        let new_zoom = (state.canvas_zoom * zoom_factor).clamp(0.1, 5.0);
+        let project = state.active_project_mut();
+        let new_zoom = (project.canvas_zoom * zoom_factor).clamp(0.1, 5.0);
 
         // Zoom toward cursor
         if let Some(pointer) = ui.input(|i| i.pointer.hover_pos()) {
             let pointer_canvas = screen_to_canvas(
                 pointer.to_vec2() - canvas_origin,
-                state.canvas_zoom,
-                state.canvas_pan,
+                project.canvas_zoom,
+                project.canvas_pan,
             );
-            state.canvas_zoom = new_zoom;
-            state.canvas_pan =
-                pointer.to_vec2() - canvas_origin - pointer_canvas * state.canvas_zoom;
+            project.canvas_zoom = new_zoom;
+            project.canvas_pan =
+                pointer.to_vec2() - canvas_origin - pointer_canvas * project.canvas_zoom;
         } else {
-            state.canvas_zoom = new_zoom;
+            project.canvas_zoom = new_zoom;
         }
     }
 
     // Handle pan (middle mouse drag)
     if response.dragged_by(egui::PointerButton::Middle) {
-        state.canvas_pan += response.drag_delta();
+        state.active_project_mut().canvas_pan += response.drag_delta();
     }
 
+    let project = state.active_project();
+    let canvas_zoom = project.canvas_zoom;
+
     // Draw scoreboard background
-    let sb_pos = canvas_to_screen(Vec2::ZERO, state.canvas_zoom, effective_pan);
+    let sb_pos = canvas_to_screen(Vec2::ZERO, canvas_zoom, effective_pan);
     let sb_size = Vec2::new(
-        state.scoreboard.width as f32 * state.canvas_zoom,
-        state.scoreboard.height as f32 * state.canvas_zoom,
+        project.scoreboard.width as f32 * canvas_zoom,
+        project.scoreboard.height as f32 * canvas_zoom,
     );
     let sb_rect = Rect::from_min_size(Pos2::new(sb_pos.x, sb_pos.y), sb_size);
-    painter.rect_filled(sb_rect, 0.0, state.scoreboard.background_color);
+    painter.rect_filled(sb_rect, 0.0, project.scoreboard.background_color);
     painter.rect_stroke(
         sb_rect,
         0.0,
@@ -52,40 +58,41 @@ pub fn show_canvas(ui: &mut egui::Ui, state: &mut AppState) {
         egui::epaint::StrokeKind::Outside,
     );
 
-    // Draw grid
-    if state.grid_enabled {
-        draw_grid(&painter, &sb_rect, state.grid_size, state.canvas_zoom);
-    }
-
     // Sort components by z_index for rendering
-    let mut sorted_indices: Vec<usize> = (0..state.components.len()).collect();
-    sorted_indices.sort_by_key(|&i| state.components[i].z_index);
+    let mut sorted_indices: Vec<usize> = (0..project.components.len()).collect();
+    sorted_indices.sort_by_key(|&i| project.components[i].z_index);
 
     // Render components
     for &idx in &sorted_indices {
-        let comp = &state.components[idx];
+        let comp = &project.components[idx];
         if !comp.visible {
             continue;
         }
         let ctx = RenderContext::Designer {
-            is_selected: state.selected_ids.contains(&comp.id),
+            is_selected: project.selected_ids.contains(&comp.id),
         };
         render_component(
             comp,
             &painter,
             &ctx,
-            state.live_match_data.as_ref(),
+            project.live_match_data.as_ref(),
             &state.texture_cache,
-            state.canvas_zoom,
+            canvas_zoom,
             effective_pan,
         );
     }
 
+    // Draw grid above components so it's always visible
+    if state.grid_enabled {
+        draw_grid(&painter, &sb_rect, state.grid_size, canvas_zoom);
+    }
+
     // Draw resize handles for selected components
+    let project = state.active_project();
     for &idx in &sorted_indices {
-        let comp = &state.components[idx];
-        if state.selected_ids.contains(&comp.id) {
-            draw_resize_handles(&painter, comp, state.canvas_zoom, effective_pan);
+        let comp = &project.components[idx];
+        if project.selected_ids.contains(&comp.id) {
+            draw_resize_handles(&painter, comp, canvas_zoom, effective_pan);
         }
     }
 
@@ -170,21 +177,22 @@ fn handle_click_select(
         return;
     };
 
+    let project = state.active_project();
     let canvas_pos = screen_to_canvas(
         pointer.to_vec2() - canvas_origin,
-        state.canvas_zoom,
-        state.canvas_pan,
+        project.canvas_zoom,
+        project.canvas_pan,
     );
 
     let ctrl = ui.input(|i| i.modifiers.ctrl || i.modifiers.command);
 
     // Find topmost component under cursor (iterate in reverse z-order)
-    let mut sorted: Vec<usize> = (0..state.components.len()).collect();
-    sorted.sort_by_key(|&i| std::cmp::Reverse(state.components[i].z_index));
+    let mut sorted: Vec<usize> = (0..project.components.len()).collect();
+    sorted.sort_by_key(|&i| std::cmp::Reverse(project.components[i].z_index));
 
     let mut hit = None;
     for &idx in &sorted {
-        let comp = &state.components[idx];
+        let comp = &project.components[idx];
         if !comp.visible {
             continue;
         }
@@ -195,19 +203,20 @@ fn handle_click_select(
         }
     }
 
+    let project = state.active_project_mut();
     if let Some(id) = hit {
         if ctrl {
-            if state.selected_ids.contains(&id) {
-                state.selected_ids.remove(&id);
+            if project.selected_ids.contains(&id) {
+                project.selected_ids.remove(&id);
             } else {
-                state.selected_ids.insert(id);
+                project.selected_ids.insert(id);
             }
         } else {
-            state.selected_ids.clear();
-            state.selected_ids.insert(id);
+            project.selected_ids.clear();
+            project.selected_ids.insert(id);
         }
     } else if !ctrl {
-        state.selected_ids.clear();
+        project.selected_ids.clear();
     }
 }
 
@@ -222,37 +231,40 @@ fn handle_drag_move(
             return;
         };
 
+        let project = state.active_project();
         let canvas_pos = screen_to_canvas(
             pointer.to_vec2() - canvas_origin,
-            state.canvas_zoom,
-            state.canvas_pan,
+            project.canvas_zoom,
+            project.canvas_pan,
         );
 
         // Check if drag started on a selected component
-        let on_selected = state.components.iter().any(|c| {
-            state.selected_ids.contains(&c.id)
+        let on_selected = project.components.iter().any(|c| {
+            project.selected_ids.contains(&c.id)
                 && c.visible
                 && !c.locked
                 && c.rect().contains(Pos2::new(canvas_pos.x, canvas_pos.y))
         });
 
         if on_selected {
-            let start_positions: Vec<(uuid::Uuid, Vec2)> = state
+            let start_positions: Vec<(uuid::Uuid, Vec2)> = project
                 .components
                 .iter()
-                .filter(|c| state.selected_ids.contains(&c.id))
+                .filter(|c| project.selected_ids.contains(&c.id))
                 .map(|c| (c.id, c.position))
                 .collect();
 
-            state.push_undo();
-            state.drag_state = Some(DragState {
+            let project = state.active_project_mut();
+            project.push_undo();
+            project.drag_state = Some(DragState {
                 start_mouse: canvas_pos,
                 start_positions,
             });
         }
     }
 
-    if let Some(drag) = &state.drag_state
+    let project = state.active_project();
+    if let Some(drag) = &project.drag_state
         && response.dragged_by(egui::PointerButton::Primary)
     {
         let Some(pointer) = ui.input(|i| i.pointer.interact_pos()) else {
@@ -260,8 +272,8 @@ fn handle_drag_move(
         };
         let canvas_pos = screen_to_canvas(
             pointer.to_vec2() - canvas_origin,
-            state.canvas_zoom,
-            state.canvas_pan,
+            project.canvas_zoom,
+            project.canvas_pan,
         );
         let delta = canvas_pos - drag.start_mouse;
         let start_positions = drag.start_positions.clone();
@@ -277,37 +289,41 @@ fn handle_drag_move(
             }
         };
 
+        let project = state.active_project_mut();
         for (id, start) in &start_positions {
-            if let Some(comp) = state.components.iter_mut().find(|c| c.id == *id) {
+            if let Some(comp) = project.components.iter_mut().find(|c| c.id == *id) {
                 comp.position = Vec2::new(snap_fn(start.x + delta.x), snap_fn(start.y + delta.y));
             }
         }
-        state.is_dirty = true;
+        project.is_dirty = true;
     }
 
-    if response.drag_stopped_by(egui::PointerButton::Primary) && state.drag_state.is_some() {
-        state.drag_state = None;
+    if response.drag_stopped_by(egui::PointerButton::Primary)
+        && state.active_project().drag_state.is_some()
+    {
+        state.active_project_mut().drag_state = None;
     }
 }
 
 fn handle_keyboard(ui: &egui::Ui, state: &mut AppState) {
     if ui.input(|i| i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace))
-        && !state.selected_ids.is_empty()
+        && !state.active_project().selected_ids.is_empty()
     {
-        state.push_undo();
-        state
-            .components
-            .retain(|c| !state.selected_ids.contains(&c.id));
-        state.selected_ids.clear();
-        state.is_dirty = true;
+        let project = state.active_project_mut();
+        project.push_undo();
+        let selected = project.selected_ids.clone();
+        project.components.retain(|c| !selected.contains(&c.id));
+        project.selected_ids.clear();
+        project.is_dirty = true;
     }
 
     // Ctrl+C - Copy
     if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::C)) {
-        state.clipboard = state
+        let project = state.active_project();
+        state.clipboard = project
             .components
             .iter()
-            .filter(|c| state.selected_ids.contains(&c.id))
+            .filter(|c| project.selected_ids.contains(&c.id))
             .cloned()
             .collect();
     }
@@ -316,30 +332,34 @@ fn handle_keyboard(ui: &egui::Ui, state: &mut AppState) {
     if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::V))
         && !state.clipboard.is_empty()
     {
-        state.push_undo();
-        state.selected_ids.clear();
+        let pasted = state.clipboard.clone();
+        let project = state.active_project_mut();
+        project.push_undo();
+        project.selected_ids.clear();
         let offset = Vec2::new(20.0, 20.0);
-        for mut comp in state.clipboard.clone() {
+        for mut comp in pasted {
             comp.id = uuid::Uuid::new_v4();
             comp.position += offset;
-            state.selected_ids.insert(comp.id);
-            state.components.push(comp);
+            project.selected_ids.insert(comp.id);
+            project.components.push(comp);
         }
-        state.is_dirty = true;
+        project.is_dirty = true;
     }
 
     // Ctrl+Z - Undo
     if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z)) {
-        state.undo();
+        state.active_project_mut().undo();
     }
 
     // Ctrl+S - Save
     if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S)) {
-        let file = state.to_scoreboard_file();
-        if let Some(path) = &state.current_file.clone() {
-            match crate::storage::scoreboard::save_scoreboard(&file, path) {
+        let project = state.active_project();
+        let file = project.to_scoreboard_file();
+        let path = project.current_file.clone();
+        if let Some(path) = path {
+            match crate::storage::scoreboard::save_scoreboard(&file, &path) {
                 Ok(()) => {
-                    state.is_dirty = false;
+                    state.active_project_mut().is_dirty = false;
                     state.push_toast("Saved".to_string(), false);
                 }
                 Err(e) => {
@@ -351,8 +371,10 @@ fn handle_keyboard(ui: &egui::Ui, state: &mut AppState) {
 
     // [ - Send back
     if ui.input(|i| i.key_pressed(egui::Key::OpenBracket)) {
-        for id in state.selected_ids.clone() {
-            if let Some(comp) = state.components.iter_mut().find(|c| c.id == id) {
+        let project = state.active_project_mut();
+        let selected = project.selected_ids.clone();
+        for id in selected {
+            if let Some(comp) = project.components.iter_mut().find(|c| c.id == id) {
                 comp.z_index -= 1;
             }
         }
@@ -360,8 +382,10 @@ fn handle_keyboard(ui: &egui::Ui, state: &mut AppState) {
 
     // ] - Bring forward
     if ui.input(|i| i.key_pressed(egui::Key::CloseBracket)) {
-        for id in state.selected_ids.clone() {
-            if let Some(comp) = state.components.iter_mut().find(|c| c.id == id) {
+        let project = state.active_project_mut();
+        let selected = project.selected_ids.clone();
+        for id in selected {
+            if let Some(comp) = project.components.iter_mut().find(|c| c.id == id) {
                 comp.z_index += 1;
             }
         }
@@ -369,6 +393,6 @@ fn handle_keyboard(ui: &egui::Ui, state: &mut AppState) {
 
     // Escape - clear selection
     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-        state.selected_ids.clear();
+        state.active_project_mut().selected_ids.clear();
     }
 }

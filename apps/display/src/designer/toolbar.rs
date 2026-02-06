@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::state::{AppState, ProjectState};
 
 pub fn show_toolbar(ui: &mut egui::Ui, state: &mut AppState) {
     ui.horizontal(|ui| {
@@ -60,17 +60,19 @@ pub fn show_toolbar(ui: &mut egui::Ui, state: &mut AppState) {
         ui.separator();
 
         // Scoreboard name
-        ui.label(&state.scoreboard.name);
-        if state.is_dirty {
+        let project = state.active_project();
+        ui.label(&project.scoreboard.name);
+        if project.is_dirty {
             ui.colored_label(egui::Color32::YELLOW, "*");
         }
     });
 }
 
 fn save_scoreboard(state: &mut AppState) {
-    let file = state.to_scoreboard_file();
+    let project = state.active_project();
+    let file = project.to_scoreboard_file();
 
-    let path = if let Some(existing) = &state.current_file {
+    let path = if let Some(existing) = &project.current_file {
         Some(existing.clone())
     } else {
         rfd::FileDialog::new()
@@ -82,8 +84,9 @@ fn save_scoreboard(state: &mut AppState) {
     if let Some(path) = path {
         match crate::storage::scoreboard::save_scoreboard(&file, &path) {
             Ok(()) => {
-                state.current_file = Some(path.clone());
-                state.is_dirty = false;
+                let project = state.active_project_mut();
+                project.current_file = Some(path.clone());
+                project.is_dirty = false;
                 state.config.add_recent_file(path);
                 state.push_toast("Scoreboard saved".to_string(), false);
             }
@@ -115,8 +118,10 @@ fn load_scoreboard(state: &mut AppState) {
     if let Some(path) = path {
         match crate::storage::scoreboard::load_scoreboard(&path) {
             Ok(file) => {
-                state.load_from_file(file);
-                state.current_file = Some(path.clone());
+                let mut project = ProjectState::from_file(file);
+                project.current_file = Some(path.clone());
+                state.projects.push(project);
+                state.active_index = state.projects.len() - 1;
                 state.config.add_recent_file(path);
                 state.push_toast("Scoreboard loaded".to_string(), false);
             }

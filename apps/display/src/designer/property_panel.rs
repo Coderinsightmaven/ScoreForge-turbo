@@ -17,38 +17,42 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
     ui.heading("Properties");
     ui.separator();
 
-    if state.selected_ids.len() != 1 {
-        if state.selected_ids.is_empty() {
+    let project = state.active_project();
+
+    if project.selected_ids.len() != 1 {
+        if project.selected_ids.is_empty() {
             ui.label("No component selected");
         } else {
-            ui.label(format!("{} components selected", state.selected_ids.len()));
+            ui.label(format!("{} components selected", project.selected_ids.len()));
         }
 
         // Show component list
         ui.separator();
         ui.heading("All Components");
         let mut click_id = None;
-        for comp in &state.components {
+        let project = state.active_project();
+        for comp in &project.components {
             let label = format!(
                 "{} ({})",
                 comp.component_type.label(),
                 &comp.id.to_string()[..8]
             );
             if ui
-                .selectable_label(state.selected_ids.contains(&comp.id), &label)
+                .selectable_label(project.selected_ids.contains(&comp.id), &label)
                 .clicked()
             {
                 click_id = Some(comp.id);
             }
         }
         if let Some(id) = click_id {
-            state.selected_ids.clear();
-            state.selected_ids.insert(id);
+            let project = state.active_project_mut();
+            project.selected_ids.clear();
+            project.selected_ids.insert(id);
         }
         return;
     }
 
-    let selected_id = *state.selected_ids.iter().next().unwrap();
+    let selected_id = *project.selected_ids.iter().next().unwrap();
 
     // --- Phase A: Snapshot asset list before component borrow ---
     let asset_list: Vec<AssetEntry> = state.asset_library.list_assets().into_iter().cloned().collect();
@@ -56,7 +60,8 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
     // --- Phase B: Mutable component borrow for editing, collect AssetAction ---
     let mut action = AssetAction::None;
 
-    let Some(comp) = state.components.iter_mut().find(|c| c.id == selected_id) else {
+    let project = state.active_project_mut();
+    let Some(comp) = project.components.iter_mut().find(|c| c.id == selected_id) else {
         ui.label("Component not found");
         return;
     };
@@ -248,14 +253,15 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
                 match state.asset_library.import_image(&path) {
                     Ok(new_id) => {
                         // Set the asset_id on the selected component
-                        if let Some(comp) = state.components.iter_mut().find(|c| c.id == selected_id) {
+                        let project = state.active_project_mut();
+                        if let Some(comp) = project.components.iter_mut().find(|c| c.id == selected_id) {
                             match &mut comp.data {
                                 ComponentData::Image { asset_id } => *asset_id = Some(new_id),
                                 ComponentData::Background { asset_id, .. } => *asset_id = Some(new_id),
                                 _ => {}
                             }
                         }
-                        state.is_dirty = true;
+                        project.is_dirty = true;
                         state.push_toast("Image imported".to_string(), false);
                     }
                     Err(e) => {
@@ -265,28 +271,30 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
             }
         }
         AssetAction::Select(new_id) => {
-            if let Some(comp) = state.components.iter_mut().find(|c| c.id == selected_id) {
+            let project = state.active_project_mut();
+            if let Some(comp) = project.components.iter_mut().find(|c| c.id == selected_id) {
                 match &mut comp.data {
                     ComponentData::Image { asset_id } => *asset_id = Some(new_id),
                     ComponentData::Background { asset_id, .. } => *asset_id = Some(new_id),
                     _ => {}
                 }
             }
-            state.is_dirty = true;
+            project.is_dirty = true;
         }
         AssetAction::Clear => {
-            if let Some(comp) = state.components.iter_mut().find(|c| c.id == selected_id) {
+            let project = state.active_project_mut();
+            if let Some(comp) = project.components.iter_mut().find(|c| c.id == selected_id) {
                 match &mut comp.data {
                     ComponentData::Image { asset_id } => *asset_id = None,
                     ComponentData::Background { asset_id, .. } => *asset_id = None,
                     _ => {}
                 }
             }
-            state.is_dirty = true;
+            project.is_dirty = true;
         }
         AssetAction::Delete(id) => {
             state.delete_asset(&id);
-            state.is_dirty = true;
+            state.active_project_mut().is_dirty = true;
             state.push_toast("Asset deleted".to_string(), false);
         }
     }

@@ -43,10 +43,12 @@ pub struct Toast {
     pub created_at: std::time::Instant,
 }
 
-pub struct AppState {
+/// Per-tab project state. Each open scoreboard gets its own ProjectState.
+pub struct ProjectState {
     // Scoreboard
     pub scoreboard: Scoreboard,
     pub components: Vec<ScoreboardComponent>,
+    pub component_bindings: HashMap<Uuid, String>,
 
     // Canvas interaction
     pub selected_ids: HashSet<Uuid>,
@@ -54,34 +56,118 @@ pub struct AppState {
     pub canvas_zoom: f32,
     pub canvas_pan: Vec2,
 
-    // Grid
-    pub grid_enabled: bool,
-    pub grid_size: f32,
-    pub snap_to_grid: bool,
-
-    // Clipboard
-    pub clipboard: Vec<ScoreboardComponent>,
-
     // Undo
     pub undo_stack: Vec<Vec<ScoreboardComponent>>,
 
-    // Assets
-    pub asset_library: AssetLibrary,
-    pub texture_cache: TextureCache,
-
-    // Live data
-    pub convex_manager: Option<ConvexManager>,
-    pub connection_step: ConnectionStep,
-    pub tournament_list: Vec<TournamentInfo>,
-    pub match_list: Vec<MatchInfo>,
+    // Live data (per-project selections)
     pub selected_tournament_id: Option<String>,
     pub selected_match_id: Option<String>,
     pub live_match_data: Option<TennisLiveData>,
-    pub component_bindings: HashMap<Uuid, String>,
 
     // Persistence
     pub current_file: Option<PathBuf>,
     pub is_dirty: bool,
+}
+
+impl ProjectState {
+    pub fn new(name: String, width: u32, height: u32) -> Self {
+        Self {
+            scoreboard: Scoreboard {
+                name,
+                width,
+                height,
+                background_color: Color32::BLACK,
+            },
+            components: Vec::new(),
+            component_bindings: HashMap::new(),
+            selected_ids: HashSet::new(),
+            drag_state: None,
+            canvas_zoom: 0.5,
+            canvas_pan: Vec2::new(50.0, 50.0),
+            undo_stack: Vec::new(),
+            selected_tournament_id: None,
+            selected_match_id: None,
+            live_match_data: None,
+            current_file: None,
+            is_dirty: false,
+        }
+    }
+
+    pub fn from_file(file: ScoreboardFile) -> Self {
+        Self {
+            scoreboard: Scoreboard {
+                name: file.name,
+                width: file.dimensions.0,
+                height: file.dimensions.1,
+                background_color: file.background_color,
+            },
+            components: file.components,
+            component_bindings: file.bindings,
+            selected_ids: HashSet::new(),
+            drag_state: None,
+            canvas_zoom: 0.5,
+            canvas_pan: Vec2::new(50.0, 50.0),
+            undo_stack: Vec::new(),
+            selected_tournament_id: None,
+            selected_match_id: None,
+            live_match_data: None,
+            current_file: None,
+            is_dirty: false,
+        }
+    }
+
+    pub fn push_undo(&mut self) {
+        self.undo_stack.push(self.components.clone());
+        if self.undo_stack.len() > 50 {
+            self.undo_stack.remove(0);
+        }
+    }
+
+    pub fn undo(&mut self) {
+        if let Some(prev) = self.undo_stack.pop() {
+            self.components = prev;
+            self.selected_ids.clear();
+            self.is_dirty = true;
+        }
+    }
+
+    pub fn to_scoreboard_file(&self) -> ScoreboardFile {
+        ScoreboardFile {
+            version: 1,
+            name: self.scoreboard.name.clone(),
+            dimensions: (self.scoreboard.width, self.scoreboard.height),
+            background_color: self.scoreboard.background_color,
+            components: self.components.clone(),
+            bindings: self.component_bindings.clone(),
+        }
+    }
+
+}
+
+pub struct AppState {
+    // Open projects (tabs)
+    pub projects: Vec<ProjectState>,
+    pub active_index: usize,
+
+    // Grid (global settings)
+    pub grid_enabled: bool,
+    pub grid_size: f32,
+    pub snap_to_grid: bool,
+
+    // Clipboard (global, copy between tabs)
+    pub clipboard: Vec<ScoreboardComponent>,
+
+    // Assets (global)
+    pub asset_library: AssetLibrary,
+    pub texture_cache: TextureCache,
+
+    // Live data connection (global)
+    pub convex_manager: Option<ConvexManager>,
+    pub connection_step: ConnectionStep,
+    pub tournament_list: Vec<TournamentInfo>,
+    pub match_list: Vec<MatchInfo>,
+
+    // Persistence
     pub config: AppConfig,
 
     // UI dialogs
@@ -113,29 +199,18 @@ impl AppState {
         let connect_url = config.last_convex_url.clone().unwrap_or_default();
 
         Self {
-            scoreboard: Scoreboard::default(),
-            components: Vec::new(),
-            selected_ids: HashSet::new(),
-            drag_state: None,
-            canvas_zoom: 0.5,
-            canvas_pan: Vec2::new(50.0, 50.0),
+            projects: Vec::new(),
+            active_index: 0,
             grid_enabled: config.grid_enabled,
             grid_size: config.grid_size,
             snap_to_grid: config.snap_to_grid,
             clipboard: Vec::new(),
-            undo_stack: Vec::new(),
             asset_library: AssetLibrary::new(),
             texture_cache: TextureCache::new(),
             convex_manager: None,
             connection_step: ConnectionStep::Disconnected,
             tournament_list: Vec::new(),
             match_list: Vec::new(),
-            selected_tournament_id: None,
-            selected_match_id: None,
-            live_match_data: None,
-            component_bindings: HashMap::new(),
-            current_file: None,
-            is_dirty: false,
             config,
             show_connect_dialog: false,
             show_new_dialog: false,
@@ -152,6 +227,19 @@ impl AppState {
         }
     }
 
+    /// Whether any project is open (replaces old `project_open` field).
+    pub fn has_projects(&self) -> bool {
+        !self.projects.is_empty()
+    }
+
+    pub fn active_project(&self) -> &ProjectState {
+        &self.projects[self.active_index]
+    }
+
+    pub fn active_project_mut(&mut self) -> &mut ProjectState {
+        &mut self.projects[self.active_index]
+    }
+
     pub fn push_toast(&mut self, message: String, is_error: bool) {
         self.toasts.push(Toast {
             message,
@@ -160,59 +248,25 @@ impl AppState {
         });
     }
 
-    pub fn push_undo(&mut self) {
-        self.undo_stack.push(self.components.clone());
-        if self.undo_stack.len() > 50 {
-            self.undo_stack.remove(0);
-        }
-    }
-
-    pub fn undo(&mut self) {
-        if let Some(prev) = self.undo_stack.pop() {
-            self.components = prev;
-            self.selected_ids.clear();
-            self.is_dirty = true;
-        }
-    }
-
-    pub fn to_scoreboard_file(&self) -> ScoreboardFile {
-        ScoreboardFile {
-            version: 1,
-            name: self.scoreboard.name.clone(),
-            dimensions: (self.scoreboard.width, self.scoreboard.height),
-            background_color: self.scoreboard.background_color,
-            components: self.components.clone(),
-            bindings: self.component_bindings.clone(),
-        }
-    }
-
-    pub fn load_from_file(&mut self, file: ScoreboardFile) {
-        self.scoreboard.name = file.name;
-        self.scoreboard.width = file.dimensions.0;
-        self.scoreboard.height = file.dimensions.1;
-        self.scoreboard.background_color = file.background_color;
-        self.components = file.components;
-        self.component_bindings = file.bindings;
-        self.selected_ids.clear();
-        self.undo_stack.clear();
-        self.is_dirty = false;
-    }
-
     pub fn delete_asset(&mut self, id: &Uuid) {
         // Remove from asset library (deletes file + index entry)
         self.asset_library.delete_asset(id).ok();
         // Remove from texture cache
         self.texture_cache.remove(id);
-        // Clear references in all components
-        for comp in &mut self.components {
-            match &mut comp.data {
-                ComponentData::Image { asset_id } if asset_id.as_ref() == Some(id) => {
-                    *asset_id = None;
+        // Clear references in all open projects
+        for project in &mut self.projects {
+            for comp in &mut project.components {
+                match &mut comp.data {
+                    ComponentData::Image { asset_id } if asset_id.as_ref() == Some(id) => {
+                        *asset_id = None;
+                    }
+                    ComponentData::Background { asset_id, .. }
+                        if asset_id.as_ref() == Some(id) =>
+                    {
+                        *asset_id = None;
+                    }
+                    _ => {}
                 }
-                ComponentData::Background { asset_id, .. } if asset_id.as_ref() == Some(id) => {
-                    *asset_id = None;
-                }
-                _ => {}
             }
         }
     }
@@ -243,7 +297,9 @@ impl AppState {
                     self.connection_step = ConnectionStep::SelectMatch;
                 }
                 LiveDataMessage::MatchDataUpdated(data) => {
-                    self.live_match_data = Some(data);
+                    if !self.projects.is_empty() {
+                        self.projects[self.active_index].live_match_data = Some(data);
+                    }
                     self.connection_step = ConnectionStep::Live;
                 }
                 LiveDataMessage::Error(err) => {
@@ -251,7 +307,9 @@ impl AppState {
                 }
                 LiveDataMessage::Disconnected => {
                     self.connection_step = ConnectionStep::Disconnected;
-                    self.live_match_data = None;
+                    if !self.projects.is_empty() {
+                        self.projects[self.active_index].live_match_data = None;
+                    }
                 }
             }
         }
