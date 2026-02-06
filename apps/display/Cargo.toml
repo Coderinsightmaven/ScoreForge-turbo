@@ -21,3 +21,9 @@ maplit = "1.0.2"
 futures = "0.3.31"
 display-info = "0.5.7"
 zip = "7.4.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+wgpu = { version = "27.0.1", default-features = false, features = ["metal"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+wgpu = { version = "27.0.1", default-features = false, features = ["dx12"] }

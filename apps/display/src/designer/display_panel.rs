@@ -37,7 +37,7 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
                 ui.label("Connecting...");
             });
         }
-        ConnectionStep::SelectTournament | ConnectionStep::SelectMatch => {
+        ConnectionStep::SelectTournament | ConnectionStep::SelectBracket | ConnectionStep::SelectMatch => {
             ui.horizontal(|ui| {
                 ui.colored_label(egui::Color32::YELLOW, "\u{25cf}");
                 ui.label("Selecting...");
