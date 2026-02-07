@@ -1,5 +1,5 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 function StatCard({
   className,
@@ -8,15 +8,15 @@ function StatCard({
   icon,
   ...props
 }: React.ComponentProps<"div"> & {
-  value: string | number
-  label: string
-  icon?: React.ReactNode
+  value: string | number;
+  label: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <div
       data-slot="stat-card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-2 rounded-lg border p-6",
+        "surface-panel bg-card text-card-foreground flex flex-col gap-2 rounded-2xl border p-6",
         className
       )}
       {...props}
@@ -29,7 +29,7 @@ function StatCard({
         {value}
       </span>
     </div>
-  )
+  );
 }
 
-export { StatCard }
+export { StatCard };

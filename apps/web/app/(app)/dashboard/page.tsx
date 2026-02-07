@@ -5,10 +5,12 @@ import { api } from "@repo/convex";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/app/components/Skeleton";
-import { Plus, Trophy } from "lucide-react";
+import { Activity, ArrowUpRight, Plus, Trophy, Users, Zap } from "lucide-react";
 import { FORMAT_LABELS, type TournamentFormat } from "@/app/lib/constants";
 
 type Filter = "all" | "active" | "draft" | "completed";
@@ -29,110 +31,147 @@ export default function DashboardPage(): React.ReactNode {
     { value: "completed", label: "Completed" },
   ];
 
-  const filteredTournaments = tournaments?.filter((t) => {
+  const filteredTournaments = tournaments?.filter((tournament) => {
     if (filter === "all") return true;
-    return t.status === filter;
+    return tournament.status === filter;
   });
 
-  // Loading state
   if (user === undefined || tournaments === undefined) {
     return <DashboardSkeleton />;
   }
 
-  const liveMatchCount = tournaments.reduce((acc, t) => acc + t.liveMatchCount, 0);
+  const liveMatchCount = tournaments.reduce(
+    (acc, tournament) => acc + tournament.liveMatchCount,
+    0
+  );
+  const activeTournaments = tournaments.filter(
+    (tournament) => tournament.status === "active"
+  ).length;
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-title text-foreground mb-2 font-[family-name:var(--font-display)]">
-            Welcome back, {firstName}
-          </h1>
-          <p className="text-body text-muted-foreground">
-            {tournaments.length === 0
-              ? "Create your first tournament to get started"
-              : `You have ${tournaments.length} tournament${tournaments.length === 1 ? "" : "s"}`}
-          </p>
-        </div>
-
-        {/* Live matches alert */}
-        {liveMatchCount > 0 && (
-          <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-4">
-            <div className="live-dot" />
-            <div>
-              <p className="font-medium text-foreground">
-                {liveMatchCount} match{liveMatchCount === 1 ? "" : "es"} in progress
-              </p>
-              <p className="text-small text-muted-foreground">
-                Tap a tournament to see live scores
-              </p>
-            </div>
+    <div className="container space-y-7 py-2">
+      <section className="surface-panel section-shell rounded-3xl border px-6 py-7 sm:px-8 sm:py-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-caption text-muted-foreground">Dashboard</p>
+            <h1 className="text-hero">Welcome back, {firstName}</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {tournaments.length === 0
+                ? "Create your first tournament to start scoring matches in real time."
+                : `You have ${tournaments.length} tournament${tournaments.length === 1 ? "" : "s"} in your workspace.`}
+            </p>
           </div>
-        )}
 
-        {/* Actions bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          {/* Filters */}
-          {tournaments.length > 0 && (
-            <div className="flex gap-4" role="tablist">
-              {filters.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value)}
-                  role="tab"
-                  aria-selected={filter === f.value}
-                  className={`pb-1 text-sm transition-colors ${
-                    filter === f.value
-                      ? "border-b-2 border-brand text-brand font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Create button */}
           {canCreate ? (
-            <Button variant="brand" asChild>
+            <Button variant="brand" size="lg" asChild>
               <Link href="/tournaments/new">
-                <Plus className="w-5 h-5" />
+                <Plus className="h-4 w-4" />
                 New Tournament
               </Link>
             </Button>
           ) : (
-            <div className="text-small text-muted-foreground">
+            <div className="rounded-xl border border-border bg-secondary/75 px-4 py-3 text-sm text-muted-foreground">
               Tournament limit reached ({createStatus?.maxAllowed})
             </div>
           )}
         </div>
+      </section>
 
-        {/* Tournament list */}
-        {tournaments.length === 0 ? (
-          <EmptyState canCreate={canCreate} />
-        ) : filteredTournaments?.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground">No {filter} tournaments</p>
-            <button onClick={() => setFilter("all")} className="mt-2 text-brand hover:underline">
-              Show all tournaments
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredTournaments?.map((tournament, index) => (
-              <div
-                key={tournament._id}
-                className="animate-staggerIn"
-                style={{ animationDelay: `${index * 60}ms` }}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          value={tournaments.length}
+          label="Total tournaments"
+          icon={<Trophy className="h-4 w-4" />}
+        />
+        <StatCard
+          value={activeTournaments}
+          label="Active tournaments"
+          icon={<Users className="h-4 w-4" />}
+        />
+        <StatCard value={liveMatchCount} label="Live matches" icon={<Zap className="h-4 w-4" />} />
+        <StatCard
+          value={tournaments.filter((tournament) => tournament.status === "draft").length}
+          label="Draft tournaments"
+          icon={<Activity className="h-4 w-4" />}
+        />
+      </section>
+
+      <section className="surface-panel rounded-2xl border p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter tournaments">
+            {filters.map((activeFilter) => (
+              <button
+                key={activeFilter.value}
+                onClick={() => setFilter(activeFilter.value)}
+                role="tab"
+                aria-selected={filter === activeFilter.value}
+                className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                  filter === activeFilter.value
+                    ? "border-brand/45 bg-brand-light text-brand-text"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <TournamentCard tournament={tournament} />
-              </div>
+                {activeFilter.label}
+              </button>
             ))}
           </div>
-        )}
-      </div>
+
+          {liveMatchCount > 0 && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-error/30 bg-error-light px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] text-error">
+              <span className="live-dot" />
+              {liveMatchCount} live match{liveMatchCount === 1 ? "" : "es"}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {tournaments.length === 0 ? (
+        <Card className="rounded-2xl border">
+          <CardContent>
+            <EmptyState
+              icon={<Trophy className="h-10 w-10" />}
+              title="No tournaments yet"
+              description="Create your first tournament to start managing competitions and score live matches."
+              action={
+                canCreate ? (
+                  <Button variant="brand" asChild>
+                    <Link href="/tournaments/new">
+                      <Plus className="h-4 w-4" />
+                      Create Tournament
+                    </Link>
+                  </Button>
+                ) : undefined
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : filteredTournaments?.length === 0 ? (
+        <Card className="rounded-2xl border">
+          <CardContent>
+            <EmptyState
+              title={`No ${filter} tournaments`}
+              description="Adjust your filter to see all tournaments in your workspace."
+              action={
+                <Button variant="outline" onClick={() => setFilter("all")}>
+                  Show all tournaments
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredTournaments?.map((tournament, index) => (
+            <div
+              key={tournament._id}
+              className="animate-staggerIn"
+              style={{ animationDelay: `${index * 55}ms` }}
+            >
+              <TournamentCard tournament={tournament} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -170,103 +209,78 @@ function TournamentCard({
   return (
     <Link href={`/tournaments/${tournament._id}`} className="block">
       <Card
-        className={`h-full transition-all hover:border-border hover:shadow-md ${hasLive ? "ring-2 ring-red-500/30" : ""}`}
+        className={`h-full rounded-2xl border transition-transform duration-200 hover:-translate-y-1 ${hasLive ? "ring-1 ring-error/40" : ""}`}
       >
-        <CardContent className="pt-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-3">
+        <CardHeader className="pb-1">
+          <div className="flex items-start justify-between gap-3">
             <Badge variant={statusVariants[tournament.status] || "muted"}>
               {hasLive && <span className="live-dot" />}
               {tournament.status}
             </Badge>
-            <span className="text-small text-muted-foreground">
-              {tournament.isOwner ? "Owner" : "Scorer"}
-            </span>
+            <Badge variant="outline">{tournament.isOwner ? "Owner" : "Scorer"}</Badge>
           </div>
+          <CardTitle className="text-heading truncate">{tournament.name}</CardTitle>
+        </CardHeader>
 
-          {/* Title */}
-          <h3 className="text-heading text-foreground mb-2 truncate font-[family-name:var(--font-display)]">
-            {tournament.name}
-          </h3>
-
-          {/* Details */}
-          <div className="space-y-1 text-small text-muted-foreground">
+        <CardContent className="space-y-3">
+          <div className="space-y-1 text-sm text-muted-foreground">
             <p>{sportLabels[tournament.sport] || tournament.sport}</p>
             <p>{formatLabels[tournament.format as TournamentFormat] || tournament.format}</p>
             <p>
-              {tournament.participantCount} of {tournament.maxParticipants} players
+              {tournament.participantCount} of {tournament.maxParticipants} participants
             </p>
           </div>
 
-          {/* Live indicator */}
-          {hasLive && (
-            <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-small text-red-600 dark:text-red-400 font-medium">
-                {tournament.liveMatchCount} live match{tournament.liveMatchCount === 1 ? "" : "es"}
-              </p>
-            </div>
-          )}
+          <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
+            <span className="text-muted-foreground">
+              {tournament.liveMatchCount} live match{tournament.liveMatchCount === 1 ? "" : "es"}
+            </span>
+            <span className="inline-flex items-center gap-1 font-semibold text-brand">
+              Open
+              <ArrowUpRight className="h-4 w-4" />
+            </span>
+          </div>
         </CardContent>
       </Card>
     </Link>
   );
 }
 
-function EmptyState({ canCreate }: { canCreate: boolean }) {
-  return (
-    <div className="text-center py-16 px-4">
-      <div className="w-16 h-16 mx-auto mb-6 bg-secondary rounded-2xl flex items-center justify-center">
-        <Trophy className="w-8 h-8 text-muted-foreground" />
-      </div>
-      <h2 className="text-heading text-foreground mb-2 font-[family-name:var(--font-display)]">
-        No tournaments yet
-      </h2>
-      <p className="text-body text-muted-foreground mb-6 max-w-sm mx-auto">
-        Create your first tournament to start managing competitions
-      </p>
-      {canCreate && (
-        <Button variant="brand" asChild>
-          <Link href="/tournaments/new">
-            <Plus className="w-5 h-5" />
-            Create Tournament
-          </Link>
-        </Button>
-      )}
-    </div>
-  );
-}
-
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container">
-        <div className="mb-8">
-          <Skeleton className="h-8 w-64 mb-2" />
-          <Skeleton className="h-5 w-48" />
-        </div>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-10 w-20" />
-            ))}
-          </div>
-          <Skeleton className="h-12 w-40" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardContent className="pt-6">
-                <Skeleton className="h-6 w-20 mb-3" />
-                <Skeleton className="h-6 w-48 mb-2" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+    <div className="container space-y-7 py-2">
+      <div className="surface-panel rounded-3xl border p-8">
+        <Skeleton className="mb-3 h-4 w-28" />
+        <Skeleton className="mb-2 h-12 w-96 max-w-full" />
+        <Skeleton className="h-5 w-72 max-w-full" />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[1, 2, 3, 4].map((index) => (
+          <Card key={index} className="rounded-2xl border">
+            <CardContent className="space-y-2 p-5">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-8 w-20" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="rounded-2xl border p-5">
+        <Skeleton className="h-10 w-full" />
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {[1, 2, 3].map((index) => (
+          <Card key={index} className="rounded-2xl border">
+            <CardContent className="space-y-3 p-6">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-36" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

@@ -7,24 +7,13 @@ import Image from "next/image";
 import { Navigation } from "../components/Navigation";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.ReactNode {
+export default function AppLayout({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <div className="min-h-screen bg-bg-page">
+    <div className="min-h-screen">
       <Navigation />
 
       <AuthLoading>
-        <div className="flex items-center justify-center min-h-screen bg-bg-page">
-          <div className="flex flex-col items-center gap-4 animate-editorialReveal">
-            <Image src="/logo.png" alt="ScoreForge" width={64} height={64} className="w-16 h-16 object-contain animate-pulse" />
-            <div className="text-xl font-semibold tracking-tight text-text-primary font-[family-name:var(--font-display)]">
-              ScoreForge
-            </div>
-          </div>
-        </div>
+        <LoadingScreen />
       </AuthLoading>
 
       <Unauthenticated>
@@ -32,17 +21,37 @@ export default function AppLayout({
       </Unauthenticated>
 
       <Authenticated>
-        <main className="pt-[var(--nav-height)] min-h-screen">
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
+        <main className="min-h-screen pb-10 pt-[calc(var(--nav-height)+2.1rem)]">
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </Authenticated>
     </div>
   );
 }
 
-function RedirectToSignIn() {
+function LoadingScreen(): React.JSX.Element {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md">
+      <div className="surface-panel section-shell flex flex-col items-center gap-4 rounded-2xl px-8 py-9">
+        <Image
+          src="/logo.png"
+          alt="ScoreForge"
+          width={64}
+          height={64}
+          className="h-14 w-14 object-contain"
+        />
+        <div className="space-y-1 text-center">
+          <p className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-foreground">
+            Loading workspace
+          </p>
+          <p className="text-sm text-muted-foreground">Syncing tournaments and permissions</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RedirectToSignIn(): React.ReactNode {
   const router = useRouter();
 
   useEffect(() => {
@@ -50,8 +59,14 @@ function RedirectToSignIn() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-bg-page">
-      <Image src="/logo.png" alt="ScoreForge" width={64} height={64} className="w-16 h-16 object-contain animate-pulse" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md">
+      <Image
+        src="/logo.png"
+        alt="ScoreForge"
+        width={64}
+        height={64}
+        className="h-14 w-14 object-contain"
+      />
     </div>
   );
 }

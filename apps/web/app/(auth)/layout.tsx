@@ -5,17 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.ReactNode {
+export default function AuthLayout({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <div className="min-h-screen bg-bg-page">
+    <div className="auth-ambient min-h-screen bg-background">
       <AuthLoading>
-        <div className="fixed inset-0 flex items-center justify-center bg-bg-page z-50">
-          <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center">
-            <svg className="w-5 h-5 text-brand animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-brand/25 bg-brand text-text-inverse shadow-[var(--shadow-glow)]">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M13 3L4 14h7v7l9-11h-7V3z" />
             </svg>
           </div>
@@ -27,15 +23,13 @@ export default function AuthLayout({
       </Authenticated>
 
       <div className="relative z-10">
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <ErrorBoundary>{children}</ErrorBoundary>
       </div>
     </div>
   );
 }
 
-function RedirectToDashboard() {
+function RedirectToDashboard(): React.ReactNode {
   const router = useRouter();
 
   useEffect(() => {
@@ -43,9 +37,9 @@ function RedirectToDashboard() {
   }, [router]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-bg-page z-50">
-      <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center">
-        <svg className="w-5 h-5 text-brand animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-brand/25 bg-brand text-text-inverse shadow-[var(--shadow-glow)]">
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M13 3L4 14h7v7l9-11h-7V3z" />
         </svg>
       </div>

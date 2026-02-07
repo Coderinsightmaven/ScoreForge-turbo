@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Loader2, Shield, Zap } from "lucide-react";
 
 export default function SignInPage(): React.ReactNode {
   const { signIn } = useAuthActions();
@@ -26,19 +26,25 @@ export default function SignInPage(): React.ReactNode {
       await signIn("password", formData);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      if (message.includes("InvalidSecret") ||
-          message.toLowerCase().includes("invalid") ||
-          message.toLowerCase().includes("incorrect") ||
-          message.toLowerCase().includes("credentials") ||
-          message.toLowerCase().includes("password")) {
+      if (
+        message.includes("InvalidSecret") ||
+        message.toLowerCase().includes("invalid") ||
+        message.toLowerCase().includes("incorrect") ||
+        message.toLowerCase().includes("credentials") ||
+        message.toLowerCase().includes("password")
+      ) {
         setError("Invalid email or password. Please try again.");
-      } else if (message.includes("InvalidAccountId") ||
-                 message.toLowerCase().includes("not found") ||
-                 message.toLowerCase().includes("no user") ||
-                 message.toLowerCase().includes("does not exist")) {
+      } else if (
+        message.includes("InvalidAccountId") ||
+        message.toLowerCase().includes("not found") ||
+        message.toLowerCase().includes("no user") ||
+        message.toLowerCase().includes("does not exist")
+      ) {
         setError("No account found with this email address.");
-      } else if (message.toLowerCase().includes("too many") ||
-                 message.toLowerCase().includes("rate limit")) {
+      } else if (
+        message.toLowerCase().includes("too many") ||
+        message.toLowerCase().includes("rate limit")
+      ) {
         setError("Too many attempts. Please wait a moment and try again.");
       } else {
         setError("Unable to sign in. Please check your credentials and try again.");
@@ -49,69 +55,64 @@ export default function SignInPage(): React.ReactNode {
   };
 
   return (
-    <div className="w-full min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative bg-[#141414]">
-        <div className="flex flex-col justify-between p-12 xl:p-16 w-full">
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="auth-ambient hidden lg:block">
+        <div className="flex h-full flex-col justify-between px-10 py-12 xl:px-16 xl:py-16">
           <Link href="/" className="inline-flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 3L4 14h7v7l9-11h-7V3z" />
-              </svg>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand/30 bg-brand text-text-inverse shadow-[var(--shadow-glow)]">
+              <Zap className="h-5 w-5" />
             </div>
-            <span className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">ScoreForge</span>
+            <div>
+              <p className="font-[family-name:var(--font-display)] text-xl font-semibold">
+                ScoreForge
+              </p>
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Tournament OS
+              </p>
+            </div>
           </Link>
 
-          <div className="max-w-lg">
-            <h2 className="text-title text-white mb-6">
-              Score with precision
-            </h2>
-            <p className="text-body-lg text-white/60 leading-relaxed">
-              Real-time scoring, live brackets, and seamless tournament management for tennis.
+          <div className="max-w-xl space-y-6">
+            <h1 className="text-display">Keep match operations perfectly in sync.</h1>
+            <p className="text-body-lg text-muted-foreground">
+              Continue with your dashboard to score live matches, update courts, and manage brackets
+              without losing momentum.
             </p>
-
-            <div className="mt-12 space-y-5">
-              {[
-                { icon: "🎾", text: "Live match scoring with undo" },
-                { icon: "📊", text: "Real-time bracket updates" },
-                { icon: "👥", text: "Multi-user scoring support" },
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-4 text-white/70">
-                  <span className="text-2xl">{feature.icon}</span>
-                  <span className="font-medium">{feature.text}</span>
-                </div>
-              ))}
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-brand" />
+                Role-based access for owners, admins, and scorers
+              </div>
+              <div className="flex items-center gap-2">
+                <ArrowRight className="h-4 w-4 text-brand" />
+                Real-time match and bracket updates
+              </div>
             </div>
           </div>
 
-          <p className="text-small text-white/40">
-            Trusted by tournament organizers worldwide
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+            Trusted by competitive tournament teams
           </p>
         </div>
       </div>
 
-      {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center p-6 sm:p-12 bg-background">
-        <div className="w-full max-w-md animate-slideUp">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-10">
-            <Link href="/" className="inline-flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M13 3L4 14h7v7l9-11h-7V3z" />
-                </svg>
+      <div className="flex items-center justify-center px-6 py-10 sm:px-10">
+        <div className="surface-panel w-full max-w-md rounded-2xl border p-6 sm:p-8">
+          <div className="mb-8 space-y-3">
+            <Link href="/" className="inline-flex items-center gap-2 lg:hidden">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-text-inverse">
+                <Zap className="h-4 w-4" />
               </div>
-              <span className="text-xl font-semibold text-foreground font-[family-name:var(--font-display)]">ScoreForge</span>
+              <span className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                ScoreForge
+              </span>
             </Link>
-          </div>
-
-          <div className="mb-10">
-            <h1 className="text-title text-foreground mb-3">
-              Welcome back
-            </h1>
-            <p className="text-body text-muted-foreground">
-              Sign in to your account to continue
-            </p>
+            <div>
+              <h2 className="text-title">Welcome back</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sign in to continue managing your tournaments.
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -146,25 +147,15 @@ export default function SignInPage(): React.ReactNode {
               </Alert>
             )}
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-              variant="brand"
-              size="lg"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                "Sign in"
-              )}
+            <Button type="submit" disabled={loading} className="w-full" variant="brand" size="lg">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign in"}
             </Button>
           </form>
 
-          <div className="mt-10 pt-8 border-t border-border">
-            <p className="text-center text-muted-foreground">
+          <div className="mt-8 border-t border-border pt-6 text-center">
+            <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link href="/sign-up" className="font-semibold text-brand hover:text-brand-hover transition-colors">
+              <Link href="/sign-up" className="font-semibold text-brand hover:text-brand-hover">
                 Create one
               </Link>
             </p>

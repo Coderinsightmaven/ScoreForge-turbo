@@ -9,14 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, Ban } from "lucide-react";
+import { AlertCircle, Ban, Loader2, ShieldCheck, Sparkles, Zap } from "lucide-react";
 
 export default function SignUpPage(): React.ReactNode {
   const { signIn } = useAuthActions();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Check if registration is allowed
   const registrationStatus = useQuery(api.siteAdmin.getRegistrationStatus);
   const isRegistrationAllowed = registrationStatus?.allowPublicRegistration ?? true;
 
@@ -59,19 +58,27 @@ export default function SignUpPage(): React.ReactNode {
       await signIn("password", formData);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      if (message.toLowerCase().includes("already") ||
-          message.toLowerCase().includes("exists") ||
-          message.toLowerCase().includes("duplicate") ||
-          message.toLowerCase().includes("in use")) {
+      if (
+        message.toLowerCase().includes("already") ||
+        message.toLowerCase().includes("exists") ||
+        message.toLowerCase().includes("duplicate") ||
+        message.toLowerCase().includes("in use")
+      ) {
         setError("An account with this email already exists. Try signing in instead.");
-      } else if (message.toLowerCase().includes("invalid email") ||
-                 message.toLowerCase().includes("email format")) {
+      } else if (
+        message.toLowerCase().includes("invalid email") ||
+        message.toLowerCase().includes("email format")
+      ) {
         setError("Please enter a valid email address.");
-      } else if (message.toLowerCase().includes("password") &&
-                 message.toLowerCase().includes("weak")) {
+      } else if (
+        message.toLowerCase().includes("password") &&
+        message.toLowerCase().includes("weak")
+      ) {
         setError("Password is too weak. Please use a stronger password.");
-      } else if (message.toLowerCase().includes("too many") ||
-                 message.toLowerCase().includes("rate limit")) {
+      } else if (
+        message.toLowerCase().includes("too many") ||
+        message.toLowerCase().includes("rate limit")
+      ) {
         setError("Too many attempts. Please wait a moment and try again.");
       } else {
         setError("Unable to create account. Please try again.");
@@ -82,90 +89,81 @@ export default function SignUpPage(): React.ReactNode {
   };
 
   return (
-    <div className="w-full min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative bg-[#141414]">
-        <div className="flex flex-col justify-between p-12 xl:p-16 w-full">
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="auth-ambient hidden lg:block">
+        <div className="flex h-full flex-col justify-between px-10 py-12 xl:px-16 xl:py-16">
           <Link href="/" className="inline-flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 3L4 14h7v7l9-11h-7V3z" />
-              </svg>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand/30 bg-brand text-text-inverse shadow-[var(--shadow-glow)]">
+              <Zap className="h-5 w-5" />
             </div>
-            <span className="text-xl font-semibold text-white font-[family-name:var(--font-display)]">ScoreForge</span>
+            <div>
+              <p className="font-[family-name:var(--font-display)] text-xl font-semibold">
+                ScoreForge
+              </p>
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Tournament OS
+              </p>
+            </div>
           </Link>
 
-          <div className="max-w-lg">
-            <h2 className="text-title text-white mb-6">
-              Start managing tournaments today
-            </h2>
-            <p className="text-body-lg text-white/60 leading-relaxed">
-              Join tournament organizers who trust ScoreForge for professional competition management.
+          <div className="max-w-xl space-y-6">
+            <h1 className="text-display">Launch your tournament workspace in minutes.</h1>
+            <p className="text-body-lg text-muted-foreground">
+              Set up brackets, assign scorers, and run live matches with a unified control plane
+              built for event-day speed.
             </p>
-
-            <div className="mt-12 space-y-5">
-              {[
-                { icon: "✨", text: "Free to get started" },
-                { icon: "⚡", text: "Set up in minutes" },
-                { icon: "🏆", text: "Professional results" },
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-4 text-white/70">
-                  <span className="text-2xl">{feature.icon}</span>
-                  <span className="font-medium">{feature.text}</span>
-                </div>
-              ))}
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-brand" />
+                Guided setup for first tournament creation
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-brand" />
+                Secure role and access management from day one
+              </div>
             </div>
           </div>
 
-          <p className="text-small text-white/40">
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
             No credit card required
           </p>
         </div>
       </div>
 
-      {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center p-6 sm:p-12 bg-background">
-        <div className="w-full max-w-md animate-slideUp">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-10">
-            <Link href="/" className="inline-flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M13 3L4 14h7v7l9-11h-7V3z" />
-                </svg>
+      <div className="flex items-center justify-center px-6 py-10 sm:px-10">
+        <div className="surface-panel w-full max-w-md rounded-2xl border p-6 sm:p-8">
+          <div className="mb-8 space-y-3">
+            <Link href="/" className="inline-flex items-center gap-2 lg:hidden">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-text-inverse">
+                <Zap className="h-4 w-4" />
               </div>
-              <span className="text-xl font-semibold text-foreground font-[family-name:var(--font-display)]">ScoreForge</span>
+              <span className="font-[family-name:var(--font-display)] text-lg font-semibold">
+                ScoreForge
+              </span>
             </Link>
+            <div>
+              <h2 className="text-title">Create your account</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Join ScoreForge and start running events.
+              </p>
+            </div>
           </div>
 
           {!isRegistrationAllowed ? (
-            // Registration disabled message
-            <div className="text-center">
-              <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Ban className="w-8 h-8 text-muted-foreground" />
+            <div className="rounded-xl border border-border bg-secondary/70 p-6 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-background">
+                <Ban className="h-6 w-6 text-muted-foreground" />
               </div>
-              <h1 className="text-title text-foreground mb-3">
-                Registration Closed
-              </h1>
-              <p className="text-body text-muted-foreground mb-8">
-                New account registration is currently disabled. Please contact an administrator if you need access.
+              <h3 className="text-lg font-semibold text-foreground">Registration closed</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                New account registration is currently disabled. Contact an administrator for access.
               </p>
-              <Button variant="brand" size="lg" asChild>
+              <Button variant="brand" size="lg" asChild className="mt-6 w-full">
                 <Link href="/sign-in">Sign in to existing account</Link>
               </Button>
             </div>
           ) : (
-            // Registration form
             <>
-              <div className="mb-10">
-                <h1 className="text-title text-foreground mb-3">
-                  Create your account
-                </h1>
-                <p className="text-body text-muted-foreground">
-                  Get started with ScoreForge today
-                </p>
-              </div>
-
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -244,18 +242,14 @@ export default function SignUpPage(): React.ReactNode {
                   variant="brand"
                   size="lg"
                 >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    "Create Account"
-                  )}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Account"}
                 </Button>
               </form>
 
-              <div className="mt-10 pt-8 border-t border-border">
-                <p className="text-center text-muted-foreground">
+              <div className="mt-8 border-t border-border pt-6 text-center">
+                <p className="text-sm text-muted-foreground">
                   Already have an account?{" "}
-                  <Link href="/sign-in" className="font-semibold text-brand hover:text-brand-hover transition-colors">
+                  <Link href="/sign-in" className="font-semibold text-brand hover:text-brand-hover">
                     Sign in
                   </Link>
                 </p>
