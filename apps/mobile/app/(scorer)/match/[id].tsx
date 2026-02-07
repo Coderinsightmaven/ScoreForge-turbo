@@ -48,7 +48,7 @@ export default function ScorerMatchDetailScreen() {
 
   if (match === undefined) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator size="large" color="#D4A017" />
       </View>
     );
@@ -56,9 +56,11 @@ export default function ScorerMatchDetailScreen() {
 
   if (match === null) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50">
+      <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="font-display-semibold text-lg text-slate-900">Match not found</Text>
+          <Text className="font-display-semibold text-lg text-slate-900 dark:text-slate-100">
+            Match not found
+          </Text>
           <TouchableOpacity className="mt-4" onPress={() => router.back()}>
             <Text className="text-brand">Go back</Text>
           </TouchableOpacity>
@@ -98,17 +100,19 @@ export default function ScorerMatchDetailScreen() {
   const status = statusStyles[match.status as keyof typeof statusStyles] || statusStyles.pending;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
       {/* Header */}
-      <View className="flex-row items-center bg-white px-5 py-3 shadow-sm shadow-slate-900/5">
+      <View className="flex-row items-center bg-white px-5 py-3 shadow-sm shadow-slate-900/5 dark:bg-slate-900">
         <TouchableOpacity
           onPress={() => router.back()}
-          className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+          className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
           <Text className="text-xl text-text-primary">←</Text>
         </TouchableOpacity>
         <View className="flex-1">
-          <Text className="font-display-semibold text-lg text-slate-900">Match Details</Text>
-          <Text className="text-sm text-text-tertiary">
+          <Text className="font-display-semibold text-lg text-slate-900 dark:text-slate-100">
+            Match Details
+          </Text>
+          <Text className="text-sm text-text-tertiary dark:text-slate-400">
             Round {match.round} • Match {match.matchNumber}
           </Text>
         </View>
@@ -119,9 +123,9 @@ export default function ScorerMatchDetailScreen() {
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         {/* Score Card */}
-        <View className="mb-4 rounded-2xl bg-white p-8 shadow-2xl shadow-slate-900/10">
+        <View className="mb-4 rounded-2xl bg-white p-8 shadow-2xl shadow-slate-900/10 dark:bg-slate-900">
           <View className="mb-4 items-center">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+            <Text className="text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
               Current Score
             </Text>
           </View>
@@ -132,13 +136,15 @@ export default function ScorerMatchDetailScreen() {
               <Text
                 className={`text-xl ${
                   match.winnerId === match.participant1?._id
-                    ? "font-bold text-slate-900"
-                    : "text-text-secondary"
+                    ? "font-bold text-slate-900 dark:text-slate-100"
+                    : "text-text-secondary dark:text-slate-300"
                 }`}>
                 {match.participant1?.displayName || "TBD"}
               </Text>
               {match.participant1?.seed && (
-                <Text className="text-sm text-text-tertiary">Seed #{match.participant1.seed}</Text>
+                <Text className="text-sm text-text-tertiary dark:text-slate-400">
+                  Seed #{match.participant1.seed}
+                </Text>
               )}
             </View>
             <Text
@@ -149,7 +155,7 @@ export default function ScorerMatchDetailScreen() {
             </Text>
           </View>
 
-          <View className="my-3 h-0.5 bg-slate-100" />
+          <View className="my-3 h-0.5 bg-slate-100 dark:bg-slate-800" />
 
           {/* Participant 2 */}
           <View className="mt-4 flex-row items-center justify-between">
@@ -157,13 +163,15 @@ export default function ScorerMatchDetailScreen() {
               <Text
                 className={`text-xl ${
                   match.winnerId === match.participant2?._id
-                    ? "font-bold text-slate-900"
-                    : "text-text-secondary"
+                    ? "font-bold text-slate-900 dark:text-slate-100"
+                    : "text-text-secondary dark:text-slate-300"
                 }`}>
                 {match.participant2?.displayName || "TBD"}
               </Text>
               {match.participant2?.seed && (
-                <Text className="text-sm text-text-tertiary">Seed #{match.participant2.seed}</Text>
+                <Text className="text-sm text-text-tertiary dark:text-slate-400">
+                  Seed #{match.participant2.seed}
+                </Text>
               )}
             </View>
             <Text
@@ -176,8 +184,8 @@ export default function ScorerMatchDetailScreen() {
 
           {/* Detailed Score */}
           {match.tennisState && (
-            <View className="mt-4 rounded-xl bg-slate-50 p-3">
-              <Text className="text-center text-sm font-medium text-text-secondary">
+            <View className="mt-4 rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
+              <Text className="text-center text-sm font-medium text-text-secondary dark:text-slate-300">
                 {getScoreDisplay()}
               </Text>
             </View>
@@ -185,41 +193,47 @@ export default function ScorerMatchDetailScreen() {
         </View>
 
         {/* Match Info */}
-        <View className="mb-4 rounded-2xl bg-white p-6 shadow-lg shadow-slate-900/5">
-          <Text className="mb-3 font-display-semibold text-sm uppercase text-text-tertiary">
+        <View className="mb-4 rounded-2xl bg-white p-6 shadow-lg shadow-slate-900/5 dark:bg-slate-900">
+          <Text className="mb-3 font-display-semibold text-sm uppercase text-text-tertiary dark:text-slate-400">
             Match Info
           </Text>
 
           {match.court && (
             <View className="mb-2 flex-row justify-between">
-              <Text className="text-text-secondary">Court</Text>
-              <Text className="font-medium text-slate-900">{match.court}</Text>
+              <Text className="text-text-secondary dark:text-slate-300">Court</Text>
+              <Text className="font-medium text-slate-900 dark:text-slate-100">{match.court}</Text>
             </View>
           )}
 
           {match.scheduledTime && (
             <View className="mb-2 flex-row justify-between">
-              <Text className="text-text-secondary">Scheduled</Text>
-              <Text className="font-medium text-slate-900">{formatTime(match.scheduledTime)}</Text>
+              <Text className="text-text-secondary dark:text-slate-300">Scheduled</Text>
+              <Text className="font-medium text-slate-900 dark:text-slate-100">
+                {formatTime(match.scheduledTime)}
+              </Text>
             </View>
           )}
 
           {match.startedAt && (
             <View className="mb-2 flex-row justify-between">
-              <Text className="text-text-secondary">Started</Text>
-              <Text className="font-medium text-slate-900">{formatTime(match.startedAt)}</Text>
+              <Text className="text-text-secondary dark:text-slate-300">Started</Text>
+              <Text className="font-medium text-slate-900 dark:text-slate-100">
+                {formatTime(match.startedAt)}
+              </Text>
             </View>
           )}
 
           {match.completedAt && (
             <View className="flex-row justify-between">
-              <Text className="text-text-secondary">Completed</Text>
-              <Text className="font-medium text-slate-900">{formatTime(match.completedAt)}</Text>
+              <Text className="text-text-secondary dark:text-slate-300">Completed</Text>
+              <Text className="font-medium text-slate-900 dark:text-slate-100">
+                {formatTime(match.completedAt)}
+              </Text>
             </View>
           )}
 
           <View className="mt-2 flex-row justify-between">
-            <Text className="text-text-secondary">Your Role</Text>
+            <Text className="text-text-secondary dark:text-slate-300">Your Role</Text>
             <Text className="font-medium capitalize text-brand">{match.myRole}</Text>
           </View>
         </View>
@@ -245,8 +259,8 @@ export default function ScorerMatchDetailScreen() {
         )}
 
         {match.tournamentStatus !== "active" && (
-          <View className="rounded-2xl bg-slate-100 py-5">
-            <Text className="text-center text-sm text-text-tertiary">
+          <View className="rounded-2xl bg-slate-100 py-5 dark:bg-slate-800">
+            <Text className="text-center text-sm text-text-tertiary dark:text-slate-400">
               Tournament is not active. Scoring is disabled.
             </Text>
           </View>

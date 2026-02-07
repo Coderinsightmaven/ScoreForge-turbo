@@ -45,57 +45,62 @@ export function TournamentCard({ tournament, onPress }: Props) {
 
   return (
     <TouchableOpacity
-      className="mb-3 rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-900/5"
+      className="mb-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900"
       onPress={onPress}
       activeOpacity={0.7}>
-      <View className="mb-3 flex-row items-start justify-between">
-        <View className="flex-1">
-          <View className="mb-2">
+      <View className="gap-4">
+        <View className="gap-3">
+          <View className="flex-row items-start justify-between gap-3">
             <Text
-              className="font-display-semibold text-xl tracking-tight text-slate-900"
-              numberOfLines={1}>
+              className="flex-1 font-display-semibold text-xl leading-6 tracking-tight text-slate-900 dark:text-slate-100"
+              numberOfLines={2}>
               {tournament.name}
             </Text>
-            <View className="mt-2 self-start rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
-              <Text className="text-xs font-semibold tracking-wide text-slate-700">
+            <View className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-950">
+              <Text className="text-xs font-semibold tracking-wide text-slate-700 dark:text-slate-300">
                 {sportLabel}
               </Text>
             </View>
           </View>
+
           {tournament.description && (
-            <Text className="text-sm text-text-secondary" numberOfLines={2}>
+            <Text
+              className="text-sm leading-5 text-text-secondary dark:text-slate-300"
+              numberOfLines={3}>
               {tournament.description}
             </Text>
           )}
         </View>
-      </View>
 
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center space-x-2">
-          <View className={`rounded-lg border px-3 py-1.5 ${status.bg} ${status.border}`}>
-            <Text className={`text-xs font-medium capitalize ${status.text}`}>
-              {tournament.status}
-            </Text>
-          </View>
-          {tournament.isOwner && (
-            <View className="rounded-lg border border-brand/30 bg-brand-light px-3 py-1.5">
-              <Text className="text-xs font-medium text-brand-text">Owner</Text>
-            </View>
-          )}
-        </View>
-
-        <View className="flex-row items-center space-x-3">
-          <View className="items-end">
-            <Text className="text-xs uppercase tracking-wide text-text-tertiary">Participants</Text>
-            <Text className="text-sm text-text-secondary">{tournament.participantCount}</Text>
-          </View>
-          {tournament.liveMatchCount > 0 && (
-            <View className="rounded-lg bg-status-live-border px-2.5 py-1 shadow-lg shadow-red-500/30">
-              <Text className="text-xs font-medium text-white">
-                {tournament.liveMatchCount} Live
+        <View className="border-t border-slate-100 pt-4 dark:border-slate-800">
+          <View className="flex-row flex-wrap items-center gap-2">
+            <View className={`rounded-full border px-3 py-1.5 ${status.bg} ${status.border}`}>
+              <Text className={`text-xs font-medium capitalize ${status.text}`}>
+                {tournament.status}
               </Text>
             </View>
-          )}
+            {tournament.isOwner && (
+              <View className="rounded-full border border-brand/30 bg-brand-light px-3 py-1.5">
+                <Text className="text-xs font-medium text-brand-text">Owner</Text>
+              </View>
+            )}
+            {tournament.liveMatchCount > 0 && (
+              <View className="rounded-full bg-status-live-border px-3 py-1.5 shadow-lg shadow-red-500/30">
+                <Text className="text-xs font-medium text-white">
+                  {tournament.liveMatchCount} Live
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View className="mt-3 flex-row items-end justify-between">
+            <Text className="text-xs uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+              Participants
+            </Text>
+            <Text className="font-display-semibold text-base text-slate-900 dark:text-slate-100">
+              {tournament.participantCount}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>

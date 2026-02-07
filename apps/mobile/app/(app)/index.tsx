@@ -27,30 +27,32 @@ export default function TournamentsScreen() {
 
   if (tournaments === undefined || user === undefined) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator size="large" color="#D4A017" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <SafeAreaView className="flex-1" edges={["top"]}>
-        <View className="border-b border-slate-100 bg-white px-5 py-5">
+        <View className="border-b border-slate-100 bg-white px-5 py-5 dark:border-slate-800 dark:bg-slate-900">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-4">
-              <Text className="font-display-bold text-2xl tracking-tight text-slate-900">
+              <Text className="font-display-bold text-2xl tracking-tight text-slate-900 dark:text-slate-100">
                 {user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Tournament Dashboard"}
               </Text>
-              <Text className="mt-1 font-sans text-sm text-text-tertiary">
+              <Text className="mt-1 font-sans text-sm text-text-tertiary dark:text-slate-400">
                 Manage tournaments and continue scoring.
               </Text>
             </View>
             <TouchableOpacity
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
               onPress={() => router.push("/(app)/profile")}
               activeOpacity={0.7}>
-              <Text className="font-sans-medium text-sm text-slate-900">Profile</Text>
+              <Text className="font-sans-medium text-sm text-slate-900 dark:text-slate-100">
+                Profile
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -58,19 +60,19 @@ export default function TournamentsScreen() {
         <View className="flex-1">
           {tournaments.length === 0 ? (
             <View className="flex-1 justify-center px-6">
-              <Text className="mb-2 text-center font-display-semibold text-2xl text-slate-900">
+              <Text className="mb-2 text-center font-display-semibold text-2xl text-slate-900 dark:text-slate-100">
                 No Tournaments
               </Text>
-              <Text className="text-center text-text-tertiary">
+              <Text className="text-center text-text-tertiary dark:text-slate-400">
                 {
                   "You don't have access to any tournaments yet. Ask a tournament organizer to add you as a scorer."
                 }
               </Text>
               <TouchableOpacity
-                className="mt-6 items-center rounded-xl border border-slate-200 bg-white py-3"
+                className="mt-6 items-center rounded-xl border border-slate-200 bg-white py-3 dark:border-slate-700 dark:bg-slate-900"
                 onPress={() => router.push("/(app)/profile")}
                 activeOpacity={0.7}>
-                <Text className="font-sans-medium text-sm text-slate-800">
+                <Text className="font-sans-medium text-sm text-slate-800 dark:text-slate-100">
                   Open Profile and Account Details
                 </Text>
               </TouchableOpacity>
@@ -84,25 +86,27 @@ export default function TournamentsScreen() {
               maxToRenderPerBatch={10}
               windowSize={5}
               ListHeaderComponent={
-                <View className="mb-2 rounded-2xl border border-slate-200 bg-white p-5">
-                  <Text className="font-display-semibold text-base text-slate-900">Overview</Text>
+                <View className="mb-2 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                  <Text className="font-display-semibold text-base text-slate-900 dark:text-slate-100">
+                    Overview
+                  </Text>
                   <View className="mt-3 flex-row justify-between">
                     <View>
-                      <Text className="font-display-bold text-2xl text-slate-900">
+                      <Text className="font-display-bold text-2xl text-slate-900 dark:text-slate-100">
                         {tournaments.length}
                       </Text>
-                      <Text className="text-xs uppercase tracking-wide text-text-tertiary">
+                      <Text className="text-xs uppercase tracking-wide text-text-tertiary dark:text-slate-400">
                         Tournaments
                       </Text>
                     </View>
                     <View className="items-end">
-                      <Text className="font-display-bold text-2xl text-slate-900">
+                      <Text className="font-display-bold text-2xl text-slate-900 dark:text-slate-100">
                         {tournaments.reduce(
                           (count, tournament) => count + tournament.liveMatchCount,
                           0
                         )}
                       </Text>
-                      <Text className="text-xs uppercase tracking-wide text-text-tertiary">
+                      <Text className="text-xs uppercase tracking-wide text-text-tertiary dark:text-slate-400">
                         Live Matches
                       </Text>
                     </View>

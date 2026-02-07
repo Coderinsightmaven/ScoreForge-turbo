@@ -36,7 +36,7 @@ export default function TournamentDetailScreen() {
 
   if (tournament === undefined || matches === undefined) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator size="large" color="#D4A017" />
       </View>
     );
@@ -44,8 +44,10 @@ export default function TournamentDetailScreen() {
 
   if (tournament === null) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
-        <Text className="text-lg font-semibold text-slate-900">Tournament not found</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
+        <Text className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Tournament not found
+        </Text>
         <TouchableOpacity className="mt-4" onPress={() => router.back()}>
           <Text className="text-brand">Go back</Text>
         </TouchableOpacity>
@@ -54,22 +56,22 @@ export default function TournamentDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       {/* Header */}
-      <View className="bg-white px-5 pb-4 pt-14 shadow-sm shadow-slate-900/5">
+      <View className="bg-white px-5 pb-4 pt-14 shadow-sm shadow-slate-900/5 dark:bg-slate-900">
         <View className="mb-3 flex-row items-center">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+            className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
             <Text className="text-xl text-text-primary">←</Text>
           </TouchableOpacity>
           <View className="flex-1">
             <Text
-              className="font-display-bold text-xl tracking-tight text-slate-900"
+              className="font-display-bold text-xl tracking-tight text-slate-900 dark:text-slate-100"
               numberOfLines={1}>
               {tournament.name}
             </Text>
-            <Text className="text-sm capitalize text-text-tertiary">
+            <Text className="text-sm capitalize text-text-tertiary dark:text-slate-400">
               {tournament.sport} • {tournament.format.replace("_", " ")}
             </Text>
           </View>
@@ -82,8 +84,10 @@ export default function TournamentDetailScreen() {
       {/* Matches List */}
       {matches.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-lg font-semibold text-slate-900">No matches found</Text>
-          <Text className="mt-1 text-center text-text-tertiary">
+          <Text className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            No matches found
+          </Text>
+          <Text className="mt-1 text-center text-text-tertiary dark:text-slate-400">
             {statusFilter === "all"
               ? "This tournament has no matches yet."
               : `No ${statusFilter} matches.`}

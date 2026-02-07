@@ -5,6 +5,7 @@ import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useState, useEffect, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useFonts } from "expo-font";
+import { useColorScheme } from "nativewind";
 
 import { ConvexProvider } from "../providers/ConvexProvider";
 import {
@@ -12,20 +13,28 @@ import {
   TempScorerSession,
   TempScorerContextType,
 } from "../contexts/TempScorerContext";
+import {
+  ThemePreferenceContext,
+  ThemePreference,
+  ThemePreferenceContextType,
+} from "../contexts/ThemePreferenceContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 
 import "../global.css";
 
 const TEMP_SCORER_SESSION_KEY = "tempScorerSession";
+const THEME_PREFERENCE_KEY = "themePreference";
 
 function LoadingScreen() {
   return (
-    <View className="flex-1 items-center justify-center bg-slate-50">
+    <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
       <View className="mb-6 h-20 w-20 items-center justify-center rounded-2xl bg-brand shadow-lg shadow-brand/20">
         <Text className="font-display-bold text-4xl text-white">S</Text>
       </View>
       <ActivityIndicator size="large" color="#D4A017" />
-      <Text className="mt-4 font-sans-medium text-sm text-text-tertiary">Loading ScoreForge</Text>
+      <Text className="mt-4 font-sans-medium text-sm text-text-tertiary dark:text-slate-400">
+        Loading ScoreForge
+      </Text>
     </View>
   );
 }
@@ -73,7 +82,10 @@ function AuthRedirectHandler({
 }
 
 function RootNavigation() {
+  const { colorScheme, setColorScheme } = useColorScheme();
+  const stackBackground = colorScheme === "dark" ? "#0D172A" : "#F4F7FF";
   const [tempScorerSession, setTempScorerSession] = useState<TempScorerSession | null>(null);
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>("system");
   const [isLoadingSession, setIsLoadingSession] = useState(true);
   const segments = useSegments();
   const router = useRouter();
@@ -83,6 +95,8 @@ function RootNavigation() {
     async function loadSession() {
       try {
         const sessionJson = await SecureStore.getItemAsync(TEMP_SCORER_SESSION_KEY);
+        const storedTheme = await SecureStore.getItemAsync(THEME_PREFERENCE_KEY);
+
         if (sessionJson) {
           const session = JSON.parse(sessionJson) as TempScorerSession;
           if (session.expiresAt > Date.now()) {
@@ -91,6 +105,14 @@ function RootNavigation() {
             await SecureStore.deleteItemAsync(TEMP_SCORER_SESSION_KEY);
           }
         }
+
+        if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+          setThemePreferenceState(storedTheme);
+          setColorScheme(storedTheme);
+        } else {
+          setThemePreferenceState("system");
+          setColorScheme("system");
+        }
       } catch (e) {
         console.error("Failed to load temp scorer session:", e);
       } finally {
@@ -98,7 +120,7 @@ function RootNavigation() {
       }
     }
     loadSession();
-  }, []);
+  }, [setColorScheme]);
 
   // Redirect to scorer flow when session is active
   useEffect(() => {
@@ -125,10 +147,23 @@ function RootNavigation() {
     setTempScorerSession(null);
   }, []);
 
+  const handleSetThemePreference = useCallback(
+    async (preference: ThemePreference) => {
+      setThemePreferenceState(preference);
+      setColorScheme(preference);
+      await SecureStore.setItemAsync(THEME_PREFERENCE_KEY, preference);
+    },
+    [setColorScheme]
+  );
+
   const contextValue: TempScorerContextType = {
     session: tempScorerSession,
     setSession: handleSetSession,
     signOut: handleSignOut,
+  };
+  const themeContextValue: ThemePreferenceContextType = {
+    themePreference,
+    setThemePreference: handleSetThemePreference,
   };
 
   if (isLoadingSession) {
@@ -136,15 +171,21 @@ function RootNavigation() {
   }
 
   return (
-    <TempScorerContext value={contextValue}>
-      {!tempScorerSession && <AuthRedirect />}
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(app)" />
-        <Stack.Screen name="(scorer)" />
-      </Stack>
-      <StatusBar style="light" />
-    </TempScorerContext>
+    <ThemePreferenceContext value={themeContextValue}>
+      <TempScorerContext value={contextValue}>
+        {!tempScorerSession && <AuthRedirect />}
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: stackBackground },
+          }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(app)" />
+          <Stack.Screen name="(scorer)" />
+        </Stack>
+        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+      </TempScorerContext>
+    </ThemePreferenceContext>
   );
 }
 
@@ -162,7 +203,7 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator size="large" color="#D4A017" />
       </View>
     );

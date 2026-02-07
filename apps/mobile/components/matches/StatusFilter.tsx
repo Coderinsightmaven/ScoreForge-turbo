@@ -27,12 +27,12 @@ export function StatusFilter({ value, onChange }: Props) {
           className={`mr-2 rounded-lg border-2 px-5 py-2.5 ${
             value === item.value
               ? "border-brand bg-brand shadow-lg shadow-brand/20"
-              : "border-slate-200 bg-white"
+              : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
           }`}
           onPress={() => onChange(item.value)}>
           <Text
             className={`text-sm font-medium ${
-              value === item.value ? "text-white" : "text-text-secondary"
+              value === item.value ? "text-white" : "text-text-secondary dark:text-slate-300"
             }`}>
             {item.label}
           </Text>

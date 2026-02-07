@@ -95,17 +95,17 @@ export default function ScorerHomeScreen() {
 
   if (!session) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
-        <Text className="text-text-tertiary">Session not found</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Text className="text-text-tertiary dark:text-slate-400">Session not found</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-white dark:bg-slate-900">
       <SafeAreaView className="flex-1" edges={["top"]}>
         {/* Header */}
-        <View className="bg-white px-5 py-4 shadow-sm shadow-slate-900/5">
+        <View className="bg-white px-5 py-4 shadow-sm shadow-slate-900/5 dark:bg-slate-900">
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
               <View className="mb-1 flex-row items-center">
@@ -113,22 +113,26 @@ export default function ScorerHomeScreen() {
                   <Text className="text-xs font-bold text-brand">TEMP SCORER</Text>
                 </View>
               </View>
-              <Text className="font-display-bold text-lg text-slate-900">
+              <Text className="font-display-bold text-lg text-slate-900 dark:text-slate-100">
                 {session.displayName}
               </Text>
-              <Text className="text-sm text-text-tertiary">{session.tournamentName}</Text>
+              <Text className="text-sm text-text-tertiary dark:text-slate-400">
+                {session.tournamentName}
+              </Text>
             </View>
             <TouchableOpacity
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"
               onPress={handleSignOut}
               activeOpacity={0.7}>
-              <Text className="text-sm font-medium text-slate-900">End Session</Text>
+              <Text className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                End Session
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Status Filter */}
-        <View className="border-b border-slate-100 bg-white px-5 py-2">
+        <View className="border-b border-slate-100 bg-white px-5 py-2 dark:border-slate-800 dark:bg-slate-900">
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
         </View>
 
@@ -162,7 +166,7 @@ export default function ScorerHomeScreen() {
             ItemSeparatorComponent={() => <View className="h-3" />}
             ListEmptyComponent={
               <View className="flex-1 items-center justify-center py-16">
-                <Text className="text-center text-text-tertiary">
+                <Text className="text-center text-text-tertiary dark:text-slate-400">
                   No matches found for this filter
                 </Text>
               </View>
@@ -173,15 +177,15 @@ export default function ScorerHomeScreen() {
                 matchStatusStyles[item.status as MatchStatus] || matchStatusStyles.pending;
               return (
                 <TouchableOpacity
-                  className={`rounded-2xl bg-white p-5 shadow-lg shadow-slate-900/5 ${
+                  className={`rounded-2xl bg-white p-5 shadow-lg shadow-slate-900/5 dark:bg-slate-900 ${
                     item.status === "live"
                       ? "border-2 border-status-live-border"
-                      : "border border-slate-100"
+                      : "border border-slate-100 dark:border-slate-800"
                   }`}
                   onPress={() => router.push(`/(scorer)/match/${item._id}`)}
                   activeOpacity={0.7}>
                   <View className="mb-2 flex-row items-center justify-between">
-                    <Text className="text-xs font-medium text-text-tertiary">
+                    <Text className="text-xs font-medium text-text-tertiary dark:text-slate-400">
                       R{item.round} - Match {item.matchNumber}
                     </Text>
                     <View
@@ -196,7 +200,9 @@ export default function ScorerHomeScreen() {
                     <View className="flex-1">
                       <Text
                         className={`text-base font-semibold ${
-                          item.winnerId === item.participant1?._id ? "text-brand" : "text-slate-900"
+                          item.winnerId === item.participant1?._id
+                            ? "text-brand"
+                            : "text-slate-900 dark:text-slate-100"
                         }`}
                         numberOfLines={1}>
                         {item.participant1?.displayName || "TBD"}
@@ -206,7 +212,9 @@ export default function ScorerHomeScreen() {
                     <View className="flex-1 items-end">
                       <Text
                         className={`text-base font-semibold ${
-                          item.winnerId === item.participant2?._id ? "text-brand" : "text-slate-900"
+                          item.winnerId === item.participant2?._id
+                            ? "text-brand"
+                            : "text-slate-900 dark:text-slate-100"
                         }`}
                         numberOfLines={1}>
                         {item.participant2?.displayName || "TBD"}
@@ -216,7 +224,9 @@ export default function ScorerHomeScreen() {
 
                   {item.court && (
                     <View className="mt-2 flex-row items-center">
-                      <Text className="text-xs text-text-tertiary">Court: {item.court}</Text>
+                      <Text className="text-xs text-text-tertiary dark:text-slate-400">
+                        Court: {item.court}
+                      </Text>
                     </View>
                   )}
 

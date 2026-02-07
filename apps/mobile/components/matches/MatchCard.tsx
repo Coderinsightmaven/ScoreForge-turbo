@@ -81,13 +81,13 @@ export function MatchCard({ match, onPress }: Props) {
 
   return (
     <TouchableOpacity
-      className="mb-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-lg shadow-slate-900/5"
+      className="mb-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900"
       onPress={onPress}
       activeOpacity={0.7}
       disabled={match.status === "bye"}>
       {/* Match Header */}
       <View className="mb-3 flex-row items-center justify-between">
-        <Text className="text-xs font-medium text-text-tertiary">
+        <Text className="text-xs font-medium text-text-tertiary dark:text-slate-400">
           Round {match.round} • Match {match.matchNumber}
           {match.court ? ` • ${match.court}` : ""}
         </Text>
@@ -102,8 +102,8 @@ export function MatchCard({ match, onPress }: Props) {
           <Text
             className={`flex-1 text-base ${
               match.winnerId === match.participant1?._id
-                ? "font-bold text-slate-900"
-                : "text-text-secondary"
+                ? "font-bold text-slate-900 dark:text-slate-100"
+                : "text-text-secondary dark:text-slate-300"
             }`}
             numberOfLines={1}>
             {match.participant1?.displayName || "TBD"}
@@ -112,20 +112,20 @@ export function MatchCard({ match, onPress }: Props) {
             <Text
               className={`ml-2 text-lg ${
                 match.winnerId === match.participant1?._id
-                  ? "font-bold text-slate-900"
-                  : "text-text-secondary"
+                  ? "font-bold text-slate-900 dark:text-slate-100"
+                  : "text-text-secondary dark:text-slate-300"
               }`}>
               {match.participant1Score}
             </Text>
           )}
         </View>
-        <View className="my-1 h-px bg-slate-100" />
+        <View className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
         <View className="flex-row items-center justify-between py-1">
           <Text
             className={`flex-1 text-base ${
               match.winnerId === match.participant2?._id
-                ? "font-bold text-slate-900"
-                : "text-text-secondary"
+                ? "font-bold text-slate-900 dark:text-slate-100"
+                : "text-text-secondary dark:text-slate-300"
             }`}
             numberOfLines={1}>
             {match.participant2?.displayName || "TBD"}
@@ -134,8 +134,8 @@ export function MatchCard({ match, onPress }: Props) {
             <Text
               className={`ml-2 text-lg ${
                 match.winnerId === match.participant2?._id
-                  ? "font-bold text-slate-900"
-                  : "text-text-secondary"
+                  ? "font-bold text-slate-900 dark:text-slate-100"
+                  : "text-text-secondary dark:text-slate-300"
               }`}>
               {match.participant2Score}
             </Text>
@@ -145,7 +145,9 @@ export function MatchCard({ match, onPress }: Props) {
 
       {/* Scheduled Time */}
       {match.scheduledTime && (
-        <Text className="mt-2 text-xs text-text-tertiary">{formatTime(match.scheduledTime)}</Text>
+        <Text className="mt-2 text-xs text-text-tertiary dark:text-slate-400">
+          {formatTime(match.scheduledTime)}
+        </Text>
       )}
 
       {/* Live indicator */}
