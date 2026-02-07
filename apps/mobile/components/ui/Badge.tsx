@@ -10,9 +10,9 @@ interface BadgeProps extends ViewProps {
 
 const variantStyles: Record<BadgeVariant, { bg: string; text: string; border: string }> = {
   default: {
-    bg: "bg-surface-secondary",
-    text: "text-text-primary",
-    border: "border-slate-200",
+    bg: "bg-surface-secondary dark:bg-[#2A2A2A]",
+    text: "text-text-primary dark:text-[#F5F5F3]",
+    border: "border-slate-200 dark:border-[#2A2A2A]",
   },
   success: {
     bg: "bg-status-active-bg",
@@ -40,9 +40,9 @@ const variantStyles: Record<BadgeVariant, { bg: string; text: string; border: st
     border: "border-brand/30",
   },
   muted: {
-    bg: "bg-surface-tertiary",
-    text: "text-text-tertiary",
-    border: "border-slate-200",
+    bg: "bg-surface-tertiary dark:bg-[#2A2A2A]",
+    text: "text-text-tertiary dark:text-[#9ca3af]",
+    border: "border-slate-200 dark:border-[#2A2A2A]",
   },
 };
 

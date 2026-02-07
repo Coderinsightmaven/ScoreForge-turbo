@@ -24,15 +24,15 @@ export function StatusFilter({ value, onChange }: Props) {
       keyExtractor={(item) => item.value}
       renderItem={({ item }) => (
         <TouchableOpacity
-          className={`mr-2 rounded-lg border-2 px-5 py-2.5 ${
+          className={`mr-2 rounded-md border px-4 py-2 ${
             value === item.value
-              ? "border-brand bg-brand shadow-lg shadow-brand/20"
-              : "border-slate-200 bg-white"
+              ? "border-brand bg-brand"
+              : "border-slate-200 bg-white dark:border-[#2A2A2A] dark:bg-[#1E1E1E]"
           }`}
           onPress={() => onChange(item.value)}>
           <Text
-            className={`text-sm font-medium ${
-              value === item.value ? "text-white" : "text-text-secondary"
+            className={`font-sans-medium text-xs uppercase tracking-wide ${
+              value === item.value ? "text-white" : "text-text-secondary dark:text-[#d1d5db]"
             }`}>
             {item.label}
           </Text>

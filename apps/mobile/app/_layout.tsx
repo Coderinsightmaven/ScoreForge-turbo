@@ -13,6 +13,7 @@ import {
   TempScorerContextType,
 } from "../contexts/TempScorerContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { useThemePreference } from "../hooks/useThemePreference";
 
 import "../global.css";
 
@@ -20,12 +21,14 @@ const TEMP_SCORER_SESSION_KEY = "tempScorerSession";
 
 function LoadingScreen() {
   return (
-    <View className="flex-1 items-center justify-center bg-slate-50">
+    <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-[#141414]">
       <View className="mb-6 h-20 w-20 items-center justify-center rounded-2xl bg-brand shadow-lg shadow-brand/20">
         <Text className="font-display-bold text-4xl text-white">S</Text>
       </View>
       <ActivityIndicator size="large" color="#D4A017" />
-      <Text className="mt-4 font-sans-medium text-sm text-text-tertiary">Loading ScoreForge</Text>
+      <Text className="mt-4 font-sans-medium text-sm text-text-tertiary dark:text-[#9ca3af]">
+        Loading ScoreForge
+      </Text>
     </View>
   );
 }
@@ -64,7 +67,7 @@ function AuthRedirectHandler({
       if (target === "(auth)") {
         router.replace("/(auth)/sign-in");
       } else {
-        router.replace("/(app)/(tabs)");
+        router.replace("/(app)");
       }
     }
   }, [target, segments, router]);
@@ -77,6 +80,7 @@ function RootNavigation() {
   const [isLoadingSession, setIsLoadingSession] = useState(true);
   const segments = useSegments();
   const router = useRouter();
+  const { colorScheme } = useThemePreference(!tempScorerSession);
 
   // Load temp scorer session from SecureStore on mount
   useEffect(() => {
@@ -143,7 +147,7 @@ function RootNavigation() {
         <Stack.Screen name="(app)" />
         <Stack.Screen name="(scorer)" />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </TempScorerContext>
   );
 }
@@ -162,7 +166,7 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-[#141414]">
         <ActivityIndicator size="large" color="#D4A017" />
       </View>
     );

@@ -22,18 +22,18 @@ const variantStyles: Record<ButtonVariant, { container: string; text: string; pr
     pressed: "opacity-90",
   },
   secondary: {
-    container: "bg-surface-secondary rounded-xl",
-    text: "font-sans-semibold text-text-primary text-center",
+    container: "bg-surface-secondary dark:bg-[#2A2A2A] rounded-xl",
+    text: "font-sans-semibold text-text-primary dark:text-[#F5F5F3] text-center",
     pressed: "bg-surface-tertiary",
   },
   outline: {
-    container: "border-2 border-slate-200 rounded-xl bg-transparent",
-    text: "font-sans-semibold text-text-primary text-center",
+    container: "border-2 border-slate-200 dark:border-[#2A2A2A] rounded-xl bg-transparent",
+    text: "font-sans-semibold text-text-primary dark:text-[#F5F5F3] text-center",
     pressed: "bg-surface-secondary",
   },
   ghost: {
     container: "bg-transparent rounded-xl",
-    text: "font-sans-semibold text-text-secondary text-center",
+    text: "font-sans-semibold text-text-secondary dark:text-[#d1d5db] text-center",
     pressed: "bg-surface-secondary",
   },
 };

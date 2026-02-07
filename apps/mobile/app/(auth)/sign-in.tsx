@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { useColorScheme } from "nativewind";
 import { getDisplayMessage } from "../../utils/errors";
 import { useTempScorer } from "../../contexts/TempScorerContext";
 import {
@@ -24,6 +25,8 @@ export default function SignInScreen() {
   const { signIn } = useAuthActions();
   const { setSession } = useTempScorer();
   const router = useRouter();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const [loginType, setLoginType] = useState<LoginType>("regular");
 
   // Regular login state
@@ -44,6 +47,8 @@ export default function SignInScreen() {
     api.temporaryScorers.getTournamentByCode,
     tournamentCode.length === 6 ? { code: tournamentCode } : "skip"
   );
+
+  const placeholderColor = isDark ? "#6b7280" : "#94A3B8";
 
   const handleRegularSubmit = async () => {
     if (!email || !password) {
@@ -136,7 +141,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50 dark:bg-[#141414]">
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -149,244 +154,222 @@ export default function SignInScreen() {
               <View className="mb-4 h-24 w-24 items-center justify-center rounded-3xl bg-brand shadow-2xl shadow-brand/30">
                 <Text className="font-display-bold text-4xl text-white">S</Text>
               </View>
-              <Text className="mb-1 font-display-semibold text-2xl text-text-primary">
+              <Text className="mb-1 font-display-semibold text-2xl text-text-primary dark:text-[#F5F5F3]">
                 Welcome to ScoreForge
               </Text>
-              <Text className="font-sans text-sm text-text-tertiary">
+              <Text className="font-sans text-xs uppercase tracking-wide text-text-tertiary dark:text-[#9ca3af]">
                 Tournament Scoring Made Simple
               </Text>
             </View>
 
             {/* Login Type Tabs */}
-            <View
-              style={{
-                flexDirection: "row",
-                backgroundColor: "#F1F5F9",
-                borderRadius: 12,
-                padding: 4,
-                marginBottom: 24,
-              }}>
+            <View className="mb-6 flex-row rounded-lg bg-slate-100 p-1 dark:bg-[#1E1E1E]">
               <Pressable
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  backgroundColor: loginType === "regular" ? "#ffffff" : "transparent",
-                  ...(loginType === "regular"
-                    ? {
-                        shadowColor: "#0F172A",
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.08,
-                        shadowRadius: 4,
-                        elevation: 2,
-                      }
-                    : {}),
-                }}
+                className={
+                  loginType === "regular"
+                    ? "flex-1 items-center rounded-md bg-white py-3 shadow-sm shadow-slate-900/10 dark:bg-[#2A2A2A]"
+                    : "flex-1 items-center rounded-md py-3"
+                }
                 onPress={() => {
                   setLoginType("regular");
                   setError(null);
                 }}>
                 <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: loginType === "regular" ? "#0F172A" : "#94A3B8",
-                  }}>
+                  className={
+                    loginType === "regular"
+                      ? "font-sans-semibold text-xs uppercase tracking-wide text-slate-900 dark:text-[#F5F5F3]"
+                      : "font-sans-medium text-xs uppercase tracking-wide text-slate-400 dark:text-[#9ca3af]"
+                  }>
                   Account Login
                 </Text>
               </Pressable>
               <Pressable
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  backgroundColor: loginType === "scorer" ? "#ffffff" : "transparent",
-                  ...(loginType === "scorer"
-                    ? {
-                        shadowColor: "#0F172A",
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.08,
-                        shadowRadius: 4,
-                        elevation: 2,
-                      }
-                    : {}),
-                }}
+                className={
+                  loginType === "scorer"
+                    ? "flex-1 items-center rounded-md bg-white py-3 shadow-sm shadow-slate-900/10 dark:bg-[#2A2A2A]"
+                    : "flex-1 items-center rounded-md py-3"
+                }
                 onPress={() => {
                   setLoginType("scorer");
                   setError(null);
                 }}>
                 <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: loginType === "scorer" ? "#0F172A" : "#94A3B8",
-                  }}>
+                  className={
+                    loginType === "scorer"
+                      ? "font-sans-semibold text-xs uppercase tracking-wide text-slate-900 dark:text-[#F5F5F3]"
+                      : "font-sans-medium text-xs uppercase tracking-wide text-slate-400 dark:text-[#9ca3af]"
+                  }>
                   Scorer Login
                 </Text>
               </Pressable>
             </View>
 
             {/* Login Card */}
-            <View className="rounded-2xl bg-white p-8 shadow-2xl shadow-slate-900/10">
-              {loginType === "regular" ? (
-                <>
-                  <Text className="mb-1 text-center font-display-bold text-xl text-slate-900">
-                    Welcome Back
-                  </Text>
-                  <Text className="mb-6 text-center font-sans text-sm text-text-tertiary">
-                    Sign in with your account
-                  </Text>
+            <View className="overflow-hidden rounded-2xl bg-white shadow-lg shadow-slate-900/5 dark:bg-[#1E1E1E]">
+              {/* Brand accent bar */}
+              <View className="h-1 bg-brand" />
 
-                  <View className="space-y-4">
-                    <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                        Email Address
-                      </Text>
-                      <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-base text-slate-900"
-                        placeholder="you@example.com"
-                        placeholderTextColor="#94A3B8"
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                      />
-                    </View>
+              <View className="px-6 pb-6 pt-5">
+                {loginType === "regular" ? (
+                  <>
+                    <Text className="mb-1 text-center font-display-bold text-lg text-slate-900 dark:text-[#F5F5F3]">
+                      Welcome Back
+                    </Text>
+                    <Text className="mb-6 text-center font-sans text-xs text-text-tertiary dark:text-[#9ca3af]">
+                      Sign in with your account
+                    </Text>
 
-                    <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                        Password
-                      </Text>
-                      <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-base text-slate-900"
-                        placeholder="Enter your password"
-                        placeholderTextColor="#94A3B8"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        autoComplete="password"
-                      />
-                    </View>
-
-                    {error && (
-                      <View className="rounded-xl border border-red-200 bg-red-50 p-4">
-                        <Text className="text-center text-sm text-red-600">{error}</Text>
+                    <View className="space-y-4">
+                      <View>
+                        <Text className="mb-2 font-display-bold text-[10px] uppercase tracking-widest text-slate-400 dark:text-[#9ca3af]">
+                          Email Address
+                        </Text>
+                        <TextInput
+                          className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 font-sans text-base text-slate-900 dark:border-[#2A2A2A] dark:bg-[#2A2A2A] dark:text-[#F5F5F3]"
+                          placeholder="you@example.com"
+                          placeholderTextColor={placeholderColor}
+                          value={email}
+                          onChangeText={setEmail}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoComplete="email"
+                        />
                       </View>
-                    )}
 
-                    <TouchableOpacity
-                      className="mt-2 w-full items-center rounded-xl bg-brand py-5 shadow-lg shadow-brand/30"
-                      onPress={handleRegularSubmit}
-                      disabled={loading}
-                      activeOpacity={0.8}>
-                      {loading ? (
-                        <ActivityIndicator color="white" />
-                      ) : (
-                        <Text className="text-base font-bold text-white">Sign In</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text className="mb-1 text-center font-display-bold text-xl text-slate-900">
-                    Scorer Login
-                  </Text>
-                  <Text className="mb-6 text-center font-sans text-sm text-text-tertiary">
-                    Sign in with your tournament credentials
-                  </Text>
+                      <View>
+                        <Text className="mb-2 font-display-bold text-[10px] uppercase tracking-widest text-slate-400 dark:text-[#9ca3af]">
+                          Password
+                        </Text>
+                        <TextInput
+                          className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 font-sans text-base text-slate-900 dark:border-[#2A2A2A] dark:bg-[#2A2A2A] dark:text-[#F5F5F3]"
+                          placeholder="Enter your password"
+                          placeholderTextColor={placeholderColor}
+                          value={password}
+                          onChangeText={setPassword}
+                          secureTextEntry
+                          autoComplete="password"
+                        />
+                      </View>
 
-                  <View className="space-y-4">
-                    <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                        Tournament Code
-                      </Text>
-                      <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-center text-lg font-bold tracking-widest text-slate-900"
-                        placeholder="ABC123"
-                        placeholderTextColor="#94A3B8"
-                        value={tournamentCode}
-                        onChangeText={(text) => setTournamentCode(text.toUpperCase().slice(0, 6))}
-                        autoCapitalize="characters"
-                        maxLength={6}
-                      />
-                      {tournamentInfo && (
-                        <View className="mt-2 rounded-lg border border-status-active-border/30 bg-status-active-bg p-2">
-                          <Text className="text-center text-sm text-status-active-text">
-                            {tournamentInfo.name}
+                      {error && (
+                        <View className="rounded-lg border border-red-200 bg-red-50 p-3">
+                          <Text className="text-center font-sans text-xs text-red-600">
+                            {error}
                           </Text>
                         </View>
                       )}
-                      {tournamentCode.length === 6 && tournamentInfo === null && (
-                        <View className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
-                          <Text className="text-center text-sm text-red-600">
-                            Tournament not found
+
+                      <TouchableOpacity
+                        className="mt-2 w-full items-center rounded-xl bg-brand py-4 shadow-lg shadow-brand/30"
+                        onPress={handleRegularSubmit}
+                        disabled={loading}
+                        activeOpacity={0.8}>
+                        {loading ? (
+                          <ActivityIndicator color="white" />
+                        ) : (
+                          <Text className="font-sans-bold text-sm text-white">Sign In</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text className="mb-1 text-center font-display-bold text-lg text-slate-900 dark:text-[#F5F5F3]">
+                      Scorer Login
+                    </Text>
+                    <Text className="mb-6 text-center font-sans text-xs text-text-tertiary dark:text-[#9ca3af]">
+                      Sign in with your tournament credentials
+                    </Text>
+
+                    <View className="space-y-4">
+                      <View>
+                        <Text className="mb-2 font-display-bold text-[10px] uppercase tracking-widest text-slate-400 dark:text-[#9ca3af]">
+                          Tournament Code
+                        </Text>
+                        <TextInput
+                          className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-center font-sans text-lg font-bold tracking-widest text-slate-900 dark:border-[#2A2A2A] dark:bg-[#2A2A2A] dark:text-[#F5F5F3]"
+                          placeholder="ABC123"
+                          placeholderTextColor={placeholderColor}
+                          value={tournamentCode}
+                          onChangeText={(text) => setTournamentCode(text.toUpperCase().slice(0, 6))}
+                          autoCapitalize="characters"
+                          maxLength={6}
+                        />
+                        {tournamentInfo && (
+                          <View className="mt-2 rounded-lg border border-status-active-border/30 bg-status-active-bg p-2">
+                            <Text className="text-center font-sans text-xs text-status-active-text">
+                              {tournamentInfo.name}
+                            </Text>
+                          </View>
+                        )}
+                        {tournamentCode.length === 6 && tournamentInfo === null && (
+                          <View className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
+                            <Text className="text-center font-sans text-xs text-red-600">
+                              Tournament not found
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View>
+                        <Text className="mb-2 font-display-bold text-[10px] uppercase tracking-widest text-slate-400 dark:text-[#9ca3af]">
+                          Username
+                        </Text>
+                        <TextInput
+                          className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 font-sans text-base text-slate-900 dark:border-[#2A2A2A] dark:bg-[#2A2A2A] dark:text-[#F5F5F3]"
+                          placeholder="Your username"
+                          placeholderTextColor={placeholderColor}
+                          value={username}
+                          onChangeText={(text) => setUsername(text.toLowerCase())}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      </View>
+
+                      <View>
+                        <Text className="mb-2 font-display-bold text-[10px] uppercase tracking-widest text-slate-400 dark:text-[#9ca3af]">
+                          PIN
+                        </Text>
+                        <TextInput
+                          className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-center font-sans text-lg font-bold tracking-widest text-slate-900 dark:border-[#2A2A2A] dark:bg-[#2A2A2A] dark:text-[#F5F5F3]"
+                          placeholder="1234"
+                          placeholderTextColor={placeholderColor}
+                          value={pin}
+                          onChangeText={(text) => setPin(text.replace(/[^0-9]/g, "").slice(0, 6))}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          secureTextEntry
+                        />
+                      </View>
+
+                      {error && (
+                        <View className="rounded-lg border border-red-200 bg-red-50 p-3">
+                          <Text className="text-center font-sans text-xs text-red-600">
+                            {error}
                           </Text>
                         </View>
                       )}
+
+                      <TouchableOpacity
+                        className="mt-2 w-full items-center rounded-xl bg-brand py-4 shadow-lg shadow-brand/30"
+                        onPress={handleScorerSubmit}
+                        disabled={loading}
+                        activeOpacity={0.8}>
+                        {loading ? (
+                          <ActivityIndicator color="white" />
+                        ) : (
+                          <Text className="font-sans-bold text-sm text-white">Start Scoring</Text>
+                        )}
+                      </TouchableOpacity>
                     </View>
-
-                    <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                        Username
-                      </Text>
-                      <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-base text-slate-900"
-                        placeholder="Your username"
-                        placeholderTextColor="#94A3B8"
-                        value={username}
-                        onChangeText={(text) => setUsername(text.toLowerCase())}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                    </View>
-
-                    <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                        PIN
-                      </Text>
-                      <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-center text-lg font-bold tracking-widest text-slate-900"
-                        placeholder="1234"
-                        placeholderTextColor="#94A3B8"
-                        value={pin}
-                        onChangeText={(text) => setPin(text.replace(/[^0-9]/g, "").slice(0, 6))}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        secureTextEntry
-                      />
-                    </View>
-
-                    {error && (
-                      <View className="rounded-xl border border-red-200 bg-red-50 p-4">
-                        <Text className="text-center text-sm text-red-600">{error}</Text>
-                      </View>
-                    )}
-
-                    <TouchableOpacity
-                      className="mt-2 w-full items-center rounded-xl bg-brand py-5 shadow-lg shadow-brand/30"
-                      onPress={handleScorerSubmit}
-                      disabled={loading}
-                      activeOpacity={0.8}>
-                      {loading ? (
-                        <ActivityIndicator color="white" />
-                      ) : (
-                        <Text className="text-base font-bold text-white">Start Scoring</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
+                  </>
+                )}
+              </View>
             </View>
 
             {/* Footer */}
             <View className="mt-6 items-center">
-              <Text className="text-center font-sans text-xs text-text-tertiary">
+              <Text className="text-center font-sans text-[10px] uppercase tracking-wide text-text-tertiary dark:text-[#9ca3af]">
                 {loginType === "regular"
                   ? "Scorer access only. Contact your tournament organizer for credentials."
                   : "Get your code, username, and PIN from the tournament organizer."}
