@@ -15,6 +15,10 @@
       "dependsOn": ["^check-types"],
       "inputs": ["$TURBO_DEFAULT$", "tsconfig*.json"]
     },
+    "test": {
+      "dependsOn": ["^test"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest.config.*", "**/*.test.*"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

@@ -17,7 +17,9 @@
     "dev": "convex dev",
     "predev": "convex dev --until-success",
     "logs": "convex logs",
-    "lint": "tsc -p convex && eslint . --report-unused-disable-directives --max-warnings 0"
+    "lint": "tsc -p convex && eslint . --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@auth/core": "0.41.1",
@@ -27,14 +29,17 @@
   },
   "devDependencies": {
     "@convex-dev/eslint-plugin": "^1.1.1",
+    "@edge-runtime/vm": "^5.0.0",
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.2",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^24.10.9",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
+    "convex-test": "^0.0.41",
     "eslint": "^9.39.1",
     "globals": "^17.0.0",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.0.18"
   }
 }
