@@ -14,13 +14,13 @@ A real-time tournament management platform for organizing competitions, tracking
 - **Quick Bracket Tool** - Standalone printable bracket generator (no database required)
 - **Print Support** - Print-optimized bracket views with empty slots for handwriting
 - **Public API** - External access to match data via API keys
-- **Desktop Scoreboard App** - Display live scores on external monitors with customizable layouts
+- **Display App** - Display live scores on external monitors with customizable layouts
 
 ## Tech Stack
 
 - **Frontend** - Next.js 16, React 19, Tailwind CSS
 - **Mobile** - Expo 54, React Native, NativeWind
-- **Desktop** - Tauri v2, React 18, Rust
+- **Display** - Pure Rust (eframe/egui, Convex Rust SDK)
 - **Backend** - Convex (serverless database, functions, real-time sync)
 - **Monorepo** - Turborepo with Bun
 
@@ -91,30 +91,23 @@ Tournaments support multiple brackets for organizing different categories within
 
 When creating a tournament, you can name the initial bracket. Additional brackets can be added via "Manage Brackets" on the tournament page.
 
-## Desktop Scoreboard App
+## Display App
 
-A native desktop application for displaying live scores on external monitors during tournaments.
+A native Rust application for designing and displaying live scoreboards on external monitors during tournaments.
 
 ### Features
 - **Multi-Monitor Support** - Display scoreboards on any connected monitor
-- **Custom Layouts** - Design scoreboards with drag-and-drop components
-- **Live Data** - Real-time score updates from ScoreForge matches
-- **Match Switching** - Change which match a scoreboard displays without recreating it
-- **Credential Persistence** - API keys are saved for convenience
+- **Custom Layouts** - Design scoreboards with a built-in editor
+- **Live Data** - Real-time score updates via Convex Rust SDK
+- **Export/Import** - Zip-based scoreboard export and import
+- **Image/Video Assets** - Manage media for scoreboard designs
 
 ### Getting Started
 ```bash
-cd apps/desktop
-bun run dev      # Start development
-bun run build    # Build for distribution
+cd apps/display
+bun run dev      # Start with cargo watch (auto-reload)
+bun run build    # Build release binary
 ```
-
-### Connecting to ScoreForge
-1. Open the Multiple Scoreboard Manager
-2. Enter your ScoreForge API key and Convex URL
-3. Click "Connect" to authenticate
-4. Select Tournament → Bracket → Match
-5. Choose a saved scoreboard layout and create the display
 
 ## Project Structure
 
@@ -122,7 +115,7 @@ bun run build    # Build for distribution
 apps/
   web/          # Next.js web application
   mobile/       # Expo React Native app
-  desktop/      # Tauri desktop scoreboard app
+  display/      # Rust scoreboard designer/display app
 packages/
   convex/       # Convex backend (schema, functions)
   eslint-config/
