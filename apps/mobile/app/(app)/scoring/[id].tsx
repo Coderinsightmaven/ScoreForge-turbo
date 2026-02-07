@@ -10,20 +10,19 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Id } from "@repo/convex/dataModel";
 import { useRef } from "react";
-import { getDisplayMessage } from "../utils/errors";
-
-type Props = {
-  matchId: Id<"matches">;
-  tempScorerToken?: string;
-  onBack: () => void;
-};
+import { getDisplayMessage } from "../../../utils/errors";
 
 const pointLabels = ["0", "15", "30", "40", "AD"];
 
-export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props) {
-  const match = useQuery(api.tennis.getTennisMatch, { matchId, tempScorerToken });
+export default function TennisScoringScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const matchId = id as Id<"matches">;
+
+  const match = useQuery(api.tennis.getTennisMatch, { matchId });
   const initMatch = useMutation(api.tennis.initTennisMatch);
   const scorePoint = useMutation(api.tennis.scoreTennisPoint);
   const undoPoint = useMutation(api.tennis.undoTennisPoint);
@@ -32,7 +31,6 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
-  // Flash animation refs
   const flash1 = useRef(new Animated.Value(0)).current;
   const flash2 = useRef(new Animated.Value(0)).current;
 
@@ -58,7 +56,7 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
       <SafeAreaView className="flex-1 bg-dark-bg">
         <View className="flex-1 items-center justify-center px-6">
           <Text className="font-display-semibold text-lg text-white">Match not found</Text>
-          <TouchableOpacity className="mt-4" onPress={onBack}>
+          <TouchableOpacity className="mt-4" onPress={() => router.back()}>
             <Text className="text-brand-glow">Go back</Text>
           </TouchableOpacity>
         </View>
@@ -73,9 +71,9 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
 
   const handleInitMatch = async (firstServer: number) => {
     try {
-      await initMatch({ matchId, firstServer, tempScorerToken });
+      await initMatch({ matchId, firstServer });
       if (match.status === "pending" || match.status === "scheduled") {
-        await startMatch({ matchId, tempScorerToken });
+        await startMatch({ matchId });
       }
     } catch (err) {
       Alert.alert("Error", getDisplayMessage(err));
@@ -86,7 +84,7 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
     if (!isLive || isCompleted) return;
     triggerFlash(participant === 1 ? flash1 : flash2);
     try {
-      await scorePoint({ matchId, winnerParticipant: participant, tempScorerToken });
+      await scorePoint({ matchId, winnerParticipant: participant });
     } catch (err) {
       Alert.alert("Error", getDisplayMessage(err));
     }
@@ -94,7 +92,7 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
 
   const handleUndo = async () => {
     try {
-      await undoPoint({ matchId, tempScorerToken });
+      await undoPoint({ matchId });
     } catch (err) {
       Alert.alert("Error", getDisplayMessage(err));
     }
@@ -131,7 +129,7 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
     return (
       <SafeAreaView className="flex-1 bg-dark-bg">
         <View className="flex-row items-center border-b border-dark-elevated px-4 py-3">
-          <TouchableOpacity onPress={onBack} className="mr-3 p-1">
+          <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
             <Text className="text-2xl text-slate-400">←</Text>
           </TouchableOpacity>
           <Text className="font-display-semibold text-lg text-white">Start Match</Text>
@@ -200,7 +198,9 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
             </View>
           </View>
 
-          <TouchableOpacity className="w-full rounded-xl bg-dark-elevated py-4" onPress={onBack}>
+          <TouchableOpacity
+            className="w-full rounded-xl bg-dark-elevated py-4"
+            onPress={() => router.back()}>
             <Text className="text-center text-lg font-semibold text-white">Back to Match</Text>
           </TouchableOpacity>
         </View>
@@ -360,7 +360,7 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
         <SafeAreaView className="absolute left-4 top-4" pointerEvents="box-none">
           <TouchableOpacity
             className="h-14 w-14 items-center justify-center rounded-full border-2 border-dark-elevated bg-dark-card shadow-2xl"
-            onPress={onBack}>
+            onPress={() => router.back()}>
             <Text className="text-xl text-white">←</Text>
           </TouchableOpacity>
         </SafeAreaView>
@@ -436,7 +436,7 @@ export function TennisScoringScreen({ matchId, tempScorerToken, onBack }: Props)
       <SafeAreaView className="absolute left-4 top-4" pointerEvents="box-none" edges={["top"]}>
         <TouchableOpacity
           className="h-14 w-14 items-center justify-center rounded-full border-2 border-dark-elevated bg-dark-card shadow-2xl"
-          onPress={onBack}>
+          onPress={() => router.back()}>
           <Text className="text-xl text-white">←</Text>
         </TouchableOpacity>
       </SafeAreaView>

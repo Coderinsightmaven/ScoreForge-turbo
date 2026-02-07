@@ -1,22 +1,20 @@
+import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Text } from "react-native";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useFonts } from "expo-font";
 
-import { ConvexProvider } from "./providers/ConvexProvider";
-import { SignInScreen } from "./screens/SignInScreen";
-import { HomeScreen } from "./screens/HomeScreen";
-import { TempScorerHomeScreen } from "./screens/TempScorerHomeScreen";
+import { ConvexProvider } from "../providers/ConvexProvider";
 import {
   TempScorerContext,
   TempScorerSession,
   TempScorerContextType,
-} from "./contexts/TempScorerContext";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+} from "../contexts/TempScorerContext";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
-import "./global.css";
+import "../global.css";
 
 const TEMP_SCORER_SESSION_KEY = "tempScorerSession";
 
@@ -32,9 +30,53 @@ function LoadingScreen() {
   );
 }
 
-function AppContent() {
+function AuthRedirect() {
+  const segments = useSegments();
+  const router = useRouter();
+
+  return (
+    <>
+      <AuthLoading>
+        <LoadingScreen />
+      </AuthLoading>
+      <Unauthenticated>
+        <AuthRedirectHandler target="(auth)" segments={segments} router={router} />
+      </Unauthenticated>
+      <Authenticated>
+        <AuthRedirectHandler target="(app)" segments={segments} router={router} />
+      </Authenticated>
+    </>
+  );
+}
+
+function AuthRedirectHandler({
+  target,
+  segments,
+  router,
+}: {
+  target: string;
+  segments: string[];
+  router: ReturnType<typeof useRouter>;
+}) {
+  useEffect(() => {
+    const inTarget = segments[0] === target;
+    if (!inTarget) {
+      if (target === "(auth)") {
+        router.replace("/(auth)/sign-in");
+      } else {
+        router.replace("/(app)/(tabs)");
+      }
+    }
+  }, [target, segments, router]);
+
+  return null;
+}
+
+function RootNavigation() {
   const [tempScorerSession, setTempScorerSession] = useState<TempScorerSession | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const segments = useSegments();
+  const router = useRouter();
 
   // Load temp scorer session from SecureStore on mount
   useEffect(() => {
@@ -43,11 +85,9 @@ function AppContent() {
         const sessionJson = await SecureStore.getItemAsync(TEMP_SCORER_SESSION_KEY);
         if (sessionJson) {
           const session = JSON.parse(sessionJson) as TempScorerSession;
-          // Check if session is still valid
           if (session.expiresAt > Date.now()) {
             setTempScorerSession(session);
           } else {
-            // Session expired, remove it
             await SecureStore.deleteItemAsync(TEMP_SCORER_SESSION_KEY);
           }
         }
@@ -60,21 +100,30 @@ function AppContent() {
     loadSession();
   }, []);
 
-  // Save session to SecureStore when it changes
-  const handleSetSession = async (session: TempScorerSession | null) => {
+  // Redirect to scorer flow when session is active
+  useEffect(() => {
+    if (isLoadingSession) return;
+    if (tempScorerSession) {
+      const inScorer = segments[0] === "(scorer)";
+      if (!inScorer) {
+        router.replace("/(scorer)");
+      }
+    }
+  }, [tempScorerSession, isLoadingSession, segments, router]);
+
+  const handleSetSession = useCallback(async (session: TempScorerSession | null) => {
     setTempScorerSession(session);
     if (session) {
       await SecureStore.setItemAsync(TEMP_SCORER_SESSION_KEY, JSON.stringify(session));
     } else {
       await SecureStore.deleteItemAsync(TEMP_SCORER_SESSION_KEY);
     }
-  };
+  }, []);
 
-  // Sign out temp scorer
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await SecureStore.deleteItemAsync(TEMP_SCORER_SESSION_KEY);
     setTempScorerSession(null);
-  };
+  }, []);
 
   const contextValue: TempScorerContextType = {
     session: tempScorerSession,
@@ -86,43 +135,25 @@ function AppContent() {
     return <LoadingScreen />;
   }
 
-  // If we have a temp scorer session, show temp scorer UI
-  if (tempScorerSession) {
-    return (
-      <TempScorerContext value={contextValue}>
-        <TempScorerHomeScreen />
-        <StatusBar style="light" />
-      </TempScorerContext>
-    );
-  }
-
-  // Otherwise, show regular auth flow
   return (
     <TempScorerContext value={contextValue}>
-      <AuthLoading>
-        <LoadingScreen />
-      </AuthLoading>
-      <Unauthenticated>
-        <SignInScreen onTempScorerLogin={handleSetSession} />
-      </Unauthenticated>
-      <Authenticated>
-        <HomeScreen />
-      </Authenticated>
+      {!tempScorerSession && <AuthRedirect />}
+      <Slot />
       <StatusBar style="light" />
     </TempScorerContext>
   );
 }
 
-export default function App() {
+export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    "ClashDisplay-Regular": require("./assets/fonts/ClashDisplay-Regular.ttf"),
-    "ClashDisplay-Medium": require("./assets/fonts/ClashDisplay-Medium.ttf"),
-    "ClashDisplay-Semibold": require("./assets/fonts/ClashDisplay-Semibold.ttf"),
-    "ClashDisplay-Bold": require("./assets/fonts/ClashDisplay-Bold.ttf"),
-    "DMSans-Regular": require("./assets/fonts/DMSans-Regular.ttf"),
-    "DMSans-Medium": require("./assets/fonts/DMSans-Medium.ttf"),
-    "DMSans-SemiBold": require("./assets/fonts/DMSans-SemiBold.ttf"),
-    "DMSans-Bold": require("./assets/fonts/DMSans-Bold.ttf"),
+    "ClashDisplay-Regular": require("../assets/fonts/ClashDisplay-Regular.ttf"),
+    "ClashDisplay-Medium": require("../assets/fonts/ClashDisplay-Medium.ttf"),
+    "ClashDisplay-Semibold": require("../assets/fonts/ClashDisplay-Semibold.ttf"),
+    "ClashDisplay-Bold": require("../assets/fonts/ClashDisplay-Bold.ttf"),
+    "DMSans-Regular": require("../assets/fonts/DMSans-Regular.ttf"),
+    "DMSans-Medium": require("../assets/fonts/DMSans-Medium.ttf"),
+    "DMSans-SemiBold": require("../assets/fonts/DMSans-SemiBold.ttf"),
+    "DMSans-Bold": require("../assets/fonts/DMSans-Bold.ttf"),
   });
 
   if (!fontsLoaded) {
@@ -136,7 +167,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ConvexProvider>
-        <AppContent />
+        <RootNavigation />
       </ConvexProvider>
     </ErrorBoundary>
   );

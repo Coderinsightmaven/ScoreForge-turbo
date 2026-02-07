@@ -2,7 +2,9 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { useState } from "react";
-import { getDisplayMessage } from "../utils/errors";
+import { useRouter } from "expo-router";
+import { getDisplayMessage } from "../../utils/errors";
+import { useTempScorer } from "../../contexts/TempScorerContext";
 import {
   View,
   Text,
@@ -18,22 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type LoginType = "regular" | "scorer";
 
-interface TempScorerSession {
-  token: string;
-  scorerId: string;
-  tournamentId: string;
-  displayName: string;
-  tournamentName: string;
-  sport: string;
-  expiresAt: number;
-}
-
-interface SignInScreenProps {
-  onTempScorerLogin?: (session: TempScorerSession) => void;
-}
-
-export function SignInScreen({ onTempScorerLogin }: SignInScreenProps) {
+export default function SignInScreen() {
   const { signIn } = useAuthActions();
+  const { setSession } = useTempScorer();
+  const router = useRouter();
   const [loginType, setLoginType] = useState<LoginType>("regular");
 
   // Regular login state
@@ -48,10 +38,8 @@ export function SignInScreen({ onTempScorerLogin }: SignInScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Mutation for temp scorer sign in
   const signInTempScorer = useMutation(api.temporaryScorers.signIn);
 
-  // Query tournament info by code (for preview)
   const tournamentInfo = useQuery(
     api.temporaryScorers.getTournamentByCode,
     tournamentCode.length === 6 ? { code: tournamentCode } : "skip"
@@ -129,18 +117,17 @@ export function SignInScreen({ onTempScorerLogin }: SignInScreenProps) {
         return;
       }
 
-      // Call the parent callback with the session info
-      if (onTempScorerLogin) {
-        onTempScorerLogin({
-          token: result.token,
-          scorerId: result.scorerId,
-          tournamentId: result.tournamentId,
-          displayName: result.displayName,
-          tournamentName: result.tournamentName,
-          sport: result.sport,
-          expiresAt: result.expiresAt,
-        });
-      }
+      await setSession({
+        token: result.token,
+        scorerId: result.scorerId,
+        tournamentId: result.tournamentId,
+        displayName: result.displayName,
+        tournamentName: result.tournamentName,
+        sport: result.sport,
+        expiresAt: result.expiresAt,
+      });
+
+      router.replace("/(scorer)");
     } catch (err) {
       setError(getDisplayMessage(err));
     } finally {

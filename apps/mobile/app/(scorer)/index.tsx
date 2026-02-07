@@ -11,20 +11,13 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Id } from "@repo/convex/dataModel";
 
-import { useTempScorer } from "../contexts/TempScorerContext";
-import { MatchDetailScreen } from "./MatchDetailScreen";
-import { TennisScoringScreen } from "./TennisScoringScreen";
+import { useTempScorer } from "../../contexts/TempScorerContext";
+import { StatusFilter, MatchStatus } from "../../components/matches/StatusFilter";
 
-type MatchStatus = "pending" | "scheduled" | "live" | "completed" | "bye";
-
-type Screen =
-  | { type: "matches" }
-  | { type: "match"; matchId: Id<"matches"> }
-  | { type: "scoring"; matchId: Id<"matches"> };
-
-const statusStyles: Record<MatchStatus, { bg: string; text: string; border: string }> = {
+const matchStatusStyles: Record<MatchStatus, { bg: string; text: string; border: string }> = {
   pending: {
     bg: "bg-status-pending-bg",
     text: "text-status-pending-text",
@@ -52,29 +45,18 @@ const statusStyles: Record<MatchStatus, { bg: string; text: string; border: stri
   },
 };
 
-const statusFilters: { label: string; value: MatchStatus | "all" }[] = [
-  { label: "All", value: "all" },
-  { label: "Live", value: "live" },
-  { label: "Scheduled", value: "scheduled" },
-  { label: "Pending", value: "pending" },
-  { label: "Completed", value: "completed" },
-];
-
-export function TempScorerHomeScreen() {
+export default function ScorerHomeScreen() {
   const { session, signOut } = useTempScorer();
-  const [screen, setScreen] = useState<Screen>({ type: "matches" });
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<MatchStatus | "all">("all");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Verify session is still valid on the server (detects deactivation/tournament completion)
   const sessionValid = useQuery(
     api.temporaryScorers.verifySession,
     session?.token ? { token: session.token } : "skip"
   );
 
-  // Auto sign out if session becomes invalid (scorer deactivated or tournament completed)
   useEffect(() => {
-    // sessionValid is undefined while loading, null if invalid
     if (session && sessionValid === null) {
       Alert.alert(
         "Session Ended",
@@ -119,30 +101,6 @@ export function TempScorerHomeScreen() {
     );
   }
 
-  // Match detail screen
-  if (screen.type === "match") {
-    return (
-      <MatchDetailScreen
-        matchId={screen.matchId}
-        tempScorerToken={session.token}
-        onBack={() => setScreen({ type: "matches" })}
-        onStartScoring={(matchId) => setScreen({ type: "scoring", matchId })}
-      />
-    );
-  }
-
-  // Scoring screen
-  if (screen.type === "scoring") {
-    return (
-      <TennisScoringScreen
-        matchId={screen.matchId}
-        tempScorerToken={session.token}
-        onBack={() => setScreen({ type: "match", matchId: screen.matchId })}
-      />
-    );
-  }
-
-  // Main matches list
   return (
     <View className="flex-1 bg-white">
       <SafeAreaView className="flex-1" edges={["top"]}>
@@ -169,30 +127,8 @@ export function TempScorerHomeScreen() {
         </View>
 
         {/* Status Filter */}
-        <View className="border-b border-slate-100 bg-white">
-          <FlatList
-            horizontal
-            data={statusFilters}
-            keyExtractor={(item) => item.value}
-            showsHorizontalScrollIndicator={false}
-            contentContainerClassName="px-5 py-2"
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                className={`mr-2 rounded-lg border-2 px-5 py-2.5 ${
-                  statusFilter === item.value
-                    ? "border-brand bg-brand shadow-lg shadow-brand/20"
-                    : "border-slate-200 bg-white"
-                }`}
-                onPress={() => setStatusFilter(item.value)}>
-                <Text
-                  className={`text-sm font-medium ${
-                    statusFilter === item.value ? "text-white" : "text-text-secondary"
-                  }`}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
+        <View className="border-b border-slate-100 bg-white px-5 py-2">
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
         </View>
 
         {/* Tournament Status Banner */}
@@ -233,7 +169,8 @@ export function TempScorerHomeScreen() {
             }
             renderItem={({ item }) => {
               const isReady = item.participant1 && item.participant2 && item.status !== "completed";
-              const status = statusStyles[item.status as MatchStatus] || statusStyles.pending;
+              const status =
+                matchStatusStyles[item.status as MatchStatus] || matchStatusStyles.pending;
               return (
                 <TouchableOpacity
                   className={`rounded-2xl bg-white p-5 shadow-lg shadow-slate-900/5 ${
@@ -241,7 +178,7 @@ export function TempScorerHomeScreen() {
                       ? "border-2 border-status-live-border"
                       : "border border-slate-100"
                   }`}
-                  onPress={() => setScreen({ type: "match", matchId: item._id })}
+                  onPress={() => router.push(`/(scorer)/match/${item._id}`)}
                   activeOpacity={0.7}>
                   <View className="mb-2 flex-row items-center justify-between">
                     <Text className="text-xs font-medium text-text-tertiary">

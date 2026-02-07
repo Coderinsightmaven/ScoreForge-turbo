@@ -2,14 +2,8 @@ import { useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Id } from "@repo/convex/dataModel";
-
-type Props = {
-  matchId: Id<"matches">;
-  tempScorerToken?: string;
-  onBack: () => void;
-  onStartScoring: (matchId: Id<"matches">) => void;
-};
 
 const statusStyles: Record<string, { bg: string; text: string; border: string }> = {
   pending: {
@@ -39,8 +33,12 @@ const statusStyles: Record<string, { bg: string; text: string; border: string }>
   },
 };
 
-export function MatchDetailScreen({ matchId, tempScorerToken, onBack, onStartScoring }: Props) {
-  const match = useQuery(api.matches.getMatch, { matchId, tempScorerToken });
+export default function MatchDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const matchId = id as Id<"matches">;
+
+  const match = useQuery(api.matches.getMatch, { matchId });
 
   if (match === undefined) {
     return (
@@ -55,7 +53,7 @@ export function MatchDetailScreen({ matchId, tempScorerToken, onBack, onStartSco
       <SafeAreaView className="flex-1 bg-slate-50">
         <View className="flex-1 items-center justify-center px-6">
           <Text className="font-display-semibold text-lg text-slate-900">Match not found</Text>
-          <TouchableOpacity className="mt-4" onPress={onBack}>
+          <TouchableOpacity className="mt-4" onPress={() => router.back()}>
             <Text className="text-brand">Go back</Text>
           </TouchableOpacity>
         </View>
@@ -98,7 +96,7 @@ export function MatchDetailScreen({ matchId, tempScorerToken, onBack, onStartSco
       {/* Header */}
       <View className="flex-row items-center bg-white px-5 py-3 shadow-sm shadow-slate-900/5">
         <TouchableOpacity
-          onPress={onBack}
+          onPress={() => router.back()}
           className="mr-3 h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
           <Text className="text-xl text-text-primary">←</Text>
         </TouchableOpacity>
@@ -224,7 +222,7 @@ export function MatchDetailScreen({ matchId, tempScorerToken, onBack, onStartSco
         {canScore && (
           <TouchableOpacity
             className="rounded-2xl bg-brand py-5 shadow-2xl shadow-brand/30"
-            onPress={() => onStartScoring(matchId)}
+            onPress={() => router.push(`/(app)/scoring/${matchId}`)}
             activeOpacity={0.8}>
             <Text className="text-center text-lg font-bold text-white">
               {match.status === "live" ? "Continue Scoring" : "Start Scoring"}

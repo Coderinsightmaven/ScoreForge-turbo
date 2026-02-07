@@ -10,7 +10,8 @@
       "tsconfigPaths": true,
       "reactCompiler": true
     },
-    "plugins": [],
+    "scheme": "scoreforge",
+    "plugins": ["expo-router"],
     "runtimeVersion": {
       "policy": "appVersion"
     },
