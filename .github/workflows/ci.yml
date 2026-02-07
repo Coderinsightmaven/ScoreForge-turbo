@@ -15,7 +15,5 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Lint
         run: bun run lint
-        continue-on-error: true # 322 pre-existing lint errors in packages/convex
       - run: bun run check-types
       - run: bun run test
-      - run: bun run build
