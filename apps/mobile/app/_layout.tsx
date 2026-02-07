@@ -1,4 +1,4 @@
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Text } from "react-native";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
@@ -138,7 +138,11 @@ function RootNavigation() {
   return (
     <TempScorerContext value={contextValue}>
       {!tempScorerSession && <AuthRedirect />}
-      <Slot />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="(scorer)" />
+      </Stack>
       <StatusBar style="light" />
     </TempScorerContext>
   );
