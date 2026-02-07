@@ -40,11 +40,10 @@ bun run ios          # Run on iOS simulator
 bun run android      # Run on Android emulator
 ```
 
-### Desktop App Commands (from apps/desktop)
+### Display App Commands (from apps/display)
 ```bash
-bun run dev          # Start Tauri app (frontend + native)
-bun run dev:web      # Start Vite dev server only (frontend)
-bun run build        # Build native app for distribution
+bun run dev          # Start with cargo watch (auto-reload)
+bun run build        # Build release binary (cargo build --release)
 ```
 
 ## Architecture
@@ -54,7 +53,7 @@ bun run build        # Build native app for distribution
 ### Apps
 - `apps/web` - Next.js 16 web app (React 19, port 3000)
 - `apps/mobile` - Expo/React Native app (Expo 54, React Native 0.81)
-- `apps/desktop` - Tauri v2 desktop app (React 18, Rust backend, port 1422)
+- `apps/display` - Pure Rust scoreboard designer/display app (eframe/egui, Convex Rust SDK)
 
 ### Packages
 - `packages/convex` - Convex serverless backend (database, functions, real-time)
@@ -64,6 +63,10 @@ bun run build        # Build native app for distribution
 ### Package Imports
 - Convex functions: `import { api } from "@repo/convex"` → use as `api.filename.functionName`
 - Internal functions: `import { internal } from "@repo/convex"` → use as `internal.filename.functionName`
+
+### Code Style
+- Prettier: double quotes, semicolons, 2-space tabs, trailing commas (es5), 100 char print width
+- ESLint v9 flat config throughout — web uses `@repo/eslint-config/next-js`, Convex has its own config with `@convex-dev/eslint-plugin`
 
 ## Convex Patterns
 
@@ -208,26 +211,14 @@ const mutate = useMutation(api.file.mutation);
 - NativeWind (Tailwind CSS for React Native) with `nativewind/preset`
 - Environment: `EXPO_PUBLIC_CONVEX_URL`
 
-## Desktop App (Tauri)
+## Display App (Rust)
 
 ### Architecture
-- **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: Rust with Tauri v2 (uses `macos-private-api` feature)
-- **State Management**: Zustand stores (`useAppStore`, `useScoreboardStore`, `useLiveDataStore`, `useCanvasStore`, `useImageStore`, `useVideoStore`, `useMonitorStore`, `useUIStore`)
-- **Data Source**: ScoreForge HTTP API polling (no direct Convex SDK)
+- **Pure Rust** app using eframe/egui for UI — no JS/TS frontend
+- **Convex Rust SDK** for real-time data (direct connection, not HTTP polling)
+- Structure: `src/` → `main.rs`, `app.rs`, `state.rs` + `components/`, `data/`, `designer/`, `display/`, `storage/`
+- Key deps: `eframe` 0.33, `convex` 0.10, `tokio`, `serde_json`, `zip`, `wgpu`
 
 ### Key Features
-- Scoreboard designer with drag-and-drop canvas (`@dnd-kit/core`)
-- Multi-monitor scoreboard display
-- ScoreForge API integration for live match data
-- Image/video asset management
-- Zip-based scoreboard export/import
-
-### Rust Backend
-Commands in `src-tauri/src/commands/` (monitor, storage, live_data, court_data_sync, tennis_processor, images, videos, state_commands, scoreboard). Key deps: `tauri` v2.8, `reqwest`, `tokio`, `tokio-tungstenite`, `serde_json`, `zip`.
-
-### Live Data Flow
-1. User connects via ScoreForgeConnectionDialog (API key + Convex URL)
-2. `useLiveDataStore.connectToScoreForge()` starts HTTP polling
-3. `scoreforgeApi.getMatch()` fetches data → `transformToTennisLiveData()` converts format
-4. Components bind to `useLiveDataStore.activeData`
+- Scoreboard designer and multi-monitor display
+- Image/video asset management with zip-based export/import
