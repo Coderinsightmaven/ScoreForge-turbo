@@ -103,23 +103,32 @@ export function ApiKeysSection() {
           {/* New key created alert */}
           {showNewKey && (
             <Alert className="mb-6 border-success/35 bg-success-light">
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-medium text-success">New API key ready!</p>
-                <Button variant="ghost" size="icon-xs" onClick={() => setShowNewKey(null)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <AlertDescription className="text-success mb-3">
-                Make sure to copy your API key now. You won&apos;t be able to see it again!
-              </AlertDescription>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 p-3 bg-secondary text-foreground text-small font-mono rounded-lg overflow-x-auto">
-                  {showNewKey}
-                </code>
-                <Button variant="outline" size="sm" onClick={() => copyToClipboard(showNewKey)}>
-                  <Copy className="w-4 h-4 mr-1" />
-                  Copy
-                </Button>
+              <div className="col-start-2 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="font-medium text-success">New API key ready!</p>
+                    <AlertDescription className="text-success">
+                      Make sure to copy your API key now. You won&apos;t be able to see it again!
+                    </AlertDescription>
+                  </div>
+                  <Button variant="ghost" size="icon-xs" onClick={() => setShowNewKey(null)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <code className="w-full min-w-0 flex-1 break-all rounded-lg bg-secondary px-3 py-2 text-small font-mono text-foreground">
+                    {showNewKey}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    onClick={() => copyToClipboard(showNewKey)}
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy
+                  </Button>
+                </div>
               </div>
             </Alert>
           )}

@@ -1,15 +1,47 @@
 "use client";
 
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
+import { Authenticated, Unauthenticated, AuthLoading, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { api } from "@repo/convex";
 import { Navigation } from "../components/Navigation";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { OpsHeader } from "../components/OpsHeader";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { AlertTriangle, Menu, X } from "lucide-react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }): React.ReactNode {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
+  const maintenanceStatus = useQuery(api.siteAdmin.getMaintenanceStatus);
+  const isSiteAdmin = useQuery(api.siteAdmin.checkIsSiteAdmin);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("scoreforge-sidebar-collapsed");
+      if (stored !== null) {
+        setSidebarCollapsed(stored === "true");
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!maintenanceStatus?.maintenanceMode) {
+      setMaintenanceDismissed(false);
+    }
+  }, [maintenanceStatus?.maintenanceMode]);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("scoreforge-sidebar-collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen">
@@ -24,9 +56,56 @@ export default function AppLayout({ children }: { children: React.ReactNode }): 
       <Authenticated>
         <div className="min-h-screen animate-fadeIn">
           <div className="flex min-h-screen">
-            <Navigation mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
+            <Navigation
+              mobileOpen={mobileNavOpen}
+              onMobileOpenChange={setMobileNavOpen}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={handleToggleSidebar}
+            />
             <div className="flex min-h-screen flex-1 flex-col">
-              <OpsHeader onMenuToggle={() => setMobileNavOpen(true)} />
+              <Dialog
+                open={Boolean(
+                  maintenanceStatus?.maintenanceMode && !(isSiteAdmin && maintenanceDismissed)
+                )}
+                onOpenChange={(open) => {
+                  if (!open && isSiteAdmin) {
+                    setMaintenanceDismissed(true);
+                  }
+                }}
+              >
+                <DialogContent showCloseButton={false} className="max-w-md p-0 overflow-hidden">
+                  <div className="relative p-6 text-center">
+                    {isSiteAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="absolute right-3 top-3"
+                        onClick={() => setMaintenanceDismissed(true)}
+                        aria-label="Dismiss maintenance notice"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning/15 text-warning">
+                      <AlertTriangle className="h-6 w-6" />
+                    </div>
+                    <DialogTitle className="mb-2 text-center">Maintenance Mode</DialogTitle>
+                    <DialogDescription className="text-center">
+                      {maintenanceStatus?.maintenanceMessage ||
+                        "We’re performing maintenance. Some actions may be unavailable."}
+                    </DialogDescription>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="fixed left-4 top-4 z-40 lg:hidden"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
               <main className="flex-1 px-4 pb-12 pt-6 lg:px-10">
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>

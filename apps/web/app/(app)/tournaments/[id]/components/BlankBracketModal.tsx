@@ -7,6 +7,7 @@ import { Id } from "@repo/convex/dataModel";
 import { toast } from "sonner";
 import { getDisplayMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 type SeedAssignment = {
   participantId: string;
@@ -93,10 +94,13 @@ export function BlankBracketModal({
   const slots = Array.from({ length: bracketSize }, (_, i) => i + 1);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="surface-panel surface-panel-rail w-full max-w-2xl max-h-[90vh] animate-scaleIn flex flex-col">
+    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="surface-panel-rail max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
+      >
         <div className="flex items-center justify-between border-b border-border/70 p-6 flex-shrink-0">
-          <h3 className="text-heading text-foreground">Generate Blank Bracket</h3>
+          <DialogTitle className="text-heading text-foreground">Generate Blank Bracket</DialogTitle>
           <button
             onClick={onClose}
             className="rounded-full border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground transition-colors"
@@ -252,7 +256,7 @@ export function BlankBracketModal({
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

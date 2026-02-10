@@ -10,10 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { DataTable } from "@/components/ui/data-table";
-import { CalendarHeatmap } from "@/components/ui/calendar-heatmap";
-import { Timeline, TimelineItem } from "@/components/ui/timeline";
+
 import { Skeleton } from "@/app/components/Skeleton";
-import { Activity, ArrowUpRight, Calendar, Plus, Trophy, Users, Zap } from "lucide-react";
+import { Activity, ArrowUpRight, Plus, Trophy, Users, Zap } from "lucide-react";
 import { FORMAT_LABELS, type TournamentFormat } from "@/app/lib/constants";
 import type { ColumnDef } from "@tanstack/react-table";
 import NumberFlow from "@number-flow/react";
@@ -37,10 +36,21 @@ export default function DashboardPage(): React.ReactNode {
     { value: "completed", label: "Completed" },
   ];
 
-  const filteredTournaments = tournamentList.filter((tournament) => {
-    if (filter === "all") return true;
-    return tournament.status === filter;
-  });
+  const filteredTournaments = useMemo(() => {
+    const base = tournamentList.filter((tournament) => {
+      if (filter === "all") return true;
+      return tournament.status === filter;
+    });
+
+    const sortedByActivity = [...base].sort((a, b) => {
+      if (b.lastActivityAt !== a.lastActivityAt) {
+        return b.lastActivityAt - a.lastActivityAt;
+      }
+      return b._creationTime - a._creationTime;
+    });
+
+    return sortedByActivity.slice(0, 3);
+  }, [tournamentList, filter]);
 
   const liveMatchCount = tournamentList.reduce(
     (acc, tournament) => acc + tournament.liveMatchCount,
@@ -49,22 +59,6 @@ export default function DashboardPage(): React.ReactNode {
   const activeTournaments = tournamentList.filter(
     (tournament) => tournament.status === "active"
   ).length;
-
-  const heatmapEntries = useMemo(() => {
-    const bucket = new Map<string, { date: Date; weight: number }>();
-    tournamentList.forEach((tournament) => {
-      const date = new Date(tournament._creationTime);
-      const key = date.toISOString().split("T")[0] ?? "";
-      const weight = 1 + (tournament.liveMatchCount || 0);
-      const existing = bucket.get(key);
-      if (existing) {
-        existing.weight += weight;
-      } else {
-        bucket.set(key, { date, weight });
-      }
-    });
-    return Array.from(bucket.values());
-  }, [tournaments, tournamentList]);
 
   const tableData = useMemo(
     () =>
@@ -136,7 +130,7 @@ export default function DashboardPage(): React.ReactNode {
   return (
     <div className="container space-y-8">
       <section className="surface-panel surface-panel-rail p-6 sm:p-8 animate-slideUp">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
           <div className="space-y-3">
             <p className="text-caption text-muted-foreground">Ops Overview</p>
             <h1 className="text-hero">Welcome back, {firstName}</h1>
@@ -147,18 +141,26 @@ export default function DashboardPage(): React.ReactNode {
             </p>
           </div>
 
-          {canCreate ? (
-            <Button variant="brand" size="lg" asChild>
-              <Link href="/tournaments/new">
-                <Plus className="h-4 w-4" />
-                New Tournament
-              </Link>
-            </Button>
-          ) : (
-            <div className="rounded-full border border-border bg-bg-secondary px-5 py-2.5 text-sm text-muted-foreground">
-              Tournament limit reached ({createStatus?.maxAllowed})
-            </div>
-          )}
+          <div className="flex flex-col items-center gap-2 lg:gap-0 lg:justify-between lg:self-stretch">
+            {liveMatchCount > 0 && (
+              <div className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-brand">
+                <span className="live-dot" />
+                {liveMatchCount} live match{liveMatchCount === 1 ? "" : "es"}
+              </div>
+            )}
+            {canCreate ? (
+              <Button variant="brand" size="lg" asChild>
+                <Link href="/tournaments/new">
+                  <Plus className="h-4 w-4" />
+                  New Tournament
+                </Link>
+              </Button>
+            ) : (
+              <div className="rounded-full border border-border bg-bg-secondary px-5 py-2.5 text-sm text-muted-foreground">
+                Tournament limit reached ({createStatus?.maxAllowed})
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -207,12 +209,7 @@ export default function DashboardPage(): React.ReactNode {
             ))}
           </div>
 
-          {liveMatchCount > 0 && (
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-brand">
-              <span className="live-dot" />
-              {liveMatchCount} live match{liveMatchCount === 1 ? "" : "es"}
-            </div>
-          )}
+          <div className="hidden sm:block" />
         </div>
       </section>
 
@@ -264,64 +261,6 @@ export default function DashboardPage(): React.ReactNode {
           ))}
         </div>
       )}
-
-      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="surface-panel surface-panel-rail p-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-brand" />
-            <p className="text-caption text-muted-foreground">Ops Activity</p>
-          </div>
-          <h2 className="mt-3 text-heading">Match days heatmap</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Track momentum across tournament creation and live match days.
-          </p>
-          <div className="mt-4">
-            <CalendarHeatmap
-              numberOfMonths={3}
-              weightedDates={heatmapEntries}
-              variantClassnames={[
-                "bg-bg-secondary text-muted-foreground",
-                "bg-brand/20 text-brand",
-                "bg-brand/40 text-brand",
-                "bg-brand/70 text-text-inverse",
-              ]}
-            />
-          </div>
-        </div>
-
-        <div className="surface-panel surface-panel-rail p-6">
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-brand" />
-            <p className="text-caption text-muted-foreground">Ops Timeline</p>
-          </div>
-          <h2 className="mt-3 text-heading">Recent tournament flow</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Stay ahead of schedule changes and status transitions.
-          </p>
-          <div className="mt-6">
-            <Timeline>
-              {tournamentList.slice(0, 4).map((tournament) => (
-                <TimelineItem
-                  key={tournament._id}
-                  date={new Date(tournament._creationTime).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                  title={tournament.name}
-                  description={`${FORMAT_LABELS[tournament.format as TournamentFormat] || tournament.format} · ${tournament.participantCount} participants`}
-                  status={
-                    tournament.status === "active"
-                      ? "in-progress"
-                      : tournament.status === "completed"
-                        ? "completed"
-                        : "pending"
-                  }
-                />
-              ))}
-            </Timeline>
-          </div>
-        </div>
-      </section>
 
       <section id="onborda-ops-table" className="surface-panel surface-panel-rail p-6">
         <div className="flex items-center justify-between">

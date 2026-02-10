@@ -22,27 +22,27 @@ const { Scoped, steps, Stepper } = defineStepper(
   {
     id: "basics",
     title: "Basics",
-    description: "Name and bracket",
+    description: "Name & bracket",
   },
   {
     id: "rules",
     title: "Rules",
-    description: "Scoring configuration",
+    description: "Scoring rules",
   },
   {
     id: "format",
     title: "Format",
-    description: "Structure and participants",
+    description: "Format & players",
   },
   {
     id: "courts",
     title: "Courts",
-    description: "Match locations",
+    description: "Match courts",
   },
   {
     id: "review",
     title: "Review",
-    description: "Confirm setup",
+    description: "Final review",
   }
 );
 
@@ -140,7 +140,7 @@ export default function NewTournamentPage(): React.ReactNode {
                 return (
                   <>
                     <div className="surface-panel surface-panel-rail p-4">
-                      <Stepper.List className="grid gap-3 lg:grid-cols-5">
+                      <Stepper.List className="grid gap-2 lg:grid-cols-5">
                         {steps.map((step, index) => {
                           const isActive = stepper.state.current.data.id === step.id;
                           const isComplete = stepper.state.current.index > index;
@@ -149,7 +149,7 @@ export default function NewTournamentPage(): React.ReactNode {
                             <Stepper.Item key={step.id} step={step.id} className="relative">
                               <Stepper.Trigger
                                 type="button"
-                                className={`w-full rounded-xl border-2 px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                className={`w-full rounded-xl border-2 px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                                   isActive
                                     ? "border-brand bg-brand-light dark:bg-brand/20"
                                     : isComplete
@@ -157,9 +157,9 @@ export default function NewTournamentPage(): React.ReactNode {
                                       : "border-border bg-secondary hover:border-muted-foreground"
                                 }`}
                               >
-                                <div className="flex items-start gap-3">
+                                <div className="flex items-center gap-2">
                                   <span
-                                    className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
+                                    className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${
                                       isActive
                                         ? "border-brand text-brand"
                                         : isComplete
@@ -169,15 +169,15 @@ export default function NewTournamentPage(): React.ReactNode {
                                   >
                                     {isComplete ? <Check className="h-4 w-4" /> : index + 1}
                                   </span>
-                                  <div className="space-y-1">
+                                  <div className="space-y-0.5">
                                     <Stepper.Title
-                                      className={`text-sm font-semibold ${
+                                      className={`text-[13px] font-semibold leading-tight ${
                                         isActive ? "text-foreground" : "text-muted-foreground"
                                       }`}
                                     >
                                       {step.title}
                                     </Stepper.Title>
-                                    <Stepper.Description className="text-xs text-muted-foreground">
+                                    <Stepper.Description className="text-[11px] leading-snug text-muted-foreground">
                                       {step.description}
                                     </Stepper.Description>
                                   </div>

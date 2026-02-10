@@ -146,7 +146,7 @@ export function BracketSelector({
 
           {/* Dropdown Menu */}
           {isOpen && (
-            <div className="absolute top-full left-0 mt-2 w-full min-w-[280px] bg-bg-card border border-border rounded-xl shadow-xl z-[9999] overflow-hidden">
+            <div className="absolute top-full left-0 mt-2 w-full min-w-[280px] bg-bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden">
               {/* Brackets list */}
               {brackets.map((bracket: Bracket, index: number) => (
                 <button

@@ -9,11 +9,22 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/app/components/Skeleton";
 import { cn } from "@/lib/utils";
-import { Braces, Gauge, LogOut, Settings, Shield, X } from "lucide-react";
+import {
+  Braces,
+  ChevronLeft,
+  ChevronRight,
+  Gauge,
+  LogOut,
+  Settings,
+  Shield,
+  X,
+} from "lucide-react";
 
 type NavigationProps = {
   mobileOpen: boolean;
   onMobileOpenChange: (open: boolean) => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 };
 
 const navItems = [
@@ -37,7 +48,12 @@ const navItems = [
   },
 ];
 
-export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps): React.ReactNode {
+export function Navigation({
+  mobileOpen,
+  onMobileOpenChange,
+  collapsed,
+  onToggleCollapse,
+}: NavigationProps): React.ReactNode {
   const pathname = usePathname();
   const { signOut } = useAuthActions();
   const user = useQuery(api.users.currentUser);
@@ -59,23 +75,53 @@ export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps):
     <>
       <aside
         id="onborda-nav"
-        className="sticky top-0 hidden h-screen w-72 flex-col border-r border-border/70 bg-bg-primary/90 px-6 py-6 lg:flex no-print"
+        className={cn(
+          "sticky top-0 hidden h-screen flex-col border-r border-border/70 bg-bg-primary/90 py-6 lg:flex no-print transition-[width,padding] duration-200",
+          collapsed ? "w-20 px-3" : "w-72 px-6"
+        )}
       >
         <div className="flex h-full flex-col">
-          <Link href="/dashboard" className="group flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-brand/40 bg-brand/15 text-brand">
-              <Gauge className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                Arena Ops
-              </p>
-              <p className="text-lg font-semibold text-foreground">ScoreForge</p>
-            </div>
-          </Link>
+          <div
+            className={cn("flex items-center", collapsed ? "flex-col gap-3" : "justify-between")}
+          >
+            <Link
+              href="/dashboard"
+              aria-label="ScoreForge dashboard"
+              title="ScoreForge"
+              className={cn("group flex items-center", collapsed ? "justify-center" : "gap-3")}
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-brand/40 bg-brand/15 text-brand">
+                <Gauge className="h-5 w-5" />
+              </div>
+              {!collapsed && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                    Arena Ops
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">ScoreForge</p>
+                </div>
+              )}
+            </Link>
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-bg-secondary text-muted-foreground transition hover:text-foreground"
+            >
+              {collapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </button>
+          </div>
 
-          <div className="mt-8">
-            <p className="text-caption text-muted-foreground">Operations</p>
+          <div className={cn("mt-8", collapsed && "mt-6")}>
+            <p className={cn("text-caption text-muted-foreground", collapsed && "sr-only")}>
+              Operations
+            </p>
             <nav className="mt-4 space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -84,8 +130,11 @@ export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps):
                   <Link
                     key={item.label}
                     href={item.href}
+                    aria-label={item.label}
+                    title={collapsed ? item.label : undefined}
                     className={cn(
-                      "group flex items-center gap-3 rounded-2xl border px-3 py-2 text-sm font-semibold transition-all",
+                      "group flex items-center rounded-2xl border text-sm font-semibold transition-all",
+                      collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2",
                       active
                         ? "border-brand/40 bg-brand/15 text-foreground shadow-[var(--shadow-sm)]"
                         : "border-transparent text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
@@ -101,7 +150,7 @@ export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps):
                     >
                       <Icon className="h-4 w-4" />
                     </span>
-                    <span>{item.label}</span>
+                    <span className={cn(collapsed && "sr-only")}>{item.label}</span>
                   </Link>
                 );
               })}
@@ -109,8 +158,11 @@ export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps):
               {isSiteAdmin && (
                 <Link
                   href="/admin"
+                  aria-label="Site Admin"
+                  title={collapsed ? "Site Admin" : undefined}
                   className={cn(
-                    "group flex items-center gap-3 rounded-2xl border px-3 py-2 text-sm font-semibold transition-all",
+                    "group flex items-center rounded-2xl border text-sm font-semibold transition-all",
+                    collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2",
                     isActive(["/admin"])
                       ? "border-brand/40 bg-brand/15 text-foreground shadow-[var(--shadow-sm)]"
                       : "border-transparent text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
@@ -126,7 +178,7 @@ export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps):
                   >
                     <Shield className="h-4 w-4" />
                   </span>
-                  <span>Site Admin</span>
+                  <span className={cn(collapsed && "sr-only")}>Site Admin</span>
                 </Link>
               )}
             </nav>
@@ -134,26 +186,52 @@ export function Navigation({ mobileOpen, onMobileOpenChange }: NavigationProps):
 
           <div className="mt-auto space-y-3">
             <div className="rounded-2xl border border-border bg-bg-secondary/80 p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-text-inverse">
-                  {initials}
+              {collapsed ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-text-inverse"
+                    aria-label={user?.name || "User"}
+                    title={user?.name || "User"}
+                  >
+                    {initials}
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <ThemeToggle />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => signOut()}
+                      aria-label="Sign out"
+                      title="Sign out"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {user?.name || "User"}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {user?.email || "Signed in"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <ThemeToggle />
-                <Button variant="ghost" size="sm" onClick={() => signOut()} className="gap-2">
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </Button>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-text-inverse">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {user?.name || "User"}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {user?.email || "Signed in"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <ThemeToggle />
+                    <Button variant="ghost" size="sm" onClick={() => signOut()} className="gap-2">
+                      <LogOut className="h-4 w-4" />
+                      Sign out
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

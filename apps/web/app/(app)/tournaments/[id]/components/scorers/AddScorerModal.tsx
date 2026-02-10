@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { createPortal } from "react-dom";
 import { useMutation } from "convex/react";
 import { api } from "@repo/convex";
 import type { Id } from "@repo/convex/dataModel";
 import { getDisplayMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface AddScorerModalProps {
   tournamentId: string;
@@ -40,15 +40,16 @@ export function AddScorerModal({ tournamentId, onClose }: AddScorerModalProps): 
     onClose();
   };
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="surface-panel surface-panel-rail w-full max-w-lg animate-scaleIn">
+  return (
+    <Dialog open onOpenChange={(isOpen) => !isOpen && handleClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="surface-panel-rail max-w-lg p-0 gap-0 overflow-hidden"
+      >
         <div className="flex items-center justify-between border-b border-border/70 p-6">
-          <h3 className="text-heading text-foreground font-[family-name:var(--font-display)]">
+          <DialogTitle className="text-heading text-foreground font-[family-name:var(--font-display)]">
             Assign scorer by email
-          </h3>
+          </DialogTitle>
           <button
             onClick={handleClose}
             className="rounded-full border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground transition-colors"
@@ -97,8 +98,7 @@ export function AddScorerModal({ tournamentId, onClose }: AddScorerModalProps): 
             {loading ? "Assigning..." : "Assign Scorer"}
           </Button>
         </div>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 }

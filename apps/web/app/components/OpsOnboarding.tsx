@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Onborda, OnbordaProvider, type CardComponentProps, type Step } from "onborda";
-import { Activity, Gauge, LayoutGrid, Table, Trophy } from "lucide-react";
+import { Gauge, LayoutGrid, Table, Trophy } from "lucide-react";
 import { OpsOnboardingCard } from "./OpsOnboardingCard";
 
 type Tour = { tour: string; steps: Step[] };
@@ -18,15 +18,6 @@ const OPS_TOUR: Tour[] = [
         content: "Jump between consoles, settings, and admin tools from the rail.",
         selector: "#onborda-nav",
         side: "right",
-        pointerPadding: 12,
-        pointerRadius: 16,
-      },
-      {
-        icon: <Activity className="h-4 w-4" />,
-        title: "Live ops header",
-        content: "Watch live match counts and launch quick actions from the ticker.",
-        selector: "#onborda-ops-header",
-        side: "bottom",
         pointerPadding: 12,
         pointerRadius: 16,
       },

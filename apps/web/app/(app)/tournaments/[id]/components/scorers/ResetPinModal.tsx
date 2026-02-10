@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface ResetPinModalProps {
   pin: string;
@@ -23,15 +23,16 @@ export function ResetPinModal({ pin, onClose }: ResetPinModalProps): React.React
     }
   };
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="surface-panel surface-panel-rail w-full max-w-sm animate-scaleIn">
+  return (
+    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="surface-panel-rail max-w-sm p-0 gap-0 overflow-hidden"
+      >
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4 text-center font-[family-name:var(--font-display)]">
+          <DialogTitle className="text-lg font-semibold text-foreground mb-4 text-center font-[family-name:var(--font-display)]">
             PIN Reset
-          </h3>
+          </DialogTitle>
           <div className="mb-4 rounded-xl border border-success/35 bg-success-light p-4">
             <p className="text-sm text-success font-medium text-center">
               Save this PIN! It will not be shown again.
@@ -54,8 +55,7 @@ export function ResetPinModal({ pin, onClose }: ResetPinModalProps): React.React
             Done
           </Button>
         </div>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 }

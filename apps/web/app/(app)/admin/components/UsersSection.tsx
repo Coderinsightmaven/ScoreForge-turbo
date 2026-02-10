@@ -7,6 +7,7 @@ import { Id } from "@repo/convex/dataModel";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { DataTable } from "@/components/ui/data-table";
+import { Switch } from "@/components/ui/switch";
 
 type UserRow = {
   _id: Id<"users">;
@@ -130,22 +131,14 @@ export function UsersSection() {
         header: () => <div className="text-center">Logs</div>,
         cell: ({ row }) => (
           <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() =>
+            <Switch
+              checked={row.original.scoringLogsEnabled}
+              onCheckedChange={() =>
                 handleToggleScoringLogs(row.original._id, row.original.scoringLogsEnabled)
               }
               disabled={togglingLogs === row.original._id}
-              className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
-                row.original.scoringLogsEnabled ? "bg-brand" : "bg-bg-tertiary"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  row.original.scoringLogsEnabled ? "translate-x-5" : "translate-x-0.5"
-                }`}
-              />
-            </button>
+              aria-label={`Toggle scoring logs for ${row.original.name || row.original.email || "user"}`}
+            />
           </div>
         ),
       },

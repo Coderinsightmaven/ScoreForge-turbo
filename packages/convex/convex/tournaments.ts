@@ -345,6 +345,7 @@ export const listMyTournaments = query({
       startDate: v.optional(v.number()),
       participantCount: v.number(),
       liveMatchCount: v.number(),
+      lastActivityAt: v.number(),
       isOwner: v.boolean(),
     })
   ),
@@ -368,6 +369,7 @@ export const listMyTournaments = query({
       startDate?: number;
       participantCount: number;
       liveMatchCount: number;
+      lastActivityAt: number;
       isOwner: boolean;
     }> = [];
 
@@ -421,8 +423,8 @@ export const listMyTournaments = query({
       return true;
     });
 
-    // Batch-fetch participant counts and live match counts for all tournaments
-    const [participantCounts, liveMatchCounts] = await Promise.all([
+    // Batch-fetch participant counts, live match counts, and match activity times
+    const [participantCounts, liveMatchCounts, matchActivityTimes] = await Promise.all([
       Promise.all(
         filteredTournaments.map(({ tournament }) =>
           ctx.db
@@ -441,10 +443,25 @@ export const listMyTournaments = query({
             .collect()
         )
       ),
+      Promise.all(
+        filteredTournaments.map(({ tournament }) =>
+          ctx.db
+            .query("matches")
+            .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+            .collect()
+        )
+      ),
     ]);
 
     for (let i = 0; i < filteredTournaments.length; i++) {
       const { tournament, isOwner } = filteredTournaments[i]!;
+      const lastMatchActivity = (matchActivityTimes[i] ?? []).reduce((max, match) => {
+        const startedAt = match.startedAt ?? 0;
+        const completedAt = match.completedAt ?? 0;
+        const candidate = startedAt > completedAt ? startedAt : completedAt;
+        return candidate > max ? candidate : max;
+      }, 0);
+
       results.push({
         _id: tournament._id,
         _creationTime: tournament._creationTime,
@@ -458,6 +475,7 @@ export const listMyTournaments = query({
         startDate: tournament.startDate,
         participantCount: participantCounts[i]!.length,
         liveMatchCount: liveMatchCounts[i]!.length,
+        lastActivityAt: lastMatchActivity || tournament.startDate || tournament._creationTime,
         isOwner,
       });
     }

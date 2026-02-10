@@ -5,6 +5,7 @@ import { api } from "@repo/convex";
 import { useState } from "react";
 import { Id } from "@repo/convex/dataModel";
 import { getDisplayMessage } from "@/lib/errors";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export function AdminsSection() {
   const admins = useQuery(api.siteAdmin.listSiteAdmins);
@@ -42,6 +43,11 @@ export function AdminsSection() {
     } finally {
       setGranting(false);
     }
+  };
+
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setSearchQuery("");
   };
 
   const nonAdminUsers =
@@ -139,76 +145,74 @@ export function AdminsSection() {
       </div>
 
       {/* Add Admin Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-card border border-border rounded-lg w-full max-w-md">
-            <div className="p-6 border-b border-border">
-              <h3 className="text-heading text-foreground font-[family-name:var(--font-display)]">
-                Add Site Admin
-              </h3>
-              <p className="text-small text-muted-foreground mt-1">
-                Search for a user to grant admin access
-              </p>
-            </div>
-            <div className="p-6">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or email..."
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                autoFocus
-              />
-              <div className="mt-4 max-h-64 overflow-y-auto">
-                {nonAdminUsers.length === 0 ? (
-                  <p className="text-small text-muted-foreground text-center py-4">
-                    {searchQuery ? "No matching users found" : "All users are admins"}
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {nonAdminUsers.slice(0, 10).map((user) => (
-                      <button
-                        key={user._id}
-                        onClick={() => handleGrant(user._id)}
-                        disabled={granting}
-                        className="w-full flex items-center gap-3 p-3 text-left hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        <div className="w-10 h-10 flex items-center justify-center text-small font-semibold text-white bg-brand rounded-full flex-shrink-0">
-                          {user.name
-                            ? user.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()
-                                .slice(0, 2)
-                            : user.email?.[0]?.toUpperCase() || "?"}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">
-                            {user.name || "No name"}
-                          </p>
-                          <p className="text-small text-muted-foreground truncate">{user.email}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="p-6 border-t border-border flex justify-end">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSearchQuery("");
-                }}
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-              >
-                Cancel
-              </button>
+      <Dialog open={showAddModal} onOpenChange={(isOpen) => !isOpen && handleCloseModal()}>
+        <DialogContent
+          showCloseButton={false}
+          className="surface-panel-rail max-w-md p-0 gap-0 overflow-hidden"
+        >
+          <div className="p-6 border-b border-border">
+            <DialogTitle className="text-heading text-foreground font-[family-name:var(--font-display)]">
+              Add Site Admin
+            </DialogTitle>
+            <DialogDescription className="text-small text-muted-foreground mt-1">
+              Search for a user to grant admin access
+            </DialogDescription>
+          </div>
+          <div className="p-6">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or email..."
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              autoFocus
+            />
+            <div className="mt-4 max-h-64 overflow-y-auto">
+              {nonAdminUsers.length === 0 ? (
+                <p className="text-small text-muted-foreground text-center py-4">
+                  {searchQuery ? "No matching users found" : "All users are admins"}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {nonAdminUsers.slice(0, 10).map((user) => (
+                    <button
+                      key={user._id}
+                      onClick={() => handleGrant(user._id)}
+                      disabled={granting}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <div className="w-10 h-10 flex items-center justify-center text-small font-semibold text-white bg-brand rounded-full flex-shrink-0">
+                        {user.name
+                          ? user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)
+                          : user.email?.[0]?.toUpperCase() || "?"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground truncate">
+                          {user.name || "No name"}
+                        </p>
+                        <p className="text-small text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+          <div className="p-6 border-t border-border flex justify-end">
+            <button
+              onClick={handleCloseModal}
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

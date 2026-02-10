@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/convex";
 import { useState, useEffect } from "react";
 import { getDisplayMessage } from "@/lib/errors";
+import { Switch } from "@/components/ui/switch";
 
 export function SettingsSection() {
   const settings = useQuery(api.siteAdmin.getSystemSettings);
@@ -99,19 +100,11 @@ export function SettingsSection() {
               Allow new users to sign up for accounts
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setAllowRegistration(!allowRegistration)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
-              allowRegistration ? "bg-brand" : "bg-bg-tertiary"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                allowRegistration ? "translate-x-5" : "translate-x-0.5"
-              }`}
-            />
-          </button>
+          <Switch
+            checked={allowRegistration}
+            onCheckedChange={setAllowRegistration}
+            aria-label="Toggle public registration"
+          />
         </div>
 
         {/* Maintenance Mode */}
@@ -123,19 +116,12 @@ export function SettingsSection() {
                 Show a maintenance message to all users
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setMaintenanceMode(!maintenanceMode)}
-              className={`relative w-11 h-6 rounded-full transition-colors ${
-                maintenanceMode ? "bg-warning" : "bg-bg-tertiary"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  maintenanceMode ? "translate-x-5" : "translate-x-0.5"
-                }`}
-              />
-            </button>
+            <Switch
+              checked={maintenanceMode}
+              onCheckedChange={setMaintenanceMode}
+              variant="warning"
+              aria-label="Toggle maintenance mode"
+            />
           </div>
 
           {maintenanceMode && (
