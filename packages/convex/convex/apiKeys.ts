@@ -1,7 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { errors } from "./lib/errors";
+import { assertNotInMaintenance } from "./lib/maintenance";
 import { validateStringLength, MAX_LENGTHS } from "./lib/validation";
 import { randomString } from "./lib/crypto";
 
@@ -108,6 +109,8 @@ export const generateApiKey = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     // Validate input length
     validateStringLength(args.name, "API key name", MAX_LENGTHS.apiKeyName);
 
@@ -118,7 +121,9 @@ export const generateApiKey = mutation({
       .collect();
     const activeKeys = existingKeys.filter((k) => k.isActive);
     if (activeKeys.length >= 10) {
-      throw new Error("Maximum of 10 active API keys per user. Revoke or delete an existing key.");
+      throw errors.limitExceeded(
+        "Maximum of 10 active API keys per user. Revoke or delete an existing key."
+      );
     }
 
     // Generate the key
@@ -155,6 +160,8 @@ export const revokeApiKey = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const apiKey = await ctx.db.get("apiKeys", args.keyId);
     if (!apiKey) {
       throw errors.notFound("API key");
@@ -189,6 +196,8 @@ export const rotateApiKey = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const apiKey = await ctx.db.get("apiKeys", args.keyId);
     if (!apiKey) {
       throw errors.notFound("API key");
@@ -199,7 +208,7 @@ export const rotateApiKey = mutation({
     }
 
     if (!apiKey.isActive) {
-      throw new Error("Cannot rotate a revoked API key");
+      throw errors.invalidState("Cannot rotate a revoked API key");
     }
 
     // Generate new key material
@@ -232,6 +241,8 @@ export const deleteApiKey = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const apiKey = await ctx.db.get("apiKeys", args.keyId);
     if (!apiKey) {
       throw errors.notFound("API key");
@@ -254,6 +265,8 @@ export const deleteApiKey = mutation({
 
 import type { Id } from "./_generated/dataModel";
 
+type ApiKeyCtx = QueryCtx | MutationCtx;
+
 /**
  * Result type for API key validation
  */
@@ -268,14 +281,14 @@ export interface ApiKeyValidationResult {
  * Note: lastUsedAt is not updated here since queries have read-only db access
  */
 export async function validateApiKey(
-  ctx: { db: any },
+  ctx: ApiKeyCtx,
   apiKey: string
 ): Promise<ApiKeyValidationResult | null> {
   const hashedKey = await hashKey(apiKey);
 
   const keyRecord = await ctx.db
     .query("apiKeys")
-    .withIndex("by_key", (q: any) => q.eq("key", hashedKey))
+    .withIndex("by_key", (q) => q.eq("key", hashedKey))
     .first();
 
   if (!keyRecord) {

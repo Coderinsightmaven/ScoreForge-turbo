@@ -7,6 +7,7 @@
  */
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 /**
  * Helper to create JSON response with CORS headers
@@ -100,7 +101,7 @@ export const getMatch = httpAction(async (ctx, request) => {
 
     const result = await ctx.runMutation(api.publicApi.getMatch, {
       apiKey,
-      matchId,
+      matchId: matchId as Id<"matches">,
     });
 
     // Fetch rate limit info for response headers
@@ -151,16 +152,16 @@ export const listMatches = httpAction(async (ctx, request) => {
 
     const args: {
       apiKey: string;
-      tournamentId: string;
-      bracketId?: string;
+      tournamentId: Id<"tournaments">;
+      bracketId?: Id<"tournamentBrackets">;
       status?: "pending" | "scheduled" | "live" | "completed" | "bye";
       round?: number;
       court?: string;
       sortBy?: "round" | "court" | "scheduledTime";
-    } = { apiKey, tournamentId };
+    } = { apiKey, tournamentId: tournamentId as Id<"tournaments"> };
 
     const bracketId = url.searchParams.get("bracketId");
-    if (bracketId) args.bracketId = bracketId;
+    if (bracketId) args.bracketId = bracketId as Id<"tournamentBrackets">;
 
     const status = url.searchParams.get("status");
     if (status && ["pending", "scheduled", "live", "completed", "bye"].includes(status)) {
@@ -275,7 +276,7 @@ export const listBrackets = httpAction(async (ctx, request) => {
 
     const result = await ctx.runMutation(api.publicApi.listBrackets, {
       apiKey,
-      tournamentId,
+      tournamentId: tournamentId as Id<"tournaments">,
     });
 
     // Fetch rate limit info for response headers

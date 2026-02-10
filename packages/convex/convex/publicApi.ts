@@ -20,7 +20,7 @@ const MAX_REQUESTS_PER_WINDOW = 100; // 100 requests per minute per API key
 // ============================================
 
 const participantReturn = v.object({
-  id: v.string(),
+  id: v.id("tournamentParticipants"),
   displayName: v.string(),
   type: v.union(v.literal("individual"), v.literal("doubles"), v.literal("team")),
   // Individual player name
@@ -37,7 +37,7 @@ const participantReturn = v.object({
 });
 
 const matchReturn = v.object({
-  id: v.string(),
+  id: v.id("matches"),
   round: v.number(),
   matchNumber: v.number(),
   bracketType: v.optional(v.string()),
@@ -54,12 +54,12 @@ const matchReturn = v.object({
   }),
   participant1: v.optional(participantReturn),
   participant2: v.optional(participantReturn),
-  winnerId: v.optional(v.string()),
+  winnerId: v.optional(v.id("tournamentParticipants")),
   tennisState: v.optional(tennisState),
 });
 
 const tournamentReturn = v.object({
-  id: v.string(),
+  id: v.id("tournaments"),
   name: v.string(),
   sport: presetSports,
   format: tournamentFormats,
@@ -212,7 +212,7 @@ export const _getRateLimitInfo = internalQuery({
 export const watchMatch = query({
   args: {
     apiKey: v.string(),
-    matchId: v.string(),
+    matchId: v.id("matches"),
   },
   returns: v.union(
     v.object({
@@ -230,14 +230,8 @@ export const watchMatch = query({
       return { error: "Invalid or inactive API key" };
     }
 
-    // Parse match ID
-    const matchId = ctx.db.normalizeId("matches", args.matchId);
-    if (!matchId) {
-      return { error: "Invalid match ID format" };
-    }
-
     // Get the match
-    const match = await ctx.db.get("matches", matchId);
+    const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
       return { error: "Match not found" };
     }
@@ -340,7 +334,7 @@ export const watchMatch = query({
 export const getMatch = mutation({
   args: {
     apiKey: v.string(),
-    matchId: v.string(),
+    matchId: v.id("matches"),
   },
   returns: v.union(
     v.object({
@@ -367,14 +361,8 @@ export const getMatch = mutation({
     }
     await trackApiUsage(ctx, keyValidation.keyId);
 
-    // Parse match ID
-    const matchId = ctx.db.normalizeId("matches", args.matchId);
-    if (!matchId) {
-      return { error: "Invalid match ID format" };
-    }
-
     // Get the match
-    const match = await ctx.db.get("matches", matchId);
+    const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
       return { error: "Match not found" };
     }
@@ -473,8 +461,8 @@ export const getMatch = mutation({
 export const listMatches = mutation({
   args: {
     apiKey: v.string(),
-    tournamentId: v.string(),
-    bracketId: v.optional(v.string()),
+    tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
     status: v.optional(matchStatus),
     round: v.optional(v.number()),
     court: v.optional(v.string()),
@@ -505,14 +493,8 @@ export const listMatches = mutation({
     }
     await trackApiUsage(ctx, keyValidation.keyId);
 
-    // Parse tournament ID
-    const tournamentId = ctx.db.normalizeId("tournaments", args.tournamentId);
-    if (!tournamentId) {
-      return { error: "Invalid tournament ID format" };
-    }
-
     // Get the tournament
-    const tournament = await ctx.db.get("tournaments", tournamentId);
+    const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
       return { error: "Tournament not found" };
     }
@@ -524,9 +506,7 @@ export const listMatches = mutation({
 
     // Query matches with appropriate filters
     let matches;
-    const bracketId = args.bracketId
-      ? (ctx.db.normalizeId("tournamentBrackets", args.bracketId) ?? undefined)
-      : undefined;
+    const bracketId = args.bracketId;
 
     if (bracketId !== undefined) {
       // Filter by specific bracket
@@ -554,27 +534,27 @@ export const listMatches = mutation({
       matches = await ctx.db
         .query("matches")
         .withIndex("by_tournament_and_round", (q) =>
-          q.eq("tournamentId", tournamentId).eq("round", args.round!)
+          q.eq("tournamentId", args.tournamentId).eq("round", args.round!)
         )
         .collect();
     } else if (args.status !== undefined) {
       matches = await ctx.db
         .query("matches")
         .withIndex("by_tournament_and_status", (q) =>
-          q.eq("tournamentId", tournamentId).eq("status", args.status!)
+          q.eq("tournamentId", args.tournamentId).eq("status", args.status!)
         )
         .collect();
     } else if (args.court !== undefined) {
       matches = await ctx.db
         .query("matches")
         .withIndex("by_tournament_and_court", (q) =>
-          q.eq("tournamentId", tournamentId).eq("court", args.court)
+          q.eq("tournamentId", args.tournamentId).eq("court", args.court)
         )
         .collect();
     } else {
       matches = await ctx.db
         .query("matches")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
+        .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
         .collect();
     }
 
@@ -701,7 +681,7 @@ export const listTournaments = mutation({
     v.object({
       tournaments: v.array(
         v.object({
-          id: v.string(),
+          id: v.id("tournaments"),
           name: v.string(),
           description: v.optional(v.string()),
           sport: presetSports,
@@ -787,13 +767,13 @@ export const listTournaments = mutation({
 export const listBrackets = mutation({
   args: {
     apiKey: v.string(),
-    tournamentId: v.string(),
+    tournamentId: v.id("tournaments"),
   },
   returns: v.union(
     v.object({
       brackets: v.array(
         v.object({
-          id: v.string(),
+          id: v.id("tournamentBrackets"),
           name: v.string(),
           description: v.optional(v.string()),
           format: v.optional(tournamentFormats),
@@ -825,14 +805,8 @@ export const listBrackets = mutation({
     }
     await trackApiUsage(ctx, keyValidation.keyId);
 
-    // Parse tournament ID
-    const tournamentId = ctx.db.normalizeId("tournaments", args.tournamentId);
-    if (!tournamentId) {
-      return { error: "Invalid tournament ID format" };
-    }
-
     // Get the tournament
-    const tournament = await ctx.db.get("tournaments", tournamentId);
+    const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
       return { error: "Tournament not found" };
     }
@@ -845,7 +819,7 @@ export const listBrackets = mutation({
     // Get all brackets for the tournament
     const brackets = await ctx.db
       .query("tournamentBrackets")
-      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", args.tournamentId))
       .collect();
 
     // Enrich with counts

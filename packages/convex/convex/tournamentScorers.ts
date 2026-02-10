@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { errors } from "./lib/errors";
+import { assertNotInMaintenance } from "./lib/maintenance";
 
 /**
  * List scorers assigned to a tournament
@@ -72,6 +73,8 @@ export const assignScorer = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, currentUserId);
+
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
       throw errors.notFound("Tournament");
@@ -141,6 +144,8 @@ export const assignScorerById = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, currentUserId);
+
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
       throw errors.notFound("Tournament");
@@ -201,6 +206,8 @@ export const removeScorer = mutation({
     if (!currentUserId) {
       throw errors.unauthenticated();
     }
+
+    await assertNotInMaintenance(ctx, currentUserId);
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {

@@ -9,6 +9,7 @@ import {
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { errors } from "./lib/errors";
+import { assertNotInMaintenance } from "./lib/maintenance";
 import { validateStringLength, MAX_LENGTHS } from "./lib/validation";
 import { randomInt, randomString } from "./lib/crypto";
 import bcrypt from "bcryptjs";
@@ -378,6 +379,7 @@ export const getTournamentByCode = mutation({
     v.null()
   ),
   handler: async (ctx, args) => {
+    await assertNotInMaintenance(ctx, null);
     const normalizedCode = args.code.toUpperCase().trim();
 
     // Check rate limit for code lookups
@@ -569,6 +571,8 @@ export const generateTournamentScorerCode = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
       throw errors.notFound("Tournament");
@@ -620,6 +624,8 @@ export const createTemporaryScorer = mutation({
     if (!userId) {
       throw errors.unauthenticated();
     }
+
+    await assertNotInMaintenance(ctx, userId);
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -708,6 +714,8 @@ export const deactivateTemporaryScorer = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const scorer = await ctx.db.get("temporaryScorers", args.scorerId);
     if (!scorer) {
       throw errors.notFound("Scorer");
@@ -750,6 +758,8 @@ export const reactivateTemporaryScorer = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const scorer = await ctx.db.get("temporaryScorers", args.scorerId);
     if (!scorer) {
       throw errors.notFound("Scorer");
@@ -781,6 +791,8 @@ export const resetTemporaryScorerPin = mutation({
     if (!userId) {
       throw errors.unauthenticated();
     }
+
+    await assertNotInMaintenance(ctx, userId);
 
     const scorer = await ctx.db.get("temporaryScorers", args.scorerId);
     if (!scorer) {
@@ -827,6 +839,8 @@ export const deleteTemporaryScorer = mutation({
     if (!userId) {
       throw errors.unauthenticated();
     }
+
+    await assertNotInMaintenance(ctx, userId);
 
     const scorer = await ctx.db.get("temporaryScorers", args.scorerId);
     if (!scorer) {
@@ -881,6 +895,7 @@ export const signIn = mutation({
     v.null()
   ),
   handler: async (ctx, args) => {
+    await assertNotInMaintenance(ctx, null);
     const normalizedCode = args.code.toUpperCase().trim();
     const normalizedUsername = args.username.trim().toLowerCase();
 
@@ -974,6 +989,7 @@ export const signOut = mutation({
   args: { token: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await assertNotInMaintenance(ctx, null);
     const session = await findSessionByToken(ctx, args.token);
 
     if (session) {
@@ -991,6 +1007,7 @@ export const cleanupExpiredSessions = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
+    await assertNotInMaintenance(ctx, null);
     const now = Date.now();
     const sessions = await ctx.db
       .query("temporaryScorerSessions")
@@ -1015,6 +1032,7 @@ export const cleanupExpiredRateLimits = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
+    await assertNotInMaintenance(ctx, null);
     const now = Date.now();
     const expiredBefore = now - LOGIN_RATE_LIMIT.windowMs;
 
@@ -1048,6 +1066,7 @@ export const cleanupAllExpiredData = internalMutation({
     rateLimits: v.number(),
   }),
   handler: async (ctx) => {
+    await assertNotInMaintenance(ctx, null);
     const now = Date.now();
 
     // Clean expired sessions
@@ -1063,14 +1082,16 @@ export const cleanupAllExpiredData = internalMutation({
     }
 
     // Clean expired rate limits
-    const allRateLimits = await ctx.db.query("loginRateLimits").collect();
+    const expiredBefore = now - LOGIN_RATE_LIMIT.windowMs;
+    const expiredRateLimits = await ctx.db
+      .query("loginRateLimits")
+      .withIndex("by_window_start", (q) => q.lt("windowStart", expiredBefore))
+      .collect();
 
     let rateLimitsDeleted = 0;
-    for (const record of allRateLimits) {
-      const windowExpired = now > record.windowStart + LOGIN_RATE_LIMIT.windowMs;
+    for (const record of expiredRateLimits) {
       const lockoutExpired = !record.lockedUntil || now > record.lockedUntil;
-
-      if (windowExpired && lockoutExpired) {
+      if (lockoutExpired) {
         await ctx.db.delete("loginRateLimits", record._id);
         rateLimitsDeleted++;
       }
@@ -1091,6 +1112,7 @@ export const deactivateAllForTournament = internalMutation({
   args: { tournamentId: v.id("tournaments") },
   returns: v.number(),
   handler: async (ctx, args) => {
+    await assertNotInMaintenance(ctx, null);
     // Get all temp scorers for this tournament
     const scorers = await ctx.db
       .query("temporaryScorers")

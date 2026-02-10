@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { themePreference } from "./schema";
 import { errors } from "./lib/errors";
+import { assertNotInMaintenance } from "./lib/maintenance";
 import { validateStringLength, MAX_LENGTHS } from "./lib/validation";
 
 export const currentUser = query({
@@ -40,6 +41,8 @@ export const updateProfile = mutation({
     if (userId === null) {
       throw errors.unauthenticated();
     }
+
+    await assertNotInMaintenance(ctx, userId);
 
     // Validate input length
     validateStringLength(args.name, "Name", MAX_LENGTHS.userName);
@@ -149,6 +152,8 @@ export const setThemePreference = mutation({
       throw errors.unauthenticated();
     }
 
+    await assertNotInMaintenance(ctx, userId);
+
     const existing = await ctx.db
       .query("userPreferences")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -182,6 +187,8 @@ export const deleteAccount = mutation({
     if (userId === null) {
       throw errors.unauthenticated();
     }
+
+    await assertNotInMaintenance(ctx, userId);
 
     // 1. Delete user preferences
     const preferences = await ctx.db
@@ -235,7 +242,7 @@ export const deleteAccount = mutation({
     if (siteAdminRecord) {
       const allAdmins = await ctx.db.query("siteAdmins").collect();
       if (allAdmins.length <= 1) {
-        throw new Error(
+        throw errors.invalidState(
           "Cannot delete the last site admin account. Transfer admin privileges to another user first."
         );
       }
