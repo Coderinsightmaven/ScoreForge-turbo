@@ -3,15 +3,22 @@
 import Link from "next/link";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { Button } from "@/components/ui/button";
-import { SlidingNumber } from "@/components/animate-ui/primitives/texts/sliding-number";
-import { ArrowRight, Braces } from "lucide-react";
+import { ArrowRight, Braces, Zap, Users, LayoutDashboard } from "lucide-react";
 import { featureDetails } from "@/app/lib/featureData";
 import { LandingHeader } from "@/app/components/LandingHeader";
 
-const opsStats = [
-  { value: 256, label: "Max bracket size" },
-  { value: 10, label: "Undo depth" },
-  { value: 6, label: "PIN length" },
+const opsHighlights = [
+  { icon: Zap, title: "Real-time scoring", desc: "Every point syncs live across all devices" },
+  {
+    icon: Users,
+    title: "Team collaboration",
+    desc: "Invite scorers with a PIN — no account needed",
+  },
+  {
+    icon: LayoutDashboard,
+    title: "Full event control",
+    desc: "Brackets, courts, and schedules in one place",
+  },
 ] as const;
 
 const liveSnapshot = {
@@ -47,8 +54,8 @@ const matchQueue = [
 
 export default function LandingPage(): React.ReactNode {
   return (
-    <div className="min-h-screen pb-20">
-      <div className="space-y-12 sm:space-y-16">
+    <div className="min-h-screen pb-32">
+      <div className="space-y-20 sm:space-y-28">
         <LandingHeader
           navLinks={[
             { href: "#overview", label: "Overview" },
@@ -59,9 +66,9 @@ export default function LandingPage(): React.ReactNode {
 
         <section
           id="overview"
-          className="container grid items-center gap-12 pb-16 pt-12 sm:pt-14 lg:grid-cols-[1.1fr_0.9fr]"
+          className="container grid items-center gap-16 pb-20 pt-16 sm:pt-20 lg:grid-cols-[1.1fr_0.9fr]"
         >
-          <div className="space-y-8">
+          <div className="space-y-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-brand animate-scaleIn">
               <span className="live-dot" />
               Real-time tournament ops
@@ -107,24 +114,26 @@ export default function LandingPage(): React.ReactNode {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              {opsStats.map((stat, index) => (
-                <div
-                  key={stat.label}
-                  className="surface-panel surface-panel-rail px-4 py-4 animate-slideUp"
-                  style={{ animationDelay: `${340 + index * 80}ms`, opacity: 0 }}
-                >
-                  <SlidingNumber
-                    className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-[0.04em]"
-                    number={stat.value}
-                    fromNumber={0}
-                    inViewOnce
-                    inViewMargin="-10%"
-                  />
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
+              {opsHighlights.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.title}
+                    className="surface-panel surface-panel-rail px-4 py-4 animate-slideUp"
+                    style={{ animationDelay: `${340 + index * 80}ms`, opacity: 0 }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className="h-4 w-4 text-brand" />
+                      <p className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-[0.02em]">
+                        {item.title}
+                      </p>
+                    </div>
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {item.desc}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -218,37 +227,89 @@ export default function LandingPage(): React.ReactNode {
         </section>
       </div>
 
-      <section id="capabilities" className="container py-16">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <section
+        id="capabilities"
+        className="container"
+        style={{ paddingTop: "5rem", paddingBottom: "5rem" }}
+      >
+        <div
+          className="flex flex-col lg:flex-row lg:items-end lg:justify-between"
+          style={{ gap: "3rem" }}
+        >
           <div>
             <p className="text-caption text-muted-foreground">Capabilities</p>
-            <h2 className="mt-4 text-hero">Every tool you need on match day.</h2>
+            <h2
+              className="text-foreground"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(3.4rem, 7.5vw, 6.5rem)",
+                fontWeight: 700,
+                lineHeight: 0.9,
+                letterSpacing: "0.01em",
+                marginTop: "1.5rem",
+              }}
+            >
+              Every tool you need on match day.
+            </h2>
           </div>
-          <p className="max-w-md text-body text-muted-foreground">
+          <p
+            className="text-muted-foreground"
+            style={{ maxWidth: "32rem", fontSize: "1.15rem", lineHeight: 1.75 }}
+          >
             From bracket generation to court scheduling, ScoreForge, ScoreCommand gives your
             operations team the visibility and speed required to run a full event.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div
+          className="grid md:grid-cols-2 xl:grid-cols-3"
+          style={{ marginTop: "5rem", gap: "2.5rem" }}
+        >
           {featureDetails.map((feature, index) => {
             const Icon = feature.icon;
             return (
               <Link key={feature.slug} href={`/features/${feature.slug}`} className="group">
                 <article
-                  className="surface-panel surface-panel-rail relative h-full overflow-hidden p-6 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-md)] animate-slideUp"
-                  style={{ animationDelay: `${180 + index * 90}ms`, opacity: 0 }}
+                  className="surface-panel surface-panel-rail relative h-full overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-md)] animate-slideUp"
+                  style={{
+                    animationDelay: `${180 + index * 90}ms`,
+                    opacity: 0,
+                    padding: "2.75rem 2.5rem",
+                  }}
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand/30 bg-brand/10 text-brand transition-transform duration-300 group-hover:scale-110">
-                    <Icon className="h-5 w-5" />
+                  <div
+                    className="flex items-center justify-center rounded-2xl border border-brand/30 bg-brand/10 text-brand transition-transform duration-300 group-hover:scale-110"
+                    style={{ height: "4.5rem", width: "4.5rem" }}
+                  >
+                    <Icon style={{ height: "1.75rem", width: "1.75rem" }} />
                   </div>
-                  <h3 className="mt-5 text-heading text-foreground transition-colors duration-200 group-hover:text-brand">
+                  <h3
+                    className="text-foreground transition-colors duration-200 group-hover:text-brand"
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: "clamp(1.9rem, 3.2vw, 2.8rem)",
+                      fontWeight: 600,
+                      lineHeight: 1.05,
+                      letterSpacing: "0.02em",
+                      marginTop: "2rem",
+                    }}
+                  >
                     {feature.title}
                   </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  <p
+                    className="text-muted-foreground"
+                    style={{
+                      marginTop: "1.25rem",
+                      fontSize: "1.15rem",
+                      lineHeight: 1.75,
+                    }}
+                  >
                     {feature.description}
                   </p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-brand opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-brand opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    style={{ marginTop: "1.75rem" }}
+                  >
                     Learn more
                     <ArrowRight className="h-3 w-3" />
                   </span>
@@ -259,17 +320,17 @@ export default function LandingPage(): React.ReactNode {
         </div>
       </section>
 
-      <section id="ops-flow" className="container pb-20">
-        <div className="surface-panel surface-panel-rail grid gap-8 p-8 lg:grid-cols-[1.2fr_0.8fr]">
+      <section id="ops-flow" className="container pb-28">
+        <div className="surface-panel surface-panel-rail grid gap-12 p-10 lg:p-12 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <p className="text-caption text-muted-foreground">Ops Flow</p>
-            <h2 className="mt-4 text-hero">From setup to finals in a single ScoreCommand.</h2>
-            <p className="mt-4 text-body text-muted-foreground">
+            <h2 className="mt-5 text-hero">From setup to finals in a single ScoreCommand.</h2>
+            <p className="mt-6 text-body-lg text-muted-foreground">
               Keep your tournament moving without chasing spreadsheets or manual score updates.
               ScoreForge syncs brackets, courts, and scoring in one place.
             </p>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {[
               "Build brackets and seed participants",
               "Assign courts and manage match flow",
@@ -277,12 +338,12 @@ export default function LandingPage(): React.ReactNode {
             ].map((step, index) => (
               <div
                 key={step}
-                className="flex items-center gap-4 rounded-2xl border border-border/70 bg-bg-secondary px-4 py-3"
+                className="flex items-center gap-5 rounded-2xl border border-border/70 bg-bg-secondary px-5 py-4"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-text-inverse text-xs font-bold">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-text-inverse text-sm font-bold">
                   {index + 1}
                 </span>
-                <p className="text-sm font-semibold text-foreground">{step}</p>
+                <p className="text-base font-semibold text-foreground">{step}</p>
               </div>
             ))}
           </div>
