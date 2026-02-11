@@ -5,9 +5,13 @@ import { useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { OpsQuickDrawer } from "./OpsQuickDrawer";
+import { ScoreCommandQuickDrawer } from "./ScoreCommandQuickDrawer";
 
-export function OpsHeader({ onMenuToggle }: { onMenuToggle: () => void }): React.ReactNode {
+export function ScoreCommandHeader({
+  onMenuToggle,
+}: {
+  onMenuToggle: () => void;
+}): React.ReactNode {
   const tournaments = useQuery(api.tournaments.listMyTournaments, {});
 
   const liveMatchCount = tournaments?.reduce(
@@ -17,7 +21,7 @@ export function OpsHeader({ onMenuToggle }: { onMenuToggle: () => void }): React
 
   return (
     <header
-      id="onborda-ops-header"
+      id="onborda-scorecommand-header"
       className="sticky top-0 z-40 border-b border-border/80 bg-bg-secondary/90 backdrop-blur no-print"
     >
       <div className="mx-auto flex h-14 items-center gap-4 px-4 lg:px-8">
@@ -46,7 +50,7 @@ export function OpsHeader({ onMenuToggle }: { onMenuToggle: () => void }): React
 
         <div className="ml-auto flex items-center gap-2">
           <div className="sm:hidden">
-            <OpsQuickDrawer />
+            <ScoreCommandQuickDrawer />
           </div>
           <Button variant="brand" size="sm" asChild>
             <Link href="/tournaments/new">

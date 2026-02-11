@@ -5,12 +5,12 @@ import { Drawer } from "vaul";
 import { Braces, Plus, Settings, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function OpsQuickDrawer(): React.ReactNode {
+export function ScoreCommandQuickDrawer(): React.ReactNode {
   return (
     <Drawer.Root>
       <Drawer.Trigger asChild>
-        <Button variant="outline" size="sm" id="onborda-ops-quick">
-          Ops Panel
+        <Button variant="outline" size="sm" id="onborda-scorecommand-quick">
+          ScoreCommand Panel
         </Button>
       </Drawer.Trigger>
       <Drawer.Portal>
@@ -18,7 +18,7 @@ export function OpsQuickDrawer(): React.ReactNode {
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[70vh] flex-col rounded-t-3xl border border-border/70 bg-bg-primary px-6 pb-6 pt-4 shadow-[var(--shadow-lg)]">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border" />
           <div className="space-y-2">
-            <p className="text-caption text-muted-foreground">Quick Ops</p>
+            <p className="text-caption text-muted-foreground">Quick ScoreCommand</p>
             <h3 className="text-heading">Launch a workflow</h3>
             <p className="text-sm text-muted-foreground">
               Jump straight into bracket creation, scoring, or settings.
@@ -41,7 +41,7 @@ export function OpsQuickDrawer(): React.ReactNode {
             <Button variant="outline" size="lg" asChild>
               <Link href="/settings">
                 <Settings className="h-4 w-4" />
-                Ops Settings
+                ScoreCommand Settings
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>

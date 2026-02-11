@@ -98,7 +98,7 @@ function AuthButtons() {
       <Authenticated>
         <Button variant="brand" size="sm" asChild className="w-full md:w-auto">
           <Link href="/dashboard">
-            Open Dashboard
+            Open ScoreCommand
             <ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
@@ -109,7 +109,7 @@ function AuthButtons() {
         </Button>
         <Button variant="brand" size="sm" asChild className="w-full md:w-auto">
           <Link href="/sign-up">
-            Start Ops
+            Start ScoreCommand
             <ArrowRight className="h-4 w-4" />
           </Link>
         </Button>

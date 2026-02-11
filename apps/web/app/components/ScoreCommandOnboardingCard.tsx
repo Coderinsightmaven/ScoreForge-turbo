@@ -3,11 +3,11 @@
 import type { CardComponentProps } from "onborda";
 import { Button } from "@/components/ui/button";
 
-type OpsOnboardingCardProps = CardComponentProps & {
+type ScoreCommandOnboardingCardProps = CardComponentProps & {
   onFinish: () => void;
 };
 
-export function OpsOnboardingCard({
+export function ScoreCommandOnboardingCard({
   step,
   currentStep,
   totalSteps,
@@ -15,7 +15,7 @@ export function OpsOnboardingCard({
   prevStep,
   arrow,
   onFinish,
-}: OpsOnboardingCardProps) {
+}: ScoreCommandOnboardingCardProps) {
   const isLast = currentStep + 1 === totalSteps;
 
   return (

@@ -323,7 +323,7 @@ export default function LandingPage(): React.ReactNode {
       <section id="ops-flow" className="container pb-28">
         <div className="surface-panel surface-panel-rail grid gap-12 p-10 lg:p-12 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
-            <p className="text-caption text-muted-foreground">Ops Flow</p>
+            <p className="text-caption text-muted-foreground">ScoreCommand Flow</p>
             <h2 className="mt-5 text-hero">From setup to finals in a single ScoreCommand.</h2>
             <p className="mt-6 text-body-lg text-muted-foreground">
               Keep your tournament moving without chasing spreadsheets or manual score updates.

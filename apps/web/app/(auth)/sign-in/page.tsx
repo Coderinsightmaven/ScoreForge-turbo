@@ -71,7 +71,7 @@ export default function SignInPage(): React.ReactNode {
           </Link>
 
           <div className="space-y-5">
-            <p className="text-caption text-muted-foreground">Ops Briefing</p>
+            <p className="text-caption text-muted-foreground">ScoreCommand Briefing</p>
             <h1 className="text-display leading-[0.9]">Stay in sync with every match.</h1>
             <p className="text-body-lg text-muted-foreground">
               Rejoin your ScoreCommand to manage brackets, monitor courts, and keep scoring live.

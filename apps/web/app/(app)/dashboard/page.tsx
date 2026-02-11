@@ -132,7 +132,7 @@ export default function DashboardPage(): React.ReactNode {
       <section className="surface-panel surface-panel-rail p-6 sm:p-8 animate-slideUp">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
           <div className="space-y-3">
-            <p className="text-caption text-muted-foreground">Ops Overview</p>
+            <p className="text-caption text-muted-foreground">ScoreCommand Overview</p>
             <h1 className="text-hero">Welcome back, {firstName}</h1>
             <p className="max-w-2xl text-body text-muted-foreground">
               {tournamentList.length === 0
@@ -165,7 +165,7 @@ export default function DashboardPage(): React.ReactNode {
       </section>
 
       {/* Stats */}
-      <section id="onborda-ops-stats" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section id="onborda-scorecommand-stats" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           value={<NumberFlow value={tournamentList.length} />}
           label="Total tournaments"
@@ -249,7 +249,10 @@ export default function DashboardPage(): React.ReactNode {
           </CardContent>
         </Card>
       ) : (
-        <div id="onborda-ops-tournaments" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          id="onborda-scorecommand-tournaments"
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        >
           {filteredTournaments.map((tournament, index) => (
             <div
               key={tournament._id}
@@ -262,10 +265,10 @@ export default function DashboardPage(): React.ReactNode {
         </div>
       )}
 
-      <section id="onborda-ops-table" className="surface-panel surface-panel-rail p-6">
+      <section id="onborda-scorecommand-table" className="surface-panel surface-panel-rail p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-caption text-muted-foreground">Ops Directory</p>
+            <p className="text-caption text-muted-foreground">ScoreCommand Directory</p>
             <h2 className="mt-2 text-heading">Tournament operations table</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Search, sort, and jump straight into any active tournament.

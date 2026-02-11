@@ -46,7 +46,7 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1 bg-bg-page dark:bg-bg-page-dark">
-      <AppHeader title="ScoreForge" subtitle="Ops Overview" />
+      <AppHeader title="ScoreForge" subtitle="ScoreCommand Overview" />
       <OfflineBanner />
       <FlatList
         data={tournamentList}
@@ -63,7 +63,7 @@ export default function DashboardScreen() {
             <View className="relative overflow-hidden rounded-3xl border border-border bg-bg-card p-6 shadow-lg shadow-black/10 dark:border-border-dark dark:bg-bg-card-dark">
               <View className="absolute inset-x-0 top-0 h-1 bg-brand/70" />
               <Text className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted dark:text-text-muted-dark">
-                Ops Overview
+                ScoreCommand Overview
               </Text>
               <Text className="mt-2 font-display-bold text-3xl text-text-primary dark:text-text-primary-dark">
                 Welcome back, {firstName}
