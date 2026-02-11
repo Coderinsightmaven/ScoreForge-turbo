@@ -65,3 +65,22 @@ export function getScoreDisplayCompact(match: MatchScoreData): string {
   }
   return `${match.participant1Score}-${match.participant2Score}`;
 }
+
+export function formatTournamentName(name: string): string {
+  return name
+    .split(" ")
+    .map((segment) =>
+      segment
+        .split("-")
+        .map((part) => {
+          if (!part) return part;
+          const hasLower = /[a-z]/.test(part);
+          const hasUpper = /[A-Z]/.test(part);
+          if (hasLower && hasUpper) return part;
+          if (hasUpper && !hasLower && part.length <= 3) return part;
+          return part[0]!.toUpperCase() + part.slice(1).toLowerCase();
+        })
+        .join("-")
+    )
+    .join(" ");
+}

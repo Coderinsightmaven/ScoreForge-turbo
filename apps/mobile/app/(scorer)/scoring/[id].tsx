@@ -99,7 +99,7 @@ export default function ScorerTennisScoringScreen() {
   if (match === undefined) {
     return (
       <View className="flex-1 items-center justify-center bg-dark-bg">
-        <ActivityIndicator size="large" color="#D4A017" />
+        <ActivityIndicator size="large" color="#70AC15" />
       </View>
     );
   }

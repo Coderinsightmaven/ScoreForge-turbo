@@ -1,27 +1,36 @@
 import { Stack } from "expo-router";
 import { useColorScheme } from "nativewind";
 
+import { NavSheetProvider } from "../../components/navigation/NavSheet";
+import { getStackBackground } from "../../utils/theme";
+
 export default function AppLayout() {
   const { colorScheme } = useColorScheme();
-  const stackBackground = colorScheme === "dark" ? "#0D172A" : "#F4F7FF";
+  const stackBackground = getStackBackground(colorScheme);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: stackBackground },
-      }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="profile" />
-      <Stack.Screen name="tournament/[id]" />
-      <Stack.Screen name="match/[id]" />
-      <Stack.Screen
-        name="scoring/[id]"
-        options={{
-          gestureEnabled: false,
-          animation: "fade",
-        }}
-      />
-    </Stack>
+    <NavSheetProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: stackBackground },
+        }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="dashboard" />
+        <Stack.Screen name="quick-bracket" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="admin" />
+        <Stack.Screen name="tournament/[id]" />
+        <Stack.Screen name="match/[id]" />
+        <Stack.Screen
+          name="scoring/[id]"
+          options={{
+            gestureEnabled: false,
+            animation: "fade",
+          }}
+        />
+      </Stack>
+    </NavSheetProvider>
   );
 }

@@ -26,13 +26,15 @@ export function StatusFilter({ value, onChange }: Props) {
         <TouchableOpacity
           className={`mr-2 rounded-lg border-2 px-5 py-2.5 ${
             value === item.value
-              ? "border-brand bg-brand shadow-lg shadow-brand/20"
-              : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+              ? "border-brand/50 bg-brand/10"
+              : "border-border bg-bg-card dark:border-border-dark dark:bg-bg-card-dark"
           }`}
           onPress={() => onChange(item.value)}>
           <Text
             className={`text-sm font-medium ${
-              value === item.value ? "text-white" : "text-text-secondary dark:text-slate-300"
+              value === item.value
+                ? "text-brand"
+                : "text-text-secondary dark:text-text-secondary-dark"
             }`}>
             {item.label}
           </Text>

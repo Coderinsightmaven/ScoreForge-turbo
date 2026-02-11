@@ -4,6 +4,7 @@ import { api } from "@repo/convex";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { getDisplayMessage } from "../../utils/errors";
+import { formatTournamentName } from "../../utils/format";
 import { useTempScorer } from "../../contexts/TempScorerContext";
 import {
   View,
@@ -150,7 +151,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <View className="flex-1 bg-bg-page dark:bg-bg-page-dark">
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -166,22 +167,22 @@ export default function SignInScreen() {
               <Text className="mb-1 font-display-semibold text-2xl text-text-primary">
                 Welcome to ScoreForge
               </Text>
-              <Text className="font-sans text-sm text-text-tertiary dark:text-slate-400">
+              <Text className="font-sans text-sm text-text-tertiary dark:text-text-tertiary-dark">
                 Tournament Scoring Made Simple
               </Text>
             </View>
 
             {/* Login Mode Selector */}
-            <View className="mb-6 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-              <Text className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+            <View className="mb-6 rounded-xl border border-border bg-bg-card p-3 dark:border-border-dark dark:bg-bg-card-dark">
+              <Text className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-text-tertiary-dark">
                 Sign-In Mode
               </Text>
               <View className="gap-2">
                 <TouchableOpacity
                   className={`rounded-lg border px-4 py-3 ${
                     loginType === "regular"
-                      ? "border-slate-900 bg-slate-900"
-                      : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                      ? "border-brand/50 bg-brand/10"
+                      : "border-border bg-bg-secondary dark:border-border-dark dark:bg-bg-secondary-dark"
                   }`}
                   onPress={() => {
                     setLoginType("regular");
@@ -190,15 +191,17 @@ export default function SignInScreen() {
                   activeOpacity={0.8}>
                   <Text
                     className={`text-sm font-semibold ${
-                      loginType === "regular" ? "text-white" : "text-slate-800 dark:text-slate-100"
+                      loginType === "regular"
+                        ? "text-brand"
+                        : "text-text-primary dark:text-text-primary-dark"
                     }`}>
                     Account Login
                   </Text>
                   <Text
                     className={`mt-1 text-xs ${
                       loginType === "regular"
-                        ? "text-slate-200"
-                        : "text-text-tertiary dark:text-slate-400"
+                        ? "text-brand/80"
+                        : "text-text-tertiary dark:text-text-tertiary-dark"
                     }`}>
                     For owners, admins, and regular staff.
                   </Text>
@@ -207,8 +210,8 @@ export default function SignInScreen() {
                 <TouchableOpacity
                   className={`rounded-lg border px-4 py-3 ${
                     loginType === "scorer"
-                      ? "border-slate-900 bg-slate-900"
-                      : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                      ? "border-brand/50 bg-brand/10"
+                      : "border-border bg-bg-secondary dark:border-border-dark dark:bg-bg-secondary-dark"
                   }`}
                   onPress={() => {
                     setLoginType("scorer");
@@ -217,15 +220,17 @@ export default function SignInScreen() {
                   activeOpacity={0.8}>
                   <Text
                     className={`text-sm font-semibold ${
-                      loginType === "scorer" ? "text-white" : "text-slate-800 dark:text-slate-100"
+                      loginType === "scorer"
+                        ? "text-brand"
+                        : "text-text-primary dark:text-text-primary-dark"
                     }`}>
                     Scorer Login
                   </Text>
                   <Text
                     className={`mt-1 text-xs ${
                       loginType === "scorer"
-                        ? "text-slate-200"
-                        : "text-text-tertiary dark:text-slate-400"
+                        ? "text-brand/80"
+                        : "text-text-tertiary dark:text-text-tertiary-dark"
                     }`}>
                     For temporary tournament scorers using code and PIN.
                   </Text>
@@ -234,23 +239,23 @@ export default function SignInScreen() {
             </View>
 
             {/* Login Card */}
-            <View className="rounded-2xl bg-white p-8 shadow-2xl shadow-slate-900/10 dark:bg-slate-900">
+            <View className="rounded-2xl bg-bg-card p-8 shadow-2xl shadow-black/10 dark:bg-bg-card-dark">
               {loginType === "regular" ? (
                 <>
-                  <Text className="mb-1 text-center font-display-bold text-xl text-slate-900 dark:text-slate-100">
+                  <Text className="mb-1 text-center font-display-bold text-xl text-text-primary dark:text-text-primary-dark">
                     Welcome Back
                   </Text>
-                  <Text className="mb-6 text-center font-sans text-sm text-text-tertiary dark:text-slate-400">
+                  <Text className="mb-6 text-center font-sans text-sm text-text-tertiary dark:text-text-tertiary-dark">
                     Sign in with your account
                   </Text>
 
                   <View className="space-y-4">
                     <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-text-tertiary-dark">
                         Email Address
                       </Text>
                       <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-base text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="w-full rounded-xl border-2 border-border bg-bg-secondary px-5 py-4 text-base text-text-primary dark:border-border-dark dark:bg-bg-secondary-dark dark:text-text-primary-dark"
                         placeholder="you@example.com"
                         placeholderTextColor="#94A3B8"
                         value={email}
@@ -262,11 +267,11 @@ export default function SignInScreen() {
                     </View>
 
                     <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-text-tertiary-dark">
                         Password
                       </Text>
                       <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-base text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="w-full rounded-xl border-2 border-border bg-bg-secondary px-5 py-4 text-base text-text-primary dark:border-border-dark dark:bg-bg-secondary-dark dark:text-text-primary-dark"
                         placeholder="Enter your password"
                         placeholderTextColor="#94A3B8"
                         value={password}
@@ -277,8 +282,8 @@ export default function SignInScreen() {
                     </View>
 
                     {error && (
-                      <View className="rounded-xl border border-red-200 bg-red-50 p-4">
-                        <Text className="text-center text-sm text-red-600">{error}</Text>
+                      <View className="rounded-xl border border-error/30 bg-error/10 p-4">
+                        <Text className="text-center text-sm text-error">{error}</Text>
                       </View>
                     )}
 
@@ -297,20 +302,20 @@ export default function SignInScreen() {
                 </>
               ) : (
                 <>
-                  <Text className="mb-1 text-center font-display-bold text-xl text-slate-900 dark:text-slate-100">
+                  <Text className="mb-1 text-center font-display-bold text-xl text-text-primary dark:text-text-primary-dark">
                     Scorer Login
                   </Text>
-                  <Text className="mb-6 text-center font-sans text-sm text-text-tertiary dark:text-slate-400">
+                  <Text className="mb-6 text-center font-sans text-sm text-text-tertiary dark:text-text-tertiary-dark">
                     Sign in with your tournament credentials
                   </Text>
 
                   <View className="space-y-4">
                     <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-text-tertiary-dark">
                         Tournament Code
                       </Text>
                       <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-center text-lg font-bold tracking-widest text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="w-full rounded-xl border-2 border-border bg-bg-secondary px-5 py-4 text-center text-lg font-bold tracking-widest text-text-primary dark:border-border-dark dark:bg-bg-secondary-dark dark:text-text-primary-dark"
                         placeholder="ABC123"
                         placeholderTextColor="#94A3B8"
                         value={tournamentCode}
@@ -321,13 +326,13 @@ export default function SignInScreen() {
                       {tournamentInfo && (
                         <View className="mt-2 rounded-lg border border-status-active-border/30 bg-status-active-bg p-2">
                           <Text className="text-center text-sm text-status-active-text">
-                            {tournamentInfo.name}
+                            {formatTournamentName(tournamentInfo.name)}
                           </Text>
                         </View>
                       )}
                       {tournamentCode.length === 6 && tournamentInfo === null && (
-                        <View className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
-                          <Text className="text-center text-sm text-red-600">
+                        <View className="mt-2 rounded-lg border border-error/30 bg-error/10 p-2">
+                          <Text className="text-center text-sm text-error">
                             Tournament not found
                           </Text>
                         </View>
@@ -335,11 +340,11 @@ export default function SignInScreen() {
                     </View>
 
                     <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-text-tertiary-dark">
                         Username
                       </Text>
                       <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-base text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="w-full rounded-xl border-2 border-border bg-bg-secondary px-5 py-4 text-base text-text-primary dark:border-border-dark dark:bg-bg-secondary-dark dark:text-text-primary-dark"
                         placeholder="Your username"
                         placeholderTextColor="#94A3B8"
                         value={username}
@@ -350,11 +355,11 @@ export default function SignInScreen() {
                     </View>
 
                     <View>
-                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-slate-400">
+                      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary dark:text-text-tertiary-dark">
                         PIN
                       </Text>
                       <TextInput
-                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-center text-lg font-bold tracking-widest text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="w-full rounded-xl border-2 border-border bg-bg-secondary px-5 py-4 text-center text-lg font-bold tracking-widest text-text-primary dark:border-border-dark dark:bg-bg-secondary-dark dark:text-text-primary-dark"
                         placeholder="1234"
                         placeholderTextColor="#94A3B8"
                         value={pin}
@@ -366,8 +371,8 @@ export default function SignInScreen() {
                     </View>
 
                     {error && (
-                      <View className="rounded-xl border border-red-200 bg-red-50 p-4">
-                        <Text className="text-center text-sm text-red-600">{error}</Text>
+                      <View className="rounded-xl border border-error/30 bg-error/10 p-4">
+                        <Text className="text-center text-sm text-error">{error}</Text>
                       </View>
                     )}
 
@@ -389,7 +394,7 @@ export default function SignInScreen() {
 
             {/* Footer */}
             <View className="mt-6 items-center">
-              <Text className="text-center font-sans text-xs text-text-tertiary dark:text-slate-400">
+              <Text className="text-center font-sans text-xs text-text-tertiary dark:text-text-tertiary-dark">
                 {loginType === "regular"
                   ? "Scorer access only. Contact your tournament organizer for credentials."
                   : "Get your code, username, and PIN from the tournament organizer."}

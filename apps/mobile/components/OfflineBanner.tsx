@@ -14,8 +14,8 @@ export function OfflineBanner() {
   if (!isOffline) return null;
 
   return (
-    <View className="border-b border-red-500/30 bg-red-500/15 px-4 py-2">
-      <Text className="text-center text-sm font-medium text-red-400">
+    <View className="border-b border-error/30 bg-error/10 px-4 py-2">
+      <Text className="text-center text-sm font-medium text-error">
         No internet connection. Changes will sync when you reconnect.
       </Text>
     </View>

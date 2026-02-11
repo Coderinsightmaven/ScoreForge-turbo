@@ -5,6 +5,18 @@ import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useState, useEffect, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useFonts } from "expo-font";
+import {
+  Lexend_400Regular,
+  Lexend_500Medium,
+  Lexend_600SemiBold,
+  Lexend_700Bold,
+} from "@expo-google-fonts/lexend";
+import {
+  Teko_400Regular,
+  Teko_500Medium,
+  Teko_600SemiBold,
+  Teko_700Bold,
+} from "@expo-google-fonts/teko";
 import { useColorScheme } from "nativewind";
 
 import { ConvexProvider } from "../providers/ConvexProvider";
@@ -19,6 +31,7 @@ import {
   ThemePreferenceContextType,
 } from "../contexts/ThemePreferenceContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { getStackBackground } from "../utils/theme";
 
 import "../global.css";
 
@@ -27,12 +40,12 @@ const THEME_PREFERENCE_KEY = "themePreference";
 
 function LoadingScreen() {
   return (
-    <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
+    <View className="flex-1 items-center justify-center bg-bg-page dark:bg-bg-page-dark">
       <View className="mb-6 h-20 w-20 items-center justify-center rounded-2xl bg-brand shadow-lg shadow-brand/20">
         <Text className="font-display-bold text-4xl text-white">S</Text>
       </View>
-      <ActivityIndicator size="large" color="#D4A017" />
-      <Text className="mt-4 font-sans-medium text-sm text-text-tertiary dark:text-slate-400">
+      <ActivityIndicator size="large" color="#70AC15" />
+      <Text className="mt-4 font-sans-medium text-sm text-text-tertiary dark:text-text-tertiary-dark">
         Loading ScoreForge
       </Text>
     </View>
@@ -83,7 +96,7 @@ function AuthRedirectHandler({
 
 function RootNavigation() {
   const { colorScheme, setColorScheme } = useColorScheme();
-  const stackBackground = colorScheme === "dark" ? "#0D172A" : "#F4F7FF";
+  const stackBackground = getStackBackground(colorScheme);
   const [tempScorerSession, setTempScorerSession] = useState<TempScorerSession | null>(null);
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>("system");
   const [isLoadingSession, setIsLoadingSession] = useState(true);
@@ -191,20 +204,20 @@ function RootNavigation() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    "ClashDisplay-Regular": require("../assets/fonts/ClashDisplay-Regular.ttf"),
-    "ClashDisplay-Medium": require("../assets/fonts/ClashDisplay-Medium.ttf"),
-    "ClashDisplay-Semibold": require("../assets/fonts/ClashDisplay-Semibold.ttf"),
-    "ClashDisplay-Bold": require("../assets/fonts/ClashDisplay-Bold.ttf"),
-    "DMSans-Regular": require("../assets/fonts/DMSans-Regular.ttf"),
-    "DMSans-Medium": require("../assets/fonts/DMSans-Medium.ttf"),
-    "DMSans-SemiBold": require("../assets/fonts/DMSans-SemiBold.ttf"),
-    "DMSans-Bold": require("../assets/fonts/DMSans-Bold.ttf"),
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
+    Teko_400Regular,
+    Teko_500Medium,
+    Teko_600SemiBold,
+    Teko_700Bold,
   });
 
   if (!fontsLoaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator size="large" color="#D4A017" />
+      <View className="flex-1 items-center justify-center bg-bg-page dark:bg-bg-page-dark">
+        <ActivityIndicator size="large" color="#70AC15" />
       </View>
     );
   }

@@ -1,9 +1,11 @@
 import { Stack } from "expo-router";
 import { useColorScheme } from "nativewind";
 
+import { getStackBackground } from "../../utils/theme";
+
 export default function ScorerLayout() {
   const { colorScheme } = useColorScheme();
-  const stackBackground = colorScheme === "dark" ? "#0D172A" : "#F4F7FF";
+  const stackBackground = getStackBackground(colorScheme);
 
   return (
     <Stack
