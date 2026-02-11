@@ -239,9 +239,6 @@ export default function LandingPage(): React.ReactNode {
                   className="surface-panel surface-panel-rail relative h-full overflow-hidden p-6 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-md)] animate-slideUp"
                   style={{ animationDelay: `${180 + index * 90}ms`, opacity: 0 }}
                 >
-                  <div className="absolute -right-6 -top-6 text-[64px] font-bold text-brand/10">
-                    0{index + 1}
-                  </div>
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand/30 bg-brand/10 text-brand transition-transform duration-300 group-hover:scale-110">
                     <Icon className="h-5 w-5" />
                   </div>

@@ -20,6 +20,7 @@ import { MatchActions } from "./components/MatchActions";
 import { MatchPreview } from "./components/MatchPreview";
 import { InlineFirstServerSetup } from "./components/InlineFirstServerSetup";
 import { CourtInfo } from "./components/CourtInfo";
+import { ScheduledTimeInfo } from "./components/ScheduledTimeInfo";
 import { LoadingSkeleton } from "./components/LoadingSkeleton";
 import { NotFound } from "./components/NotFound";
 
@@ -231,22 +232,16 @@ export default function MatchDetailPage({
 
           {/* Match Info */}
           <div className="flex flex-wrap gap-6 border-t border-border/70 p-6">
-            {match.scheduledTime && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                  Scheduled
-                </span>
-                <span className="text-sm text-text-primary">
-                  {new Date(match.scheduledTime).toLocaleString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-            )}
+            <ScheduledTimeInfo
+              matchId={match._id}
+              scheduledTime={match.scheduledTime}
+              court={match.court}
+              canEdit={
+                match.myRole === "owner" &&
+                !isByeMatch &&
+                (match.status === "pending" || match.status === "scheduled")
+              }
+            />
             <CourtInfo
               matchId={match._id}
               court={match.court}

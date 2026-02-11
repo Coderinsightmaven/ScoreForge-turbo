@@ -810,6 +810,18 @@ export const undoTennisPoint = mutation({
 
     const history = match.tennisState.history;
     if (!history || history.length === 0) {
+      const hasNoProgress =
+        match.tennisState.sets.length === 0 &&
+        (match.tennisState.currentSetGames[0] ?? 0) === 0 &&
+        (match.tennisState.currentSetGames[1] ?? 0) === 0 &&
+        (match.tennisState.currentGamePoints[0] ?? 0) === 0 &&
+        (match.tennisState.currentGamePoints[1] ?? 0) === 0 &&
+        (match.tennisState.tiebreakPoints[0] ?? 0) === 0 &&
+        (match.tennisState.tiebreakPoints[1] ?? 0) === 0 &&
+        !match.tennisState.isMatchComplete;
+      if (hasNoProgress) {
+        return null;
+      }
       throw errors.invalidState("No history available to undo");
     }
 

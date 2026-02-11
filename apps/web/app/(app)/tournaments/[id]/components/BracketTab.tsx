@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/convex";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Id } from "@repo/convex/dataModel";
 import { getDisplayMessage } from "@/lib/errors";
@@ -31,6 +31,27 @@ function formatTennisScoreForBracket(
   return parts.join(" ");
 }
 
+const STARTS_IN_UPDATE_MS = 60_000;
+const MINUTE_MS = 60_000;
+
+function formatStartsInLabel(scheduledTime: number, now: number): string {
+  const diffMs = scheduledTime - now;
+  if (diffMs <= 0) return "Starts now";
+
+  const totalMinutes = Math.ceil(diffMs / MINUTE_MS);
+  if (totalMinutes < 60) return `Starts in ${totalMinutes}m`;
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return `Starts in ${totalHours}h${remainingMinutes ? ` ${remainingMinutes}m` : ""}`;
+  }
+
+  const totalDays = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return `Starts in ${totalDays}d${remainingHours ? ` ${remainingHours}h` : ""}`;
+}
+
 export function BracketTab({
   tournamentId,
   bracketId,
@@ -46,10 +67,16 @@ export function BracketTab({
 }): React.ReactNode {
   const [generating, setGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const generateBracketMatches = useMutation(
     api.tournamentBrackets.generateBracketMatchesForBracket
   );
   const generateTournamentBracket = useMutation(api.tournaments.generateBracket);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), STARTS_IN_UPDATE_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   // Use bracket-specific query if a bracket is selected, otherwise tournament-level
   const tournamentBracket = useQuery(api.tournaments.getBracket, {
@@ -268,11 +295,20 @@ export function BracketTab({
                   // Only show as bye if it's an actual bye match (status === "bye")
                   // Not just because a participant is missing from an incomplete previous round
                   const isByeMatch = match.status === "bye";
+                  const isCompletedMatch = match.status === "completed";
                   const isScoreable =
                     !isByeMatch &&
                     match.participant1 &&
                     match.participant2 &&
                     match.status !== "completed";
+                  const scheduledTime = match.scheduledTime;
+                  const showStartsIn =
+                    match.status === "scheduled" && typeof scheduledTime === "number";
+                  const startsInLabel = showStartsIn
+                    ? formatStartsInLabel(scheduledTime, now)
+                    : null;
+                  const showCompletedBadge = isCompletedMatch && !isByeMatch;
+                  const showMetaRow = showStartsIn || showCompletedBadge;
 
                   const matchContent = (
                     <>
@@ -339,6 +375,24 @@ export function BracketTab({
                           <span className="text-xs font-medium text-success">Advances</span>
                         )}
                       </div>
+                      {showMetaRow && (
+                        <div
+                          className={`flex items-center px-3 pb-2 pt-1 ${
+                            showStartsIn ? "justify-between" : "justify-end"
+                          }`}
+                        >
+                          {showStartsIn && (
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {startsInLabel}
+                            </span>
+                          )}
+                          {showCompletedBadge && (
+                            <span className="rounded bg-success/10 px-1.5 py-0.5 text-[9px] font-medium text-success">
+                              Completed
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {isByeMatch && (
                         <span className="absolute top-1 right-1 rounded bg-bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                           BYE

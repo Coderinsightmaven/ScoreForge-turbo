@@ -5,6 +5,17 @@ import type { Id } from "../convex/_generated/dataModel";
 
 type TestCtx = ReturnType<typeof getTestContext>;
 
+type MatchDetails = {
+  _id: Id<"matches">;
+  tournamentId: Id<"tournaments">;
+  myRole: "owner" | "scorer" | "temp_scorer";
+  sport: string;
+  tournamentStatus: "draft" | "active" | "completed" | "cancelled";
+  tennisConfig?: { isAdScoring: boolean; setsToWin: number };
+  participant1?: { displayName: string; wins: number; losses: number };
+  participant2?: { displayName: string; wins: number; losses: number };
+};
+
 // ============================================
 // Helpers
 // ============================================
@@ -485,19 +496,22 @@ describe("getMatch", () => {
     const { matchId, tournamentId } = await setupTournamentWithMatch(t, userId);
 
     const result = await asUser.query(api.matches.getMatch, { matchId });
-    expect(result).not.toBeNull();
-    expect(result!._id).toBe(matchId);
-    expect(result!.tournamentId).toBe(tournamentId);
-    expect(result!.myRole).toBe("owner");
-    expect(result!.sport).toBe("tennis");
-    expect(result!.tournamentStatus).toBe("active");
-    expect(result!.tennisConfig).toEqual({ isAdScoring: true, setsToWin: 2 });
-    expect(result!.participant1).toBeDefined();
-    expect(result!.participant1!.displayName).toBe("Player 1");
-    expect(result!.participant1!.wins).toBe(0);
-    expect(result!.participant1!.losses).toBe(0);
-    expect(result!.participant2).toBeDefined();
-    expect(result!.participant2!.displayName).toBe("Player 2");
+    if (!result) {
+      throw new Error("Expected match result");
+    }
+    const matchDetails = result as MatchDetails;
+    expect(matchDetails._id).toBe(matchId);
+    expect(matchDetails.tournamentId).toBe(tournamentId);
+    expect(matchDetails.myRole).toBe("owner");
+    expect(matchDetails.sport).toBe("tennis");
+    expect(matchDetails.tournamentStatus).toBe("active");
+    expect(matchDetails.tennisConfig).toEqual({ isAdScoring: true, setsToWin: 2 });
+    expect(matchDetails.participant1).toBeDefined();
+    expect(matchDetails.participant1?.displayName).toBe("Player 1");
+    expect(matchDetails.participant1?.wins).toBe(0);
+    expect(matchDetails.participant1?.losses).toBe(0);
+    expect(matchDetails.participant2).toBeDefined();
+    expect(matchDetails.participant2?.displayName).toBe("Player 2");
   });
 
   it("returns match details with scorer role", async () => {
@@ -1894,17 +1908,26 @@ describe("scheduleMatch", () => {
     ).rejects.toThrow("Match cannot be scheduled");
   });
 
-  it("rejects scheduling a scheduled match (already scheduled)", async () => {
+  it("allows rescheduling a scheduled match", async () => {
     const t = getTestContext();
     const { userId, asUser } = await setupUser(t);
-    const { matchId } = await setupTournamentWithMatch(t, userId, { matchStatus: "scheduled" });
+    const { matchId } = await setupTournamentWithMatch(t, userId, { matchStatus: "pending" });
 
-    await expect(
-      asUser.mutation(api.matches.scheduleMatch, {
-        matchId,
-        scheduledTime: Date.now() + 3600000,
-      })
-    ).rejects.toThrow("Match cannot be scheduled");
+    const initialTime = Date.now() + 3600000;
+    const updatedTime = initialTime + 1800000;
+
+    await asUser.mutation(api.matches.scheduleMatch, {
+      matchId,
+      scheduledTime: initialTime,
+    });
+    await asUser.mutation(api.matches.scheduleMatch, {
+      matchId,
+      scheduledTime: updatedTime,
+    });
+
+    const match = await t.run(async (ctx) => ctx.db.get(matchId));
+    expect(match!.status).toBe("scheduled");
+    expect(match!.scheduledTime).toBe(updatedTime);
   });
 
   it("throws for non-existent match", async () => {

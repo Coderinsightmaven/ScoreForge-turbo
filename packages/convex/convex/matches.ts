@@ -944,15 +944,17 @@ export const scheduleMatch = mutation({
       throw errors.unauthorized();
     }
 
-    // Can only schedule pending matches
-    if (match.status !== "pending") {
+    // Can only schedule pending or scheduled matches
+    if (match.status !== "pending" && match.status !== "scheduled") {
       throw errors.invalidState("Match cannot be scheduled");
     }
+
+    const nextCourt = args.court !== undefined ? args.court : match.court;
 
     await ctx.db.patch("matches", args.matchId, {
       status: "scheduled",
       scheduledTime: args.scheduledTime,
-      court: args.court,
+      court: nextCourt,
     });
 
     return null;

@@ -43,6 +43,27 @@ type EditableBracketProps = {
 
 export type { Match };
 
+const STARTS_IN_UPDATE_MS = 60_000;
+const MINUTE_MS = 60_000;
+
+function formatStartsInLabel(scheduledTime: number, now: number): string {
+  const diffMs = scheduledTime - now;
+  if (diffMs <= 0) return "Starts now";
+
+  const totalMinutes = Math.ceil(diffMs / MINUTE_MS);
+  if (totalMinutes < 60) return `Starts in ${totalMinutes}m`;
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return `Starts in ${totalHours}h${remainingMinutes ? ` ${remainingMinutes}m` : ""}`;
+  }
+
+  const totalDays = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return `Starts in ${totalDays}d${remainingHours ? ` ${remainingHours}h` : ""}`;
+}
+
 export function EditableBracket({
   matches,
   format,
@@ -53,6 +74,7 @@ export function EditableBracket({
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
@@ -62,6 +84,11 @@ export function EditableBracket({
       inputRef.current.select();
     }
   }, [editingSlot]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), STARTS_IN_UPDATE_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSlotClick = (participant: Participant) => {
     if (!canEdit) return;
@@ -262,6 +289,12 @@ export function EditableBracket({
                   // Only show as bye if it's an actual bye match (status === "bye")
                   // Not just because a participant is missing from an incomplete previous round
                   const isByeMatch = match.status === "bye";
+                  const scheduledTime = match.scheduledTime;
+                  const showStartsIn =
+                    match.status === "scheduled" && typeof scheduledTime === "number";
+                  const startsInLabel = showStartsIn
+                    ? formatStartsInLabel(scheduledTime, now)
+                    : null;
 
                   return (
                     <div
@@ -278,6 +311,11 @@ export function EditableBracket({
                       )}
                       {renderParticipantSlot(match.participant1, 1, match)}
                       {renderParticipantSlot(match.participant2, 2, match)}
+                      {showStartsIn && (
+                        <div className="px-3 pb-2 pt-1 text-[11px] font-medium text-text-muted">
+                          {startsInLabel}
+                        </div>
+                      )}
                       {isByeMatch && (
                         <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-medium text-text-muted bg-bg-secondary rounded print:hidden">
                           BYE
