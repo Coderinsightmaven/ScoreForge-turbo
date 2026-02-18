@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -96,10 +96,8 @@ export const getTournamentLogs = query({
     })
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -168,10 +166,11 @@ export const hasScoringLogs = query({
     logCount: v.number(),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return { enabled: false, logCount: 0 };
     }
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {

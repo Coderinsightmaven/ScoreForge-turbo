@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation, internalMutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -22,10 +22,11 @@ export const checkIsSiteAdmin = query({
   args: {},
   returns: v.boolean(),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return false;
     }
+    const userId = user._id;
     return await isSiteAdmin(ctx, userId);
   },
 });
@@ -54,10 +55,8 @@ export const listUsers = query({
     nextCursor: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
@@ -250,10 +249,8 @@ export const getUser = query({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw errors.unauthenticated();
-    }
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUserId = currentUser._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
@@ -306,10 +303,8 @@ export const listSiteAdmins = query({
     })
   ),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
@@ -359,10 +354,8 @@ export const getSystemSettings = query({
     v.null()
   ),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
@@ -446,10 +439,8 @@ export const grantSiteAdmin = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw errors.unauthenticated();
-    }
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUserId = currentUser._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
@@ -492,10 +483,8 @@ export const revokeSiteAdmin = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw errors.unauthenticated();
-    }
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUserId = currentUser._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
@@ -540,10 +529,8 @@ export const updateUserAsAdmin = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw errors.unauthenticated();
-    }
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUserId = currentUser._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
@@ -576,10 +563,8 @@ export const updateSystemSettings = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, userId))) {
@@ -765,10 +750,8 @@ export const getUserScoringLogs = query({
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw errors.unauthenticated();
-    }
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUserId = currentUser._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
@@ -794,10 +777,8 @@ export const toggleUserScoringLogs = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw errors.unauthenticated();
-    }
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUserId = currentUser._id;
 
     // Verify caller is site admin
     if (!(await isSiteAdmin(ctx, currentUserId))) {
@@ -847,10 +828,11 @@ export const isUserScoringLogsEnabled = query({
   returns: v.boolean(),
   handler: async (ctx, args) => {
     // Require authentication; restrict to the user themselves or a site admin
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
       return false;
     }
+    const currentUserId = currentUser._id;
 
     // Only the user themselves or a site admin can check this setting
     if (currentUserId !== args.userId) {

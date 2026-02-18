@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { errors } from "./lib/errors";
@@ -65,10 +65,11 @@ export const listApiKeys = query({
     })
   ),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return [];
     }
+    const userId = user._id;
 
     const apiKeys = await ctx.db
       .query("apiKeys")
@@ -104,10 +105,8 @@ export const generateApiKey = mutation({
     keyPrefix: v.string(),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -155,10 +154,8 @@ export const revokeApiKey = mutation({
   args: { keyId: v.id("apiKeys") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -191,10 +188,8 @@ export const rotateApiKey = mutation({
     keyPrefix: v.string(),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -236,10 +231,8 @@ export const deleteApiKey = mutation({
   args: { keyId: v.id("apiKeys") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 

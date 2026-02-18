@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { errors } from "./lib/errors";
@@ -20,10 +20,11 @@ export const listScorers = query({
     })
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return [];
     }
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -68,10 +69,8 @@ export const assignScorer = mutation({
   },
   returns: v.id("tournamentScorers"),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (!currentUserId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const currentUserId = user._id;
 
     await assertNotInMaintenance(ctx, currentUserId);
 
@@ -139,10 +138,8 @@ export const assignScorerById = mutation({
   },
   returns: v.id("tournamentScorers"),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (!currentUserId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const currentUserId = user._id;
 
     await assertNotInMaintenance(ctx, currentUserId);
 
@@ -202,10 +199,8 @@ export const removeScorer = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (!currentUserId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const currentUserId = user._id;
 
     await assertNotInMaintenance(ctx, currentUserId);
 
@@ -243,10 +238,11 @@ export const isAssigned = query({
   args: { tournamentId: v.id("tournaments") },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return false;
     }
+    const userId = user._id;
 
     const assignment = await ctx.db
       .query("tournamentScorers")
