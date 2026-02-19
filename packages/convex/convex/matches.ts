@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { matchStatus, tennisState, tennisConfig } from "./schema";
@@ -60,7 +60,8 @@ export const listMatches = query({
     })
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -258,7 +259,8 @@ export const getMatch = query({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
@@ -371,10 +373,11 @@ export const listMyLiveMatches = query({
     })
   ),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return [];
     }
+    const userId = user._id;
 
     // Get tournaments user is explicitly assigned to as scorer
     const scorerAssignments = await ctx.db
@@ -545,10 +548,8 @@ export const createOneOffMatch = mutation({
   },
   returns: v.id("matches"),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
     await assertNotInMaintenance(ctx, userId);
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
@@ -654,10 +655,8 @@ export const updateScore = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
@@ -712,7 +711,8 @@ export const startMatch = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
     await assertNotInMaintenance(ctx, userId);
 
     const match = await ctx.db.get("matches", args.matchId);
@@ -765,10 +765,8 @@ export const completeMatch = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
@@ -924,10 +922,8 @@ export const scheduleMatch = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
@@ -971,10 +967,8 @@ export const updateMatchCourt = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {

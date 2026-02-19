@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, action } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
@@ -44,10 +44,8 @@ export const getTournamentMatchScores = query({
   },
   returns: v.array(matchScoreResult),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     // Verify tournament exists and is tennis
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
@@ -144,10 +142,11 @@ export const hasCompletedTennisMatches = query({
     isTennis: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return { hasMatches: false, matchCount: 0, isTennis: false };
     }
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {

@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { tennisState } from "./schema";
@@ -277,7 +277,8 @@ export const getTennisMatch = query({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
@@ -355,7 +356,8 @@ export const initTennisMatch = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
     await assertNotInMaintenance(ctx, userId);
 
     const match = await ctx.db.get("matches", args.matchId);
@@ -467,7 +469,8 @@ export const scoreTennisPoint = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
     await assertNotInMaintenance(ctx, userId);
 
     const match = await ctx.db.get("matches", args.matchId);
@@ -781,7 +784,8 @@ export const undoTennisPoint = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {
@@ -934,7 +938,8 @@ export const setTennisServer = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
 
     const match = await ctx.db.get("matches", args.matchId);
     if (!match) {

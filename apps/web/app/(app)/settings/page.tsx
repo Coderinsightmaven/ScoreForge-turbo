@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/convex";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { useClerk } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export default function SettingsPage(): React.ReactNode {
   const user = useQuery(api.users.currentUser);
   const updateProfile = useMutation(api.users.updateProfile);
   const deleteAccount = useMutation(api.users.deleteAccount);
-  const { signOut } = useAuthActions();
+  const { signOut } = useClerk();
 
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -67,10 +67,15 @@ export default function SettingsPage(): React.ReactNode {
     setDeleting(true);
     try {
       await deleteAccount();
-      await signOut();
     } catch (err) {
       toast.error(getDisplayMessage(err) || "Failed to delete account");
       setDeleting(false);
+      return;
+    }
+    try {
+      await signOut();
+    } catch {
+      // Account was deleted successfully, sign-out failure is non-critical
     }
   };
 
@@ -200,16 +205,6 @@ export default function SettingsPage(): React.ReactNode {
                   })}
                 </p>
               </div>
-
-              {user.emailVerificationTime && (
-                <div>
-                  <p className="text-caption text-muted-foreground">Email Status</p>
-                  <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-success">
-                    <CheckCircle className="h-4 w-4" />
-                    Verified
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 

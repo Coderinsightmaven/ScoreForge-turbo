@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
+import { useSignUp } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/convex";
 import { useState } from "react";
@@ -11,22 +11,66 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowRight, Gauge, Loader2, ShieldCheck, UserPlus } from "lucide-react";
 
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+function AppleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-2.12 4.53-3.74 4.25z" />
+    </svg>
+  );
+}
+
 export default function SignUpPage(): React.ReactNode {
-  const { signIn } = useAuthActions();
+  const { signUp, setActive, isLoaded } = useSignUp();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+
+  const handleOAuthSignUp = (strategy: "oauth_google" | "oauth_apple") => {
+    if (!isLoaded || !signUp) return;
+    signUp.authenticateWithRedirect({
+      strategy,
+      redirectUrl: "/sso-callback",
+      redirectUrlComplete: "/dashboard",
+    });
+  };
 
   const registrationStatus = useQuery(api.siteAdmin.getRegistrationStatus);
   const isRegistrationAllowed = registrationStatus?.allowPublicRegistration ?? true;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isLoaded) return;
     setError(null);
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
     const firstName = (formData.get("firstName") as string)?.trim();
     const lastName = (formData.get("lastName") as string)?.trim();
+    const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirmPassword") as string;
 
@@ -48,40 +92,54 @@ export default function SignUpPage(): React.ReactNode {
       return;
     }
 
-    formData.set("name", `${firstName} ${lastName}`);
-    formData.delete("firstName");
-    formData.delete("lastName");
-    formData.set("flow", "signUp");
-    formData.delete("confirmPassword");
+    try {
+      const result = await signUp.create({
+        emailAddress: email,
+        password,
+        firstName,
+        lastName,
+      });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+      } else if (result.status === "missing_requirements") {
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        setVerifying(true);
+      } else {
+        setError("Unable to complete sign up. Please try again.");
+      }
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "errors" in err) {
+        const clerkErr = err as { errors: Array<{ message: string }> };
+        setError(clerkErr.errors[0]?.message ?? "Sign up failed");
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerification = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!isLoaded || !signUp) return;
+    setError(null);
+    setLoading(true);
 
     try {
-      await signIn("password", formData);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (
-        message.toLowerCase().includes("already") ||
-        message.toLowerCase().includes("exists") ||
-        message.toLowerCase().includes("duplicate") ||
-        message.toLowerCase().includes("in use")
-      ) {
-        setError("An account with this email already exists. Try signing in instead.");
-      } else if (
-        message.toLowerCase().includes("invalid email") ||
-        message.toLowerCase().includes("email format")
-      ) {
-        setError("Please enter a valid email address.");
-      } else if (
-        message.toLowerCase().includes("password") &&
-        message.toLowerCase().includes("weak")
-      ) {
-        setError("Password is too weak. Please use a stronger password.");
-      } else if (
-        message.toLowerCase().includes("too many") ||
-        message.toLowerCase().includes("rate limit")
-      ) {
-        setError("Too many attempts. Please wait a moment and try again.");
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
       } else {
-        setError("Unable to create account. Please try again.");
+        setError("Verification incomplete. Please try again.");
+      }
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "errors" in err) {
+        const clerkErr = err as { errors: Array<{ message: string }> };
+        setError(clerkErr.errors[0]?.message ?? "Verification failed");
+      } else {
+        setError("Verification failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -152,7 +210,53 @@ export default function SignUpPage(): React.ReactNode {
             <p className="text-sm text-muted-foreground">Start your ops session.</p>
           </div>
 
-          {!isRegistrationAllowed ? (
+          {verifying ? (
+            <div className="surface-panel surface-panel-rail p-8">
+              <div className="mb-6 space-y-2">
+                <h2 className="text-heading text-foreground">Verify your email</h2>
+                <p className="text-sm text-muted-foreground">
+                  We sent a verification code to your email address.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerification} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Verification Code</Label>
+                  <Input
+                    id="code"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    placeholder="Enter code"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full"
+                  variant="brand"
+                  size="lg"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      Verify Email
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </div>
+          ) : !isRegistrationAllowed ? (
             <div className="surface-panel surface-panel-rail p-8 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-bg-secondary">
                 <UserPlus className="h-6 w-6 text-muted-foreground" />
@@ -175,6 +279,39 @@ export default function SignUpPage(): React.ReactNode {
                 <p className="text-sm text-muted-foreground">
                   Enter your details to build your ops workspace.
                 </p>
+              </div>
+
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => handleOAuthSignUp("oauth_google")}
+                >
+                  <GoogleIcon className="h-5 w-5" />
+                  Continue with Google
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => handleOAuthSignUp("oauth_apple")}
+                >
+                  <AppleIcon className="h-5 w-5" />
+                  Continue with Apple
+                </Button>
+                <div id="clerk-captcha" className="flex justify-center" />
+              </div>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-3 text-muted-foreground">or continue with email</span>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">

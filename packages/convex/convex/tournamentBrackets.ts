@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id, Doc } from "./_generated/dataModel";
@@ -41,10 +41,11 @@ export const listBrackets = query({
     })
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return [];
     }
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -126,10 +127,11 @@ export const getBracket = query({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return null;
     }
+    const userId = user._id;
 
     const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
     if (!bracket) {
@@ -228,10 +230,11 @@ export const getBracketMatches = query({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return null;
     }
+    const userId = user._id;
 
     const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
     if (!bracket) {
@@ -346,10 +349,8 @@ export const createBracket = mutation({
   },
   returns: v.id("tournamentBrackets"),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
     await assertNotInMaintenance(ctx, userId);
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
@@ -409,10 +410,8 @@ export const updateBracket = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
     if (!bracket) {
@@ -450,10 +449,8 @@ export const deleteBracket = mutation({
   args: { bracketId: v.id("tournamentBrackets") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
     if (!bracket) {
@@ -519,10 +516,8 @@ export const reorderBrackets = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament || !canManageTournament(tournament, userId)) {
@@ -552,10 +547,8 @@ export const startBracket = mutation({
   args: { bracketId: v.id("tournamentBrackets") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
     if (!bracket) {
@@ -621,10 +614,8 @@ export const generateBracketMatchesForBracket = mutation({
   args: { bracketId: v.id("tournamentBrackets") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
     if (!bracket) {

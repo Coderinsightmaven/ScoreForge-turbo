@@ -290,14 +290,12 @@ function TournamentActions({
   };
 }) {
   const router = useRouter();
-  const generateBracket = useMutation(api.tournaments.generateBracket);
   const startTournament = useMutation(api.tournaments.startTournament);
   const cancelTournament = useMutation(api.tournaments.cancelTournament);
   const deleteTournament = useMutation(api.tournaments.deleteTournament);
   const generateMatchScoresCSV = useAction(api.reports.generateMatchScoresCSV);
   const generateScoringLogsCSV = useAction(api.scoringLogs.generateScoringLogsCSV);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadingLogs, setDownloadingLogs] = useState(false);
@@ -352,25 +350,6 @@ function TournamentActions({
     } finally {
       setDownloading(false);
     }
-  };
-
-  const handleGenerateBracket = async () => {
-    setGenerating(true);
-    setErrorMessage(null);
-    try {
-      await generateBracket({ tournamentId: tournament._id as Id<"tournaments"> });
-    } catch (err) {
-      const message = getDisplayMessage(err) || "Failed to generate bracket";
-      // Make the error message more user-friendly
-      if (message.includes("Need at least 2 participants")) {
-        setErrorMessage(
-          "Each bracket needs at least 2 participants to generate matches. Please add participants to your brackets first, or generate matches for each bracket individually from the Bracket tab."
-        );
-      } else {
-        setErrorMessage(message);
-      }
-    }
-    setGenerating(false);
   };
 
   const handleStart = async () => {
@@ -455,15 +434,6 @@ function TournamentActions({
   return (
     <>
       <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-        {tournament.status === "draft" && tournament.participantCount >= 2 && (
-          <button
-            onClick={handleGenerateBracket}
-            disabled={generating}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 text-xs"
-          >
-            {generating ? "..." : "Generate Bracket"}
-          </button>
-        )}
         {tournament.status === "draft" && supportsBlankBracket && (
           <button
             onClick={() => setShowBlankBracketModal(true)}
@@ -476,7 +446,7 @@ function TournamentActions({
           <button
             onClick={handleStart}
             disabled={loading || tournament.participantCount < 2}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-brand text-white hover:bg-brand-hover shadow-sm h-9 px-4 py-2 text-xs"
+            className="px-4 py-2 text-xs font-semibold tracking-wide text-brand bg-brand/10 border border-brand/30 rounded-lg hover:bg-brand hover:text-text-inverse transition-all"
           >
             {loading ? "..." : "Start Tournament"}
           </button>

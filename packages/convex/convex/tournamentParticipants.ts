@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { participantTypes } from "./schema";
@@ -93,10 +93,8 @@ export const listParticipants = query({
     })
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -181,10 +179,11 @@ export const getParticipant = query({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return null;
     }
+    const userId = user._id;
 
     const participant = await ctx.db.get("tournamentParticipants", args.participantId);
     if (!participant) {
@@ -247,10 +246,8 @@ export const addParticipant = mutation({
   },
   returns: v.id("tournamentParticipants"),
   handler: async (ctx, args) => {
-    const authUserId = await getAuthUserId(ctx);
-    if (!authUserId) {
-      throw errors.unauthenticated();
-    }
+    const authUser = await getCurrentUserOrThrow(ctx);
+    const authUserId = authUser._id;
     await assertNotInMaintenance(ctx, authUserId);
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
@@ -378,10 +375,8 @@ export const updateParticipant = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const participant = await ctx.db.get("tournamentParticipants", args.participantId);
     if (!participant) {
@@ -465,10 +460,8 @@ export const removeParticipant = mutation({
   args: { participantId: v.id("tournamentParticipants") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const participant = await ctx.db.get("tournamentParticipants", args.participantId);
     if (!participant) {
@@ -506,10 +499,8 @@ export const updateSeeding = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const participant = await ctx.db.get("tournamentParticipants", args.participantId);
     if (!participant) {
@@ -552,10 +543,8 @@ export const updateSeedingBatch = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -603,10 +592,8 @@ export const updatePlaceholderName = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     const participant = await ctx.db.get("tournamentParticipants", args.participantId);
     if (!participant) {

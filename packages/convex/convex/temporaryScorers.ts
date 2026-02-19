@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import {
   query,
   mutation,
@@ -424,10 +424,11 @@ export const listTemporaryScorers = query({
     })
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return [];
     }
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -462,10 +463,11 @@ export const getScorerCode = query({
   args: { tournamentId: v.id("tournaments") },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
       return null;
     }
+    const userId = user._id;
 
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament) {
@@ -566,10 +568,8 @@ export const generateTournamentScorerCode = mutation({
   args: { tournamentId: v.id("tournaments") },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -620,10 +620,8 @@ export const createTemporaryScorer = mutation({
     scorerCode: v.string(),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -709,10 +707,8 @@ export const deactivateTemporaryScorer = mutation({
   args: { scorerId: v.id("temporaryScorers") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -753,10 +749,8 @@ export const reactivateTemporaryScorer = mutation({
   args: { scorerId: v.id("temporaryScorers") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -787,10 +781,8 @@ export const resetTemporaryScorerPin = mutation({
   args: { scorerId: v.id("temporaryScorers") },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
@@ -835,10 +827,8 @@ export const deleteTemporaryScorer = mutation({
   args: { scorerId: v.id("temporaryScorers") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw errors.unauthenticated();
-    }
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
 
