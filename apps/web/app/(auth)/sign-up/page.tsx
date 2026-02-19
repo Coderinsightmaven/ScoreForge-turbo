@@ -46,6 +46,8 @@ export default function SignUpPage(): React.ReactNode {
   const { signUp, setActive, isLoaded } = useSignUp();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
 
   const handleOAuthSignUp = (strategy: "oauth_google" | "oauth_apple") => {
     if (!isLoaded || !signUp) return;
@@ -99,6 +101,11 @@ export default function SignUpPage(): React.ReactNode {
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+      } else if (result.status === "missing_requirements") {
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        setVerifying(true);
+      } else {
+        setError("Unable to complete sign up. Please try again.");
       }
     } catch (err: unknown) {
       if (err && typeof err === "object" && "errors" in err) {
@@ -106,6 +113,33 @@ export default function SignUpPage(): React.ReactNode {
         setError(clerkErr.errors[0]?.message ?? "Sign up failed");
       } else {
         setError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerification = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!isLoaded || !signUp) return;
+    setError(null);
+    setLoading(true);
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+      } else {
+        setError("Verification incomplete. Please try again.");
+      }
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "errors" in err) {
+        const clerkErr = err as { errors: Array<{ message: string }> };
+        setError(clerkErr.errors[0]?.message ?? "Verification failed");
+      } else {
+        setError("Verification failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -176,7 +210,53 @@ export default function SignUpPage(): React.ReactNode {
             <p className="text-sm text-muted-foreground">Start your ops session.</p>
           </div>
 
-          {!isRegistrationAllowed ? (
+          {verifying ? (
+            <div className="surface-panel surface-panel-rail p-8">
+              <div className="mb-6 space-y-2">
+                <h2 className="text-heading text-foreground">Verify your email</h2>
+                <p className="text-sm text-muted-foreground">
+                  We sent a verification code to your email address.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerification} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Verification Code</Label>
+                  <Input
+                    id="code"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    placeholder="Enter code"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full"
+                  variant="brand"
+                  size="lg"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      Verify Email
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </div>
+          ) : !isRegistrationAllowed ? (
             <div className="surface-panel surface-panel-rail p-8 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-bg-secondary">
                 <UserPlus className="h-6 w-6 text-muted-foreground" />

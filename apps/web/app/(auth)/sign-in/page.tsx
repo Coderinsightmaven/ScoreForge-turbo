@@ -71,6 +71,14 @@ export default function SignInPage(): React.ReactNode {
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+      } else if (result.status === "needs_second_factor") {
+        setError(
+          "Two-factor authentication is required but not yet supported. Please contact an administrator."
+        );
+      } else if (result.status === "needs_new_password") {
+        setError("A password reset is required. Please reset your password before signing in.");
+      } else {
+        setError("Unable to complete sign in. Please try again.");
       }
     } catch (err: unknown) {
       if (err && typeof err === "object" && "errors" in err) {

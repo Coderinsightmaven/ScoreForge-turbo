@@ -290,14 +290,12 @@ function TournamentActions({
   };
 }) {
   const router = useRouter();
-  const generateBracket = useMutation(api.tournaments.generateBracket);
   const startTournament = useMutation(api.tournaments.startTournament);
   const cancelTournament = useMutation(api.tournaments.cancelTournament);
   const deleteTournament = useMutation(api.tournaments.deleteTournament);
   const generateMatchScoresCSV = useAction(api.reports.generateMatchScoresCSV);
   const generateScoringLogsCSV = useAction(api.scoringLogs.generateScoringLogsCSV);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadingLogs, setDownloadingLogs] = useState(false);
@@ -352,25 +350,6 @@ function TournamentActions({
     } finally {
       setDownloading(false);
     }
-  };
-
-  const handleGenerateBracket = async () => {
-    setGenerating(true);
-    setErrorMessage(null);
-    try {
-      await generateBracket({ tournamentId: tournament._id as Id<"tournaments"> });
-    } catch (err) {
-      const message = getDisplayMessage(err) || "Failed to generate bracket";
-      // Make the error message more user-friendly
-      if (message.includes("Need at least 2 participants")) {
-        setErrorMessage(
-          "Each bracket needs at least 2 participants to generate matches. Please add participants to your brackets first, or generate matches for each bracket individually from the Bracket tab."
-        );
-      } else {
-        setErrorMessage(message);
-      }
-    }
-    setGenerating(false);
   };
 
   const handleStart = async () => {

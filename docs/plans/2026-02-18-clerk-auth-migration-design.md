@@ -82,7 +82,7 @@ export const upsertFromClerk = internalMutation({
   args: { data: v.any() },
   handler: async (ctx, { data }) => {
     const attrs = {
-      name: `${data.first_name} ${data.last_name}`.trim(),
+      name: `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim() || "Anonymous",
       email: data.email_addresses[0]?.email_address ?? "",
       externalId: data.id,
     };

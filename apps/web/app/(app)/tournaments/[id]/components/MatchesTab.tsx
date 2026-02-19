@@ -260,10 +260,6 @@ export function MatchesTab({
               </div>
             </section>
           )}
-
-          {oneOffMatches.length === 0 && bracketMatches.length === 0 && (
-            <p className="text-sm text-muted-foreground">No matches to display.</p>
-          )}
         </div>
       )}
     </div>
@@ -325,7 +321,9 @@ function MatchCard({
           <span className={`text-sm font-semibold ${isWinner1 ? "text-brand" : "text-foreground"}`}>
             {match.participant1?.displayName || "TBD"}
           </span>
-          <span className="text-lg font-bold text-foreground">{match.participant1Score}</span>
+          {match.status !== "pending" && match.status !== "bye" && (
+            <span className="text-lg font-bold text-foreground">{match.participant1Score}</span>
+          )}
         </div>
         <div
           className={`flex items-center justify-between rounded-xl border px-3 py-2 ${
@@ -335,7 +333,9 @@ function MatchCard({
           <span className={`text-sm font-semibold ${isWinner2 ? "text-brand" : "text-foreground"}`}>
             {match.participant2?.displayName || "TBD"}
           </span>
-          <span className="text-lg font-bold text-foreground">{match.participant2Score}</span>
+          {match.status !== "pending" && match.status !== "bye" && (
+            <span className="text-lg font-bold text-foreground">{match.participant2Score}</span>
+          )}
         </div>
       </div>
       {match.scheduledTime && (

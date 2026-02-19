@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
-import type { QueryCtx } from "./_generated/server";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { themePreference } from "./schema";
 import { errors } from "./lib/errors";
 import { assertNotInMaintenance } from "./lib/maintenance";
@@ -25,7 +26,7 @@ export async function getCurrentUser(ctx: QueryCtx) {
  */
 export async function getCurrentUserOrThrow(ctx: QueryCtx) {
   const user = await getCurrentUser(ctx);
-  if (!user) throw new Error("Not authenticated");
+  if (!user) throw errors.unauthenticated();
   return user;
 }
 
@@ -187,6 +188,138 @@ export const setThemePreference = mutation({
 });
 
 /**
+ * Delete a user and all associated data (preferences, API keys, tournaments, etc.).
+ * Shared by deleteAccount (user-initiated) and deleteFromClerk (webhook-initiated).
+ */
+async function cleanupUserAndRelatedData(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
+  // 1. Delete user preferences
+  const preferences = await ctx.db
+    .query("userPreferences")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  for (const pref of preferences) {
+    await ctx.db.delete("userPreferences", pref._id);
+  }
+
+  // 2. Delete user scoring logs settings
+  const scoringLogsSettings = await ctx.db
+    .query("userScoringLogs")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  for (const setting of scoringLogsSettings) {
+    await ctx.db.delete("userScoringLogs", setting._id);
+  }
+
+  // 3. Delete API keys and associated rate limits
+  const apiKeys = await ctx.db
+    .query("apiKeys")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  for (const key of apiKeys) {
+    const rateLimits = await ctx.db
+      .query("apiRateLimits")
+      .withIndex("by_api_key", (q) => q.eq("apiKeyId", key._id))
+      .collect();
+    for (const limit of rateLimits) {
+      await ctx.db.delete("apiRateLimits", limit._id);
+    }
+    await ctx.db.delete("apiKeys", key._id);
+  }
+
+  // 4. Delete scorer assignments
+  const scorerAssignments = await ctx.db
+    .query("tournamentScorers")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  for (const assignment of scorerAssignments) {
+    await ctx.db.delete("tournamentScorers", assignment._id);
+  }
+
+  // 5. Delete site admin record if exists (guard against removing last admin)
+  const siteAdminRecord = await ctx.db
+    .query("siteAdmins")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .first();
+  if (siteAdminRecord) {
+    const allAdmins = await ctx.db.query("siteAdmins").collect();
+    if (allAdmins.length <= 1) {
+      throw errors.invalidState(
+        "Cannot delete the last site admin account. Transfer admin privileges to another user first."
+      );
+    }
+    await ctx.db.delete("siteAdmins", siteAdminRecord._id);
+  }
+
+  // 6. Delete tournaments owned by the user (and all related data)
+  const tournaments = await ctx.db
+    .query("tournaments")
+    .withIndex("by_created_by", (q) => q.eq("createdBy", userId))
+    .collect();
+
+  for (const tournament of tournaments) {
+    const brackets = await ctx.db
+      .query("tournamentBrackets")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    for (const bracket of brackets) {
+      await ctx.db.delete("tournamentBrackets", bracket._id);
+    }
+
+    const participants = await ctx.db
+      .query("tournamentParticipants")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    for (const participant of participants) {
+      await ctx.db.delete("tournamentParticipants", participant._id);
+    }
+
+    const matches = await ctx.db
+      .query("matches")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    for (const match of matches) {
+      await ctx.db.delete("matches", match._id);
+    }
+
+    const scoringLogs = await ctx.db
+      .query("scoringInputLogs")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    for (const log of scoringLogs) {
+      await ctx.db.delete("scoringInputLogs", log._id);
+    }
+
+    const tournamentScorers = await ctx.db
+      .query("tournamentScorers")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    for (const scorer of tournamentScorers) {
+      await ctx.db.delete("tournamentScorers", scorer._id);
+    }
+
+    const tempScorers = await ctx.db
+      .query("temporaryScorers")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    for (const tempScorer of tempScorers) {
+      const tempSessions = await ctx.db
+        .query("temporaryScorerSessions")
+        .withIndex("by_scorer", (q) => q.eq("scorerId", tempScorer._id))
+        .collect();
+      for (const tempSession of tempSessions) {
+        await ctx.db.delete("temporaryScorerSessions", tempSession._id);
+      }
+      await ctx.db.delete("temporaryScorers", tempScorer._id);
+    }
+
+    await ctx.db.delete("tournaments", tournament._id);
+  }
+
+  // 7. Finally, delete the user record
+  await ctx.db.delete("users", userId);
+}
+
+/**
  * Delete the current user's account and all associated data
  */
 export const deleteAccount = mutation({
@@ -194,144 +327,8 @@ export const deleteAccount = mutation({
   returns: v.null(),
   handler: async (ctx) => {
     const user = await getCurrentUserOrThrow(ctx);
-    const userId = user._id;
-
-    await assertNotInMaintenance(ctx, userId);
-
-    // 1. Delete user preferences
-    const preferences = await ctx.db
-      .query("userPreferences")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const pref of preferences) {
-      await ctx.db.delete("userPreferences", pref._id);
-    }
-
-    // 2. Delete user scoring logs settings
-    const scoringLogsSettings = await ctx.db
-      .query("userScoringLogs")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const setting of scoringLogsSettings) {
-      await ctx.db.delete("userScoringLogs", setting._id);
-    }
-
-    // 3. Delete API keys
-    const apiKeys = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const key of apiKeys) {
-      // Also delete associated rate limits
-      const rateLimits = await ctx.db
-        .query("apiRateLimits")
-        .withIndex("by_api_key", (q) => q.eq("apiKeyId", key._id))
-        .collect();
-      for (const limit of rateLimits) {
-        await ctx.db.delete("apiRateLimits", limit._id);
-      }
-      await ctx.db.delete("apiKeys", key._id);
-    }
-
-    // 4. Delete scorer assignments
-    const scorerAssignments = await ctx.db
-      .query("tournamentScorers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const assignment of scorerAssignments) {
-      await ctx.db.delete("tournamentScorers", assignment._id);
-    }
-
-    // 5. Delete site admin record if exists (guard against removing last admin)
-    const siteAdminRecord = await ctx.db
-      .query("siteAdmins")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-    if (siteAdminRecord) {
-      const allAdmins = await ctx.db.query("siteAdmins").collect();
-      if (allAdmins.length <= 1) {
-        throw errors.invalidState(
-          "Cannot delete the last site admin account. Transfer admin privileges to another user first."
-        );
-      }
-      await ctx.db.delete("siteAdmins", siteAdminRecord._id);
-    }
-
-    // 6. Delete tournaments owned by the user (and all related data)
-    const tournaments = await ctx.db
-      .query("tournaments")
-      .withIndex("by_created_by", (q) => q.eq("createdBy", userId))
-      .collect();
-
-    for (const tournament of tournaments) {
-      // Delete tournament brackets
-      const brackets = await ctx.db
-        .query("tournamentBrackets")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-      for (const bracket of brackets) {
-        await ctx.db.delete("tournamentBrackets", bracket._id);
-      }
-
-      // Delete tournament participants
-      const participants = await ctx.db
-        .query("tournamentParticipants")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-      for (const participant of participants) {
-        await ctx.db.delete("tournamentParticipants", participant._id);
-      }
-
-      // Delete matches
-      const matches = await ctx.db
-        .query("matches")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-      for (const match of matches) {
-        await ctx.db.delete("matches", match._id);
-      }
-
-      // Delete scoring input logs
-      const scoringLogs = await ctx.db
-        .query("scoringInputLogs")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-      for (const log of scoringLogs) {
-        await ctx.db.delete("scoringInputLogs", log._id);
-      }
-
-      // Delete tournament scorers for this tournament
-      const tournamentScorers = await ctx.db
-        .query("tournamentScorers")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-      for (const scorer of tournamentScorers) {
-        await ctx.db.delete("tournamentScorers", scorer._id);
-      }
-
-      // Delete temporary scorers and their sessions for this tournament
-      const tempScorers = await ctx.db
-        .query("temporaryScorers")
-        .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
-        .collect();
-      for (const tempScorer of tempScorers) {
-        const tempSessions = await ctx.db
-          .query("temporaryScorerSessions")
-          .withIndex("by_scorer", (q) => q.eq("scorerId", tempScorer._id))
-          .collect();
-        for (const tempSession of tempSessions) {
-          await ctx.db.delete("temporaryScorerSessions", tempSession._id);
-        }
-        await ctx.db.delete("temporaryScorers", tempScorer._id);
-      }
-
-      // Delete the tournament
-      await ctx.db.delete("tournaments", tournament._id);
-    }
-
-    // 7. Finally, delete the user record
-    await ctx.db.delete("users", userId);
-
+    await assertNotInMaintenance(ctx, user._id);
+    await cleanupUserAndRelatedData(ctx, user._id);
     return null;
   },
 });
@@ -367,7 +364,7 @@ export const deleteFromClerk = internalMutation({
       .withIndex("by_externalId", (q) => q.eq("externalId", clerkUserId))
       .unique();
     if (user) {
-      await ctx.db.delete(user._id);
+      await cleanupUserAndRelatedData(ctx, user._id);
     }
     return null;
   },

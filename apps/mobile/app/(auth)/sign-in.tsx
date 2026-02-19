@@ -85,6 +85,7 @@ export default function SignInScreen() {
   };
 
   const handleRegularSubmit = async () => {
+    if (!isLoaded) return;
     if (!email || !password) {
       setError("Please fill in all fields");
       return;
@@ -94,13 +95,18 @@ export default function SignInScreen() {
     setLoading(true);
 
     try {
-      if (!isLoaded) return;
       const result = await clerkSignIn.create({
         identifier: email,
         password,
       });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+      } else if (result.status === "needs_second_factor") {
+        setError("Two-factor authentication is required but not yet supported.");
+      } else if (result.status === "needs_new_password") {
+        setError("A password reset is required. Please reset your password on the web app.");
+      } else {
+        setError("Unable to complete sign in. Please try again.");
       }
     } catch (err: unknown) {
       if (err && typeof err === "object" && "errors" in err) {
@@ -282,7 +288,7 @@ export default function SignInScreen() {
                       disabled={loading}
                       activeOpacity={0.8}>
                       <Text className="text-base font-semibold text-text-primary dark:text-text-primary-dark">
-                        {"\uF8FF"}
+                        {Platform.OS === "ios" ? "\uF8FF" : ""}
                       </Text>
                       <Text className="text-base font-semibold text-text-primary dark:text-text-primary-dark">
                         Continue with Apple

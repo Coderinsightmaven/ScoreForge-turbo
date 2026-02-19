@@ -45,9 +45,13 @@ http.route({
         break;
       case "user.deleted":
         if (typeof event.data.id === "string") {
-          await ctx.runMutation(internal.users.deleteFromClerk, {
-            clerkUserId: event.data.id,
-          });
+          try {
+            await ctx.runMutation(internal.users.deleteFromClerk, {
+              clerkUserId: event.data.id,
+            });
+          } catch (err) {
+            console.error("Failed to delete user from Clerk webhook", err);
+          }
         }
         break;
     }

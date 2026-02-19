@@ -67,10 +67,15 @@ export default function SettingsPage(): React.ReactNode {
     setDeleting(true);
     try {
       await deleteAccount();
-      await signOut();
     } catch (err) {
       toast.error(getDisplayMessage(err) || "Failed to delete account");
       setDeleting(false);
+      return;
+    }
+    try {
+      await signOut();
+    } catch {
+      // Account was deleted successfully, sign-out failure is non-critical
     }
   };
 

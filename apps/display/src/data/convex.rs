@@ -81,7 +81,7 @@ async fn convex_task(
                                 }
                                 Ok(FunctionResult::ConvexError(e)) => {
                                     let _ =
-                                        message_tx.send(LiveDataMessage::Error(format!("{:?}", e)));
+                                        message_tx.send(LiveDataMessage::Error(e.message.clone()));
                                 }
                                 Err(e) => {
                                     let _ = message_tx.send(LiveDataMessage::Error(format!(
@@ -119,7 +119,7 @@ async fn convex_task(
                             let _ = message_tx.send(LiveDataMessage::Error(e));
                         }
                         Ok(FunctionResult::ConvexError(e)) => {
-                            let _ = message_tx.send(LiveDataMessage::Error(format!("{:?}", e)));
+                            let _ = message_tx.send(LiveDataMessage::Error(e.message.clone()));
                         }
                         Err(e) => {
                             let _ = message_tx
@@ -152,7 +152,7 @@ async fn convex_task(
                             let _ = message_tx.send(LiveDataMessage::Error(e));
                         }
                         Ok(FunctionResult::ConvexError(e)) => {
-                            let _ = message_tx.send(LiveDataMessage::Error(format!("{:?}", e)));
+                            let _ = message_tx.send(LiveDataMessage::Error(e.message.clone()));
                         }
                         Err(e) => {
                             let _ = message_tx
@@ -191,7 +191,7 @@ async fn convex_task(
                                         }
                                         FunctionResult::ConvexError(e) => {
                                             let _ =
-                                                tx.send(LiveDataMessage::Error(format!("{:?}", e)));
+                                                tx.send(LiveDataMessage::Error(e.message.clone()));
                                             break;
                                         }
                                     }
@@ -253,11 +253,6 @@ fn parse_tournament_list(val: &Value) -> Vec<TournamentInfo> {
         return vec![];
     };
 
-    // Check for error
-    if get_str(obj, "error").is_some() {
-        return vec![];
-    }
-
     let Some(tournaments) = get_array(obj, "tournaments") else {
         return vec![];
     };
@@ -281,10 +276,6 @@ fn parse_bracket_list(val: &Value) -> Vec<BracketInfo> {
     let Value::Object(obj) = val else {
         return vec![];
     };
-
-    if get_str(obj, "error").is_some() {
-        return vec![];
-    }
 
     let Some(brackets) = get_array(obj, "brackets") else {
         return vec![];
@@ -317,10 +308,6 @@ fn parse_match_list(val: &Value) -> Vec<MatchInfo> {
     let Value::Object(obj) = val else {
         return vec![];
     };
-
-    if get_str(obj, "error").is_some() {
-        return vec![];
-    }
 
     let Some(matches) = get_array(obj, "matches") else {
         return vec![];
