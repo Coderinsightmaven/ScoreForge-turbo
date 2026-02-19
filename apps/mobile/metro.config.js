@@ -24,4 +24,13 @@ config.resolver.extraNodeModules = {
   "react-native": path.resolve(projectRoot, "node_modules/react-native"),
 };
 
+const PINNED_CORE_MODULES = new Set(["react", "react-dom", "react-native"]);
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (PINNED_CORE_MODULES.has(moduleName)) {
+    const pinnedPath = require.resolve(moduleName, { paths: [path.resolve(projectRoot, "node_modules")] });
+    return { type: "sourceFile", filePath: pinnedPath };
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = withNativeWind(config, { input: "./global.css" });
