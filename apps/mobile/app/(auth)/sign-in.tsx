@@ -1,4 +1,4 @@
-import { useSignIn, useOAuth } from "@clerk/clerk-expo";
+import { useSignIn, useSSO } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import { useMutation } from "convex/react";
@@ -28,7 +28,7 @@ type LoginType = "regular" | "scorer";
 
 export default function SignInScreen() {
   const { signIn: clerkSignIn, setActive, isLoaded } = useSignIn();
-  const { startOAuthFlow: startGoogleOAuth } = useOAuth({ strategy: "oauth_google" });
+  const { startSSOFlow } = useSSO();
   const { setSession } = useTempScorer();
   const router = useRouter();
   const [loginType, setLoginType] = useState<LoginType>("regular");
@@ -72,19 +72,25 @@ export default function SignInScreen() {
     try {
       setError(null);
       setLoading(true);
-      const redirectUrl = Linking.createURL("/");
-      const { createdSessionId, setActive: setOAuthActive } = await startGoogleOAuth({
-        redirectUrl,
+      const { createdSessionId, setActive: setOAuthActive } = await startSSOFlow({
+        strategy: "oauth_google",
       });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
       }
     } catch (err) {
-      setError(getDisplayMessage(err));
+      const message = getDisplayMessage(err);
+      if (message.includes("Missing external verification redirect URL")) {
+        setError(
+          "Google sign-in is not fully configured in Clerk for this app build. Check Native API and Google OAuth provider settings."
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
-  }, [startGoogleOAuth]);
+  }, [startSSOFlow]);
 
   const signInTempScorer = useMutation(api.temporaryScorers.signIn);
   const lookupTournamentByCode = useMutation(api.temporaryScorers.getTournamentByCode);

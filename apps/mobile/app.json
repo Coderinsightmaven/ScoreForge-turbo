@@ -38,7 +38,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.theflyingamerican72.mobile"
+      "bundleIdentifier": "app.scoreforge.mobile"
     },
     "android": {
       "adaptiveIcon": {
