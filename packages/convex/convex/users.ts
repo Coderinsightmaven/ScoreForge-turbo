@@ -347,7 +347,7 @@ export const upsertFromClerk = internalMutation({
       .withIndex("by_externalId", (q) => q.eq("externalId", attrs.externalId))
       .unique();
     if (existing) {
-      await ctx.db.patch(existing._id, attrs);
+      await ctx.db.patch("users", existing._id, attrs);
     } else {
       await ctx.db.insert("users", attrs);
     }

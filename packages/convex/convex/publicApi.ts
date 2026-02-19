@@ -67,6 +67,16 @@ const tournamentReturn = v.object({
   courts: v.optional(v.array(v.string())),
 });
 
+function courtMatchPriority(
+  status: "pending" | "scheduled" | "live" | "completed" | "bye"
+): number {
+  if (status === "live") return 0;
+  if (status === "scheduled") return 1;
+  if (status === "pending") return 2;
+  if (status === "completed") return 3;
+  return 4;
+}
+
 /**
  * Check if an API key has exceeded its rate limit
  * Returns true if the request should be allowed, false if rate limited
@@ -311,6 +321,172 @@ export const watchMatch = query({
         winnerId: match.winnerId,
         tennisState: match.tennisState,
       },
+      tournament: {
+        id: tournament._id,
+        name: tournament.name,
+        sport: tournament.sport,
+        format: tournament.format,
+        tennisConfig: tournament.tennisConfig,
+        courts: tournament.courts,
+      },
+    };
+  },
+});
+
+/**
+ * Watch the current match for a specific court.
+ * The selected match automatically switches as court assignments/statuses change.
+ */
+export const watchCourt = query({
+  args: {
+    apiKey: v.string(),
+    tournamentId: v.id("tournaments"),
+    bracketId: v.optional(v.id("tournamentBrackets")),
+    court: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      match: matchReturn,
+      tournament: tournamentReturn,
+      court: v.string(),
+    }),
+    v.object({
+      match: v.null(),
+      tournament: tournamentReturn,
+      court: v.string(),
+    }),
+    v.object({
+      error: v.string(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const keyValidation = await validateApiKey(ctx, args.apiKey);
+    if (!keyValidation) {
+      return { error: "Invalid or inactive API key" };
+    }
+
+    const tournament = await ctx.db.get("tournaments", args.tournamentId);
+    if (!tournament) {
+      return { error: "Tournament not found" };
+    }
+
+    if (tournament.createdBy !== keyValidation.userId) {
+      return { error: "API key not authorized for this tournament" };
+    }
+
+    let matches;
+    if (args.bracketId !== undefined) {
+      const bracket = await ctx.db.get("tournamentBrackets", args.bracketId);
+      if (!bracket || bracket.tournamentId !== args.tournamentId) {
+        return { error: "Bracket not found in tournament" };
+      }
+      matches = await ctx.db
+        .query("matches")
+        .withIndex("by_bracket_and_court", (q) =>
+          q.eq("bracketId", args.bracketId).eq("court", args.court)
+        )
+        .collect();
+    } else {
+      matches = await ctx.db
+        .query("matches")
+        .withIndex("by_tournament_and_court", (q) =>
+          q.eq("tournamentId", args.tournamentId).eq("court", args.court)
+        )
+        .collect();
+    }
+
+    matches.sort((a, b) => {
+      const priorityDiff = courtMatchPriority(a.status) - courtMatchPriority(b.status);
+      if (priorityDiff !== 0) return priorityDiff;
+
+      const aTime = a.scheduledTime ?? Number.MAX_SAFE_INTEGER;
+      const bTime = b.scheduledTime ?? Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+
+      if (a.round !== b.round) return a.round - b.round;
+      return a.matchNumber - b.matchNumber;
+    });
+
+    const selectedMatch = matches[0];
+    if (!selectedMatch) {
+      return {
+        match: null,
+        court: args.court,
+        tournament: {
+          id: tournament._id,
+          name: tournament.name,
+          sport: tournament.sport,
+          format: tournament.format,
+          tennisConfig: tournament.tennisConfig,
+          courts: tournament.courts,
+        },
+      };
+    }
+
+    let participant1 = undefined;
+    let participant2 = undefined;
+
+    if (selectedMatch.participant1Id) {
+      const p1 = await ctx.db.get("tournamentParticipants", selectedMatch.participant1Id);
+      if (p1) {
+        participant1 = {
+          id: p1._id,
+          displayName: p1.displayName,
+          type: p1.type,
+          playerName: p1.playerName,
+          player1Name: p1.player1Name,
+          player2Name: p1.player2Name,
+          teamName: p1.teamName,
+          seed: p1.seed,
+          wins: p1.wins,
+          losses: p1.losses,
+          draws: p1.draws,
+        };
+      }
+    }
+
+    if (selectedMatch.participant2Id) {
+      const p2 = await ctx.db.get("tournamentParticipants", selectedMatch.participant2Id);
+      if (p2) {
+        participant2 = {
+          id: p2._id,
+          displayName: p2.displayName,
+          type: p2.type,
+          playerName: p2.playerName,
+          player1Name: p2.player1Name,
+          player2Name: p2.player2Name,
+          teamName: p2.teamName,
+          seed: p2.seed,
+          wins: p2.wins,
+          losses: p2.losses,
+          draws: p2.draws,
+        };
+      }
+    }
+
+    return {
+      match: {
+        id: selectedMatch._id,
+        round: selectedMatch.round,
+        matchNumber: selectedMatch.matchNumber,
+        bracketType: selectedMatch.bracketType,
+        court: selectedMatch.court,
+        status: selectedMatch.status,
+        scores: {
+          participant1: selectedMatch.participant1Score,
+          participant2: selectedMatch.participant2Score,
+        },
+        timestamps: {
+          scheduledTime: selectedMatch.scheduledTime,
+          startedAt: selectedMatch.startedAt,
+          completedAt: selectedMatch.completedAt,
+        },
+        participant1,
+        participant2,
+        winnerId: selectedMatch.winnerId,
+        tennisState: selectedMatch.tennisState,
+      },
+      court: args.court,
       tournament: {
         id: tournament._id,
         name: tournament.name,

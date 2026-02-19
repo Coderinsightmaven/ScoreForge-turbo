@@ -5,11 +5,9 @@ use std::sync::{Arc, Mutex};
 use egui::{Color32, Vec2};
 use uuid::Uuid;
 
-use crate::components::{ComponentData, ComponentType, ScoreboardComponent, TextureCache};
+use crate::components::{ComponentData, ScoreboardComponent, TextureCache};
 use crate::data::convex::ConvexManager;
-use crate::data::live_data::{
-    BracketInfo, ConnectionStep, LiveDataMessage, MatchInfo, TennisLiveData, TournamentInfo,
-};
+use crate::data::live_data::{ConnectionStep, LiveDataMessage, TennisLiveData, TournamentInfo};
 use crate::display::renderer::DisplayState;
 use crate::storage::assets::AssetLibrary;
 use crate::storage::scoreboard::{AppConfig, ScoreboardFile};
@@ -79,12 +77,13 @@ pub struct ProjectState {
     pub convex_manager: Option<ConvexManager>,
     pub connection_step: ConnectionStep,
     pub tournament_list: Vec<TournamentInfo>,
-    pub bracket_list: Vec<BracketInfo>,
-    pub match_list: Vec<MatchInfo>,
+    pub court_list: Vec<String>,
     pub selected_tournament_id: Option<String>,
-    pub selected_bracket_id: Option<String>,
-    pub selected_match_id: Option<String>,
+    pub selected_court: Option<String>,
     pub live_match_data: Option<TennisLiveData>,
+    pub pairing_code: Option<String>,
+    pub pairing_expires_at: Option<i64>,
+    pub paired_api_key: Option<String>,
 
     // Connect dialog (per-project)
     pub show_connect_dialog: bool,
@@ -123,12 +122,13 @@ impl ProjectState {
             convex_manager: None,
             connection_step: ConnectionStep::Disconnected,
             tournament_list: Vec::new(),
-            bracket_list: Vec::new(),
-            match_list: Vec::new(),
+            court_list: Vec::new(),
             selected_tournament_id: None,
-            selected_bracket_id: None,
-            selected_match_id: None,
+            selected_court: None,
             live_match_data: None,
+            pairing_code: None,
+            pairing_expires_at: None,
+            paired_api_key: None,
             show_connect_dialog: false,
             display_active: false,
             display_fullscreen: false,
@@ -161,12 +161,13 @@ impl ProjectState {
             convex_manager: None,
             connection_step: ConnectionStep::Disconnected,
             tournament_list: Vec::new(),
-            bracket_list: Vec::new(),
-            match_list: Vec::new(),
+            court_list: Vec::new(),
             selected_tournament_id: None,
-            selected_bracket_id: None,
-            selected_match_id: None,
+            selected_court: None,
             live_match_data: None,
+            pairing_code: None,
+            pairing_expires_at: None,
+            paired_api_key: None,
             show_connect_dialog: false,
             display_active: false,
             display_fullscreen: false,
@@ -205,13 +206,6 @@ impl ProjectState {
         }
     }
 
-    /// Returns true if this scoreboard contains any TennisDoublesName component.
-    pub fn is_doubles_scoreboard(&self) -> bool {
-        self.components
-            .iter()
-            .any(|c| c.component_type == ComponentType::TennisDoublesName)
-    }
-
     /// Process Convex messages for this project's connection.
     pub fn process_convex_messages(&mut self, toasts: &mut Vec<Toast>) {
         let messages: Vec<LiveDataMessage> = if let Some(manager) = &mut self.convex_manager {
@@ -226,6 +220,30 @@ impl ProjectState {
 
         for msg in messages {
             match msg {
+                LiveDataMessage::PairingStarted {
+                    pairing_code,
+                    expires_at,
+                } => {
+                    self.pairing_code = Some(pairing_code);
+                    self.pairing_expires_at = Some(expires_at);
+                    self.connection_step = ConnectionStep::Pairing;
+                }
+                LiveDataMessage::PairingCompleted { api_key } => {
+                    self.pairing_code = None;
+                    self.pairing_expires_at = None;
+                    self.paired_api_key = Some(api_key);
+                    self.connection_step = ConnectionStep::Disconnected;
+                }
+                LiveDataMessage::PairingExpired => {
+                    self.pairing_code = None;
+                    self.pairing_expires_at = None;
+                    self.connection_step = ConnectionStep::Disconnected;
+                    toasts.push(Toast {
+                        message: "Pairing code expired. Start pairing again.".to_string(),
+                        is_error: true,
+                        created_at: std::time::Instant::now(),
+                    });
+                }
                 LiveDataMessage::Connected => {
                     self.connection_step = ConnectionStep::SelectTournament;
                 }
@@ -233,16 +251,16 @@ impl ProjectState {
                     self.tournament_list = list;
                     self.connection_step = ConnectionStep::SelectTournament;
                 }
-                LiveDataMessage::BracketList(list) => {
-                    self.bracket_list = list;
-                    self.connection_step = ConnectionStep::SelectBracket;
-                }
-                LiveDataMessage::MatchList(list) => {
-                    self.match_list = list;
-                    self.connection_step = ConnectionStep::SelectMatch;
+                LiveDataMessage::CourtList(list) => {
+                    self.court_list = list;
+                    self.connection_step = ConnectionStep::SelectCourt;
                 }
                 LiveDataMessage::MatchDataUpdated(data) => {
                     self.live_match_data = Some(data);
+                    self.connection_step = ConnectionStep::Live;
+                }
+                LiveDataMessage::CourtNoActiveMatch => {
+                    self.live_match_data = None;
                     self.connection_step = ConnectionStep::Live;
                 }
                 LiveDataMessage::Error(err) => {
@@ -305,6 +323,7 @@ impl AppState {
     pub fn new() -> Self {
         let config = AppConfig::load();
         let connect_url = config.last_convex_url.clone().unwrap_or_default();
+        let connect_api_key = config.last_api_key.clone().unwrap_or_default();
         let monitors = Self::detect_monitors();
 
         Self {
@@ -320,7 +339,7 @@ impl AppState {
             show_new_dialog: false,
             show_connect_dialog: false,
             connect_url,
-            connect_api_key: String::new(),
+            connect_api_key,
             new_name: "Untitled".to_string(),
             new_width: "1920".to_string(),
             new_height: "1080".to_string(),
@@ -384,9 +403,7 @@ impl AppState {
                     ComponentData::Image { asset_id } if asset_id.as_ref() == Some(id) => {
                         *asset_id = None;
                     }
-                    ComponentData::Background { asset_id, .. }
-                        if asset_id.as_ref() == Some(id) =>
-                    {
+                    ComponentData::Background { asset_id, .. } if asset_id.as_ref() == Some(id) => {
                         *asset_id = None;
                     }
                     _ => {}
@@ -397,8 +414,19 @@ impl AppState {
 
     /// Process Convex messages for all projects.
     pub fn process_all_convex_messages(&mut self) {
+        let mut paired_key: Option<String> = None;
         for project in &mut self.projects {
             project.process_convex_messages(&mut self.toasts);
+            if paired_key.is_none() {
+                paired_key = project.paired_api_key.take();
+            }
+        }
+
+        if let Some(api_key) = paired_key {
+            self.connect_api_key = api_key.clone();
+            self.config.last_api_key = Some(api_key);
+            self.config.save();
+            self.push_toast("Device paired successfully".to_string(), false);
         }
     }
 }
@@ -453,7 +481,7 @@ mod tests {
 
         // Add a component
         let comp = ScoreboardComponent::new(
-            ComponentType::Text,
+            crate::components::ComponentType::Text,
             Vec2::new(10.0, 20.0),
             Vec2::new(100.0, 50.0),
         );
@@ -470,7 +498,7 @@ mod tests {
     fn undo_with_empty_stack_does_nothing() {
         let mut state = ProjectState::new("Test".to_string(), 800, 600);
         let comp = ScoreboardComponent::new(
-            ComponentType::Text,
+            crate::components::ComponentType::Text,
             Vec2::new(0.0, 0.0),
             Vec2::new(50.0, 50.0),
         );
@@ -497,7 +525,7 @@ mod tests {
     fn to_scoreboard_file_preserves_data() {
         let mut state = ProjectState::new("My Scoreboard".to_string(), 1280, 720);
         let comp = ScoreboardComponent::new(
-            ComponentType::TennisGameScore,
+            crate::components::ComponentType::TennisGameScore,
             Vec2::new(100.0, 200.0),
             Vec2::new(80.0, 40.0),
         );
@@ -508,27 +536,5 @@ mod tests {
         assert_eq!(file.name, "My Scoreboard");
         assert_eq!(file.dimensions, (1280, 720));
         assert_eq!(file.components.len(), 1);
-    }
-
-    #[test]
-    fn is_doubles_scoreboard_false_when_no_doubles() {
-        let mut state = ProjectState::new("Test".to_string(), 800, 600);
-        state.components.push(ScoreboardComponent::new(
-            ComponentType::TennisPlayerName,
-            Vec2::new(0.0, 0.0),
-            Vec2::new(200.0, 30.0),
-        ));
-        assert!(!state.is_doubles_scoreboard());
-    }
-
-    #[test]
-    fn is_doubles_scoreboard_true_when_doubles_present() {
-        let mut state = ProjectState::new("Test".to_string(), 800, 600);
-        state.components.push(ScoreboardComponent::new(
-            ComponentType::TennisDoublesName,
-            Vec2::new(0.0, 0.0),
-            Vec2::new(200.0, 30.0),
-        ));
-        assert!(state.is_doubles_scoreboard());
     }
 }

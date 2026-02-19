@@ -20,6 +20,7 @@ export function ApiKeysSection() {
   const rotateApiKey = useMutation(api.apiKeys.rotateApiKey);
   const revokeApiKey = useMutation(api.apiKeys.revokeApiKey);
   const deleteApiKey = useMutation(api.apiKeys.deleteApiKey);
+  const completePairing = useMutation(api.devicePairing.completePairing);
 
   const [newKeyName, setNewKeyName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -28,6 +29,10 @@ export function ApiKeysSection() {
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [confirmRotateKey, setConfirmRotateKey] = useState<string | null>(null);
   const [isRotating, setIsRotating] = useState(false);
+  const [pairingCode, setPairingCode] = useState("");
+  const [pairingDeviceName, setPairingDeviceName] = useState("");
+  const [isPairing, setIsPairing] = useState(false);
+  const [pairingSuccess, setPairingSuccess] = useState<string | null>(null);
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +49,30 @@ export function ApiKeysSection() {
       setError(getDisplayMessage(err) || "Failed to create API key");
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleCompletePairing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pairingCode.trim()) return;
+
+    setError(null);
+    setPairingSuccess(null);
+    setIsPairing(true);
+    try {
+      const result = await completePairing({
+        pairingCode: pairingCode.trim().toUpperCase(),
+        deviceName: pairingDeviceName.trim() || undefined,
+      });
+      setPairingSuccess(
+        `Display paired (${result.pairingCode}). The display will receive key ${result.keyPrefix}...`
+      );
+      setPairingCode("");
+      setPairingDeviceName("");
+    } catch (err) {
+      setError(getDisplayMessage(err) || "Failed to pair display device");
+    } finally {
+      setIsPairing(false);
     }
   };
 
@@ -140,6 +169,43 @@ export function ApiKeysSection() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          {/* Pair display device */}
+          <div className="mb-6 rounded-lg border border-border p-4">
+            <p className="mb-1 font-medium">Pair Display Device</p>
+            <p className="mb-4 text-small text-muted-foreground">
+              Enter the 6-character code shown in the desktop display app.
+            </p>
+            {pairingSuccess && (
+              <Alert className="mb-4 border-success/35 bg-success-light">
+                <AlertDescription className="text-success">{pairingSuccess}</AlertDescription>
+              </Alert>
+            )}
+            <form onSubmit={handleCompletePairing} className="flex flex-col gap-3 sm:flex-row">
+              <Input
+                type="text"
+                value={pairingCode}
+                onChange={(e) => setPairingCode(e.target.value)}
+                placeholder="Pairing code (e.g., A1B2C3)"
+                className="sm:max-w-[180px] uppercase"
+                maxLength={6}
+              />
+              <Input
+                type="text"
+                value={pairingDeviceName}
+                onChange={(e) => setPairingDeviceName(e.target.value)}
+                placeholder="Device name (optional)"
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                disabled={isPairing || pairingCode.trim().length < 6}
+                variant="brand"
+              >
+                {isPairing ? "Pairing..." : "Pair Device"}
+              </Button>
+            </form>
+          </div>
 
           {/* Create new key */}
           <form onSubmit={handleCreateKey} className="flex gap-3 mb-6">

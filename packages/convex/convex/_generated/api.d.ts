@@ -10,6 +10,7 @@
 
 import type * as apiKeys from "../apiKeys.js";
 import type * as crons from "../crons.js";
+import type * as devicePairing from "../devicePairing.js";
 import type * as http from "../http.js";
 import type * as httpApi from "../httpApi.js";
 import type * as lib_accessControl from "../lib/accessControl.js";
@@ -43,6 +44,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   apiKeys: typeof apiKeys;
   crons: typeof crons;
+  devicePairing: typeof devicePairing;
   http: typeof http;
   httpApi: typeof httpApi;
   "lib/accessControl": typeof lib_accessControl;

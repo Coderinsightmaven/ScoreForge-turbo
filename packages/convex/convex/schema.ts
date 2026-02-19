@@ -186,6 +186,28 @@ export default defineSchema({
     requestCount: v.number(), // Number of requests in this window
   }).index("by_api_key", ["apiKeyId"]),
 
+  // Device pairing sessions for display app login flow
+  displayPairings: defineTable({
+    pairingCode: v.string(), // Short code entered in web app (e.g., "A7K2Q9")
+    pairingSecretHash: v.string(), // Secret held by the display app
+    status: v.union(
+      v.literal("pending"),
+      v.literal("paired"),
+      v.literal("claimed"),
+      v.literal("expired")
+    ),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    pairedAt: v.optional(v.number()),
+    claimedAt: v.optional(v.number()),
+    pairedByUserId: v.optional(v.id("users")),
+    apiKeyId: v.optional(v.id("apiKeys")),
+    apiKeyValue: v.optional(v.string()), // One-time delivery to display app
+    deviceName: v.optional(v.string()),
+  })
+    .index("by_pairing_code", ["pairingCode"])
+    .index("by_expires_at", ["expiresAt"]),
+
   // Site-wide administrators (separate from org roles)
   siteAdmins: defineTable({
     userId: v.id("users"),
@@ -345,6 +367,7 @@ export default defineSchema({
     .index("by_bracket", ["bracketId"])
     .index("by_bracket_and_round", ["bracketId", "round"])
     .index("by_bracket_and_status", ["bracketId", "status"])
+    .index("by_bracket_and_court", ["bracketId", "court"])
     .index("by_next_match", ["nextMatchId"])
     .index("by_tournament_and_court", ["tournamentId", "court"]),
 

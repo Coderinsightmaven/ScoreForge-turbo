@@ -11,7 +11,7 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
 
     let connection_step = state.active_project().connection_step.clone();
 
-    let has_credentials = !state.connect_url.is_empty() && !state.connect_api_key.is_empty();
+    let has_url = !state.connect_url.is_empty();
 
     match &connection_step {
         ConnectionStep::Disconnected => {
@@ -19,7 +19,7 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
                 ui.colored_label(egui::Color32::from_rgb(150, 150, 150), "\u{25cf}");
                 ui.label("Disconnected");
             });
-            if has_credentials {
+            if has_url {
                 if ui.button("Connect").clicked() {
                     // Open the per-tab match selection dialog, which auto-connects
                     state.active_project_mut().show_connect_dialog = true;
@@ -37,7 +37,21 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
                 ui.label("Connecting...");
             });
         }
-        ConnectionStep::SelectTournament | ConnectionStep::SelectBracket | ConnectionStep::SelectMatch => {
+        ConnectionStep::Pairing => {
+            ui.horizontal(|ui| {
+                ui.colored_label(egui::Color32::YELLOW, "\u{25cf}");
+                ui.label("Pairing...");
+            });
+            if ui.button("Open Pairing").clicked() {
+                state.active_project_mut().show_connect_dialog = true;
+            }
+            if ui.button("Disconnect").clicked() {
+                if let Some(manager) = &state.active_project().convex_manager {
+                    manager.send_command(LiveDataCommand::Disconnect);
+                }
+            }
+        }
+        ConnectionStep::SelectTournament | ConnectionStep::SelectCourt => {
             ui.horizontal(|ui| {
                 ui.colored_label(egui::Color32::YELLOW, "\u{25cf}");
                 ui.label("Selecting...");
@@ -70,16 +84,21 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
 
     ui.separator();
 
-    // --- Match section (visible when connected and has live data) ---
+    // --- Court feed section (visible when connected) ---
     if connection_step == ConnectionStep::Live {
-        ui.label(egui::RichText::new("Match").strong());
+        ui.label(egui::RichText::new("Court Feed").strong());
 
         let project = state.active_project();
+        if let Some(court) = &project.selected_court {
+            ui.label(format!("Court: {court}"));
+        }
         if let Some(data) = &project.live_match_data {
             ui.label(format!("{} vs {}", data.player1_name, data.player2_name));
+        } else {
+            ui.label("Waiting for an active match on this court...");
         }
 
-        if ui.button("Change Match").clicked() {
+        if ui.button("Change Court").clicked() {
             // Go back to tournament selection, reconnect using global credentials
             let url = state.connect_url.clone();
             let api_key = state.connect_api_key.clone();
@@ -213,18 +232,16 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
         let project = state.active_project_mut();
         ui.horizontal(|ui| {
             ui.label("X:");
-            let offset_x_response = ui.add(
-                egui::TextEdit::singleline(&mut project.display_offset_x).desired_width(50.0),
-            );
+            let offset_x_response = ui
+                .add(egui::TextEdit::singleline(&mut project.display_offset_x).desired_width(50.0));
             if offset_x_response.changed() {
                 project.display_offset_x = sanitize_int_input(&project.display_offset_x);
             }
         });
         ui.horizontal(|ui| {
             ui.label("Y:");
-            let offset_y_response = ui.add(
-                egui::TextEdit::singleline(&mut project.display_offset_y).desired_width(50.0),
-            );
+            let offset_y_response = ui
+                .add(egui::TextEdit::singleline(&mut project.display_offset_y).desired_width(50.0));
             if offset_y_response.changed() {
                 project.display_offset_y = sanitize_int_input(&project.display_offset_y);
             }

@@ -1,13 +1,14 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::Duration;
 
 use convex::base_client::FunctionResult;
 use convex::{ConvexClient, Value};
 use futures::StreamExt;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 use super::live_data::{
-    BracketInfo, LiveDataCommand, LiveDataMessage, MatchInfo, SetScore, TennisLiveData,
-    TournamentInfo,
+    LiveDataCommand, LiveDataMessage, SetScore, TennisLiveData, TournamentInfo,
 };
 
 /// Manages the background tokio runtime and Convex client communication.
@@ -51,10 +52,136 @@ async fn convex_task(
     let mut client: Option<ConvexClient> = None;
     let mut api_key: Option<String> = None;
     let mut selected_tournament_id: Option<String> = None;
+    let mut subscription_task: Option<JoinHandle<()>> = None;
+    let mut pairing_poll_task: Option<JoinHandle<()>> = None;
 
     while let Some(cmd) = command_rx.recv().await {
         match cmd {
+            LiveDataCommand::StartPairing { url } => {
+                if let Some(task) = pairing_poll_task.take() {
+                    task.abort();
+                }
+
+                match ConvexClient::new(&url).await {
+                    Ok(mut pairing_client) => {
+                        let args: BTreeMap<String, Value> = maplit::btreemap! {};
+                        match pairing_client.mutation("devicePairing:startPairing", args).await {
+                            Ok(FunctionResult::Value(val)) => {
+                                if let Some((pairing_id, pairing_code, pairing_secret, expires_at, poll_interval)) =
+                                    parse_pairing_start(&val)
+                                {
+                                    let _ = message_tx.send(LiveDataMessage::PairingStarted {
+                                        pairing_code,
+                                        expires_at,
+                                    });
+
+                                    let tx = message_tx.clone();
+                                    pairing_poll_task = Some(tokio::spawn(async move {
+                                        loop {
+                                            tokio::time::sleep(Duration::from_millis(
+                                                poll_interval.max(500),
+                                            ))
+                                            .await;
+
+                                            let poll_args: BTreeMap<String, Value> = maplit::btreemap! {
+                                                "pairingId".into() => pairing_id.clone().into(),
+                                                "pairingSecret".into() => pairing_secret.clone().into(),
+                                            };
+
+                                            match pairing_client
+                                                .mutation("devicePairing:pollPairing", poll_args)
+                                                .await
+                                            {
+                                                Ok(FunctionResult::Value(poll_val)) => {
+                                                    match parse_pairing_poll(&poll_val) {
+                                                        PairingPollStatus::Pending => {}
+                                                        PairingPollStatus::Paired(api_key) => {
+                                                            let _ = tx.send(
+                                                                LiveDataMessage::PairingCompleted {
+                                                                    api_key,
+                                                                },
+                                                            );
+                                                            break;
+                                                        }
+                                                        PairingPollStatus::Expired => {
+                                                            let _ = tx
+                                                                .send(LiveDataMessage::PairingExpired);
+                                                            break;
+                                                        }
+                                                        PairingPollStatus::Claimed => {
+                                                            let _ = tx.send(LiveDataMessage::Error(
+                                                                "Pairing was already claimed."
+                                                                    .to_string(),
+                                                            ));
+                                                            break;
+                                                        }
+                                                        PairingPollStatus::Invalid => {
+                                                            let _ = tx.send(LiveDataMessage::Error(
+                                                                "Invalid pairing session."
+                                                                    .to_string(),
+                                                            ));
+                                                            break;
+                                                        }
+                                                        PairingPollStatus::Unknown => {
+                                                            let _ = tx.send(LiveDataMessage::Error(
+                                                                "Unexpected pairing response."
+                                                                    .to_string(),
+                                                            ));
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                Ok(FunctionResult::ErrorMessage(e)) => {
+                                                    let _ = tx.send(LiveDataMessage::Error(e));
+                                                    break;
+                                                }
+                                                Ok(FunctionResult::ConvexError(e)) => {
+                                                    let _ = tx.send(LiveDataMessage::Error(
+                                                        e.message.clone(),
+                                                    ));
+                                                    break;
+                                                }
+                                                Err(e) => {
+                                                    let _ = tx.send(LiveDataMessage::Error(format!(
+                                                        "Pairing poll failed: {e}"
+                                                    )));
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }));
+                                } else if let Some(err) = get_error_string(&val) {
+                                    let _ = message_tx.send(LiveDataMessage::Error(err));
+                                } else {
+                                    let _ = message_tx.send(LiveDataMessage::Error(
+                                        "Unexpected pairing response.".to_string(),
+                                    ));
+                                }
+                            }
+                            Ok(FunctionResult::ErrorMessage(e)) => {
+                                let _ = message_tx.send(LiveDataMessage::Error(e));
+                            }
+                            Ok(FunctionResult::ConvexError(e)) => {
+                                let _ = message_tx.send(LiveDataMessage::Error(e.message.clone()));
+                            }
+                            Err(e) => {
+                                let _ = message_tx.send(LiveDataMessage::Error(format!(
+                                    "Failed to start pairing: {e}"
+                                )));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        let _ = message_tx
+                            .send(LiveDataMessage::Error(format!("Failed to connect: {e}")));
+                    }
+                }
+            }
             LiveDataCommand::Connect { url, api_key: key } => {
+                if let Some(task) = subscription_task.take() {
+                    task.abort();
+                }
+
                 tracing::info!("Connecting to Convex: {}", url);
                 match ConvexClient::new(&url).await {
                     Ok(c) => {
@@ -62,7 +189,6 @@ async fn convex_task(
                         api_key = Some(key.clone());
                         let _ = message_tx.send(LiveDataMessage::Connected);
 
-                        // Fetch tournaments via mutation
                         if let Some(ref mut c) = client {
                             let args: BTreeMap<String, Value> =
                                 maplit::btreemap! { "apiKey".into() => key.into() };
@@ -105,14 +231,13 @@ async fn convex_task(
                         "apiKey".into() => key.clone().into(),
                         "tournamentId".into() => tournament_id.into(),
                     };
-                    match c.mutation("publicApi:listBrackets", args).await {
+                    match c.mutation("publicApi:listMatches", args).await {
                         Ok(FunctionResult::Value(val)) => {
                             if let Some(err) = get_error_string(&val) {
                                 let _ = message_tx.send(LiveDataMessage::Error(err));
                             } else {
-                                let brackets = parse_bracket_list(&val);
-                                let _ =
-                                    message_tx.send(LiveDataMessage::BracketList(brackets));
+                                let courts = parse_court_list(&val);
+                                let _ = message_tx.send(LiveDataMessage::CourtList(courts));
                             }
                         }
                         Ok(FunctionResult::ErrorMessage(e)) => {
@@ -128,59 +253,33 @@ async fn convex_task(
                     }
                 }
             }
-            LiveDataCommand::SelectBracket(bracket_id) => {
-                tracing::info!("Selected bracket: {}", bracket_id);
+            LiveDataCommand::SelectCourt(court) => {
+                tracing::info!("Subscribing to court: {}", court);
+                if let Some(task) = subscription_task.take() {
+                    task.abort();
+                }
+
                 if let (Some(c), Some(key), Some(tid)) =
                     (&mut client, &api_key, &selected_tournament_id)
                 {
                     let args: BTreeMap<String, Value> = maplit::btreemap! {
                         "apiKey".into() => key.clone().into(),
                         "tournamentId".into() => tid.clone().into(),
-                        "bracketId".into() => bracket_id.into(),
-                    };
-                    match c.mutation("publicApi:listMatches", args).await {
-                        Ok(FunctionResult::Value(val)) => {
-                            if let Some(err) = get_error_string(&val) {
-                                let _ = message_tx.send(LiveDataMessage::Error(err));
-                            } else {
-                                let matches = parse_match_list(&val);
-                                let _ =
-                                    message_tx.send(LiveDataMessage::MatchList(matches));
-                            }
-                        }
-                        Ok(FunctionResult::ErrorMessage(e)) => {
-                            let _ = message_tx.send(LiveDataMessage::Error(e));
-                        }
-                        Ok(FunctionResult::ConvexError(e)) => {
-                            let _ = message_tx.send(LiveDataMessage::Error(e.message.clone()));
-                        }
-                        Err(e) => {
-                            let _ = message_tx
-                                .send(LiveDataMessage::Error(format!("Fetch error: {e}")));
-                        }
-                    }
-                }
-            }
-            LiveDataCommand::SelectMatch(match_id) => {
-                tracing::info!("Subscribing to match: {}", match_id);
-                if let (Some(c), Some(key)) = (&mut client, &api_key) {
-                    let args: BTreeMap<String, Value> = maplit::btreemap! {
-                        "apiKey".into() => key.clone().into(),
-                        "matchId".into() => match_id.into(),
+                        "court".into() => court.into(),
                     };
 
-                    // Subscribe to watchMatch query for real-time updates
-                    match c.subscribe("publicApi:watchMatch", args).await {
+                    match c.subscribe("publicApi:watchCourt", args).await {
                         Ok(mut sub) => {
                             let tx = message_tx.clone();
-                            // Spawn a task to forward subscription updates
-                            tokio::spawn(async move {
+                            subscription_task = Some(tokio::spawn(async move {
                                 while let Some(result) = sub.next().await {
                                     match result {
                                         FunctionResult::Value(val) => {
                                             if let Some(data) = parse_match_data(&val) {
                                                 let _ = tx
                                                     .send(LiveDataMessage::MatchDataUpdated(data));
+                                            } else if is_waiting_for_court_match(&val) {
+                                                let _ = tx.send(LiveDataMessage::CourtNoActiveMatch);
                                             } else if let Some(err) = get_error_string(&val) {
                                                 let _ = tx.send(LiveDataMessage::Error(err));
                                             }
@@ -197,7 +296,7 @@ async fn convex_task(
                                     }
                                 }
                                 let _ = tx.send(LiveDataMessage::Disconnected);
-                            });
+                            }));
                         }
                         Err(e) => {
                             let _ = message_tx
@@ -208,8 +307,15 @@ async fn convex_task(
             }
             LiveDataCommand::Disconnect => {
                 tracing::info!("Disconnecting from Convex");
+                if let Some(task) = subscription_task.take() {
+                    task.abort();
+                }
+                if let Some(task) = pairing_poll_task.take() {
+                    task.abort();
+                }
                 client = None;
                 api_key = None;
+                selected_tournament_id = None;
                 let _ = message_tx.send(LiveDataMessage::Disconnected);
             }
         }
@@ -225,7 +331,6 @@ fn get_str(obj: &BTreeMap<String, Value>, key: &str) -> Option<String> {
     }
 }
 
-
 fn get_obj<'a>(obj: &'a BTreeMap<String, Value>, key: &str) -> Option<&'a BTreeMap<String, Value>> {
     match obj.get(key)? {
         Value::Object(o) => Some(o),
@@ -236,6 +341,14 @@ fn get_obj<'a>(obj: &'a BTreeMap<String, Value>, key: &str) -> Option<&'a BTreeM
 fn get_array<'a>(obj: &'a BTreeMap<String, Value>, key: &str) -> Option<&'a Vec<Value>> {
     match obj.get(key)? {
         Value::Array(a) => Some(a),
+        _ => None,
+    }
+}
+
+fn get_i64(obj: &BTreeMap<String, Value>, key: &str) -> Option<i64> {
+    match obj.get(key)? {
+        Value::Int64(n) => Some(*n),
+        Value::Float64(n) => Some(*n as i64),
         _ => None,
     }
 }
@@ -272,68 +385,38 @@ fn parse_tournament_list(val: &Value) -> Vec<TournamentInfo> {
         .collect()
 }
 
-fn parse_bracket_list(val: &Value) -> Vec<BracketInfo> {
+fn parse_court_list(val: &Value) -> Vec<String> {
     let Value::Object(obj) = val else {
         return vec![];
     };
 
-    let Some(brackets) = get_array(obj, "brackets") else {
-        return vec![];
-    };
+    let mut courts = BTreeSet::new();
+    if let Some(tournament_obj) = get_obj(obj, "tournament") {
+        if let Some(court_values) = get_array(tournament_obj, "courts") {
+            for court_value in court_values {
+                if let Value::String(court) = court_value {
+                    if !court.trim().is_empty() {
+                        courts.insert(court.clone());
+                    }
+                }
+            }
+        }
+    }
 
-    brackets
-        .iter()
-        .filter_map(|b| {
-            let Value::Object(b_obj) = b else {
-                return None;
-            };
-            let match_count = match b_obj.get("matchCount") {
-                Some(Value::Int64(n)) => *n as usize,
-                Some(Value::Float64(n)) => *n as usize,
-                _ => 0,
-            };
-            Some(BracketInfo {
-                id: get_str(b_obj, "id")?,
-                name: get_str(b_obj, "name")?,
-                status: get_str(b_obj, "status").unwrap_or_else(|| "unknown".to_string()),
-                match_count,
-                participant_type: get_str(b_obj, "participantType")
-                    .unwrap_or_else(|| "individual".to_string()),
-            })
-        })
-        .collect()
-}
-
-fn parse_match_list(val: &Value) -> Vec<MatchInfo> {
-    let Value::Object(obj) = val else {
-        return vec![];
-    };
-
-    let Some(matches) = get_array(obj, "matches") else {
-        return vec![];
-    };
-
-    matches
-        .iter()
-        .filter_map(|m| {
+    if let Some(matches) = get_array(obj, "matches") {
+        for m in matches {
             let Value::Object(m_obj) = m else {
-                return None;
+                continue;
             };
-            // Filter out matches where either participant is missing (TBD)
-            let p1_name = get_obj(m_obj, "participant1")
-                .and_then(|p| get_str(p, "displayName"))?;
-            let p2_name = get_obj(m_obj, "participant2")
-                .and_then(|p| get_str(p, "displayName"))?;
+            if let Some(court) = get_str(m_obj, "court") {
+                if !court.trim().is_empty() {
+                    courts.insert(court);
+                }
+            }
+        }
+    }
 
-            Some(MatchInfo {
-                id: get_str(m_obj, "id")?,
-                player1_name: p1_name,
-                player2_name: p2_name,
-                court: get_str(m_obj, "court"),
-                status: get_str(m_obj, "status").unwrap_or_else(|| "unknown".to_string()),
-            })
-        })
-        .collect()
+    courts.into_iter().collect()
 }
 
 fn parse_match_data(val: &Value) -> Option<TennisLiveData> {
@@ -390,6 +473,57 @@ fn parse_match_data(val: &Value) -> Option<TennisLiveData> {
         is_tiebreak,
         is_match_complete,
     })
+}
+
+fn is_waiting_for_court_match(val: &Value) -> bool {
+    let Value::Object(root) = val else {
+        return false;
+    };
+    matches!(root.get("match"), Some(Value::Null))
+}
+
+fn parse_pairing_start(val: &Value) -> Option<(String, String, String, i64, u64)> {
+    let Value::Object(obj) = val else {
+        return None;
+    };
+
+    let pairing_id = get_str(obj, "pairingId")?;
+    let pairing_code = get_str(obj, "pairingCode")?;
+    let pairing_secret = get_str(obj, "pairingSecret")?;
+    let expires_at = get_i64(obj, "expiresAt")?;
+    let poll_interval = get_i64(obj, "pollIntervalMs")?.max(0) as u64;
+
+    Some((pairing_id, pairing_code, pairing_secret, expires_at, poll_interval))
+}
+
+enum PairingPollStatus {
+    Pending,
+    Paired(String),
+    Claimed,
+    Expired,
+    Invalid,
+    Unknown,
+}
+
+fn parse_pairing_poll(val: &Value) -> PairingPollStatus {
+    let Value::Object(obj) = val else {
+        return PairingPollStatus::Unknown;
+    };
+
+    let Some(status) = get_str(obj, "status") else {
+        return PairingPollStatus::Unknown;
+    };
+
+    match status.as_str() {
+        "pending" => PairingPollStatus::Pending,
+        "paired" => get_str(obj, "apiKey")
+            .map(PairingPollStatus::Paired)
+            .unwrap_or(PairingPollStatus::Unknown),
+        "claimed" => PairingPollStatus::Claimed,
+        "expired" => PairingPollStatus::Expired,
+        "invalid" => PairingPollStatus::Invalid,
+        _ => PairingPollStatus::Unknown,
+    }
 }
 
 fn value_to_u32(v: &Value) -> Option<u32> {

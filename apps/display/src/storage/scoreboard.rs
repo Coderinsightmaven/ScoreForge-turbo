@@ -72,8 +72,7 @@ pub fn export_sfbz(
 ) -> Result<(), String> {
     let out_file = fs::File::create(path).map_err(|e| format!("Failed to create file: {e}"))?;
     let mut zip = zip::ZipWriter::new(out_file);
-    let options = SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // Write scoreboard.json
     let json =
@@ -129,10 +128,8 @@ pub fn import_sfbz(
     };
 
     // Import assets
-    let temp_dir =
-        std::env::temp_dir().join(format!("sfbz-import-{}", Uuid::new_v4()));
-    fs::create_dir_all(&temp_dir)
-        .map_err(|e| format!("Failed to create temp dir: {e}"))?;
+    let temp_dir = std::env::temp_dir().join(format!("sfbz-import-{}", Uuid::new_v4()));
+    fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {e}"))?;
 
     for i in 0..archive.len() {
         let mut entry = archive
@@ -158,8 +155,7 @@ pub fn import_sfbz(
             entry
                 .read_to_end(&mut data)
                 .map_err(|e| format!("Failed to read asset: {e}"))?;
-            fs::write(&temp_path, &data)
-                .map_err(|e| format!("Failed to write temp asset: {e}"))?;
+            fs::write(&temp_path, &data).map_err(|e| format!("Failed to write temp asset: {e}"))?;
 
             asset_library.import_image_with_id(asset_id, &temp_path)?;
         }
@@ -177,6 +173,7 @@ pub fn import_sfbz(
 pub struct AppConfig {
     pub recent_files: Vec<PathBuf>,
     pub last_convex_url: Option<String>,
+    pub last_api_key: Option<String>,
     pub grid_size: f32,
     pub grid_enabled: bool,
     pub snap_to_grid: bool,
@@ -187,6 +184,7 @@ impl Default for AppConfig {
         Self {
             recent_files: Vec::new(),
             last_convex_url: None,
+            last_api_key: None,
             grid_size: 20.0,
             grid_enabled: true,
             snap_to_grid: true,
@@ -263,7 +261,9 @@ mod tests {
             Vec2::new(0.0, 0.0),
             Vec2::new(100.0, 100.0),
         );
-        comp1.data = ComponentData::Image { asset_id: Some(id1) };
+        comp1.data = ComponentData::Image {
+            asset_id: Some(id1),
+        };
 
         let mut comp2 = ScoreboardComponent::new(
             ComponentType::Background,

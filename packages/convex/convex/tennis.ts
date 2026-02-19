@@ -1,4 +1,4 @@
-import { getCurrentUser, getCurrentUserOrThrow } from "./users";
+import { getCurrentUser } from "./users";
 import { query, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { tennisState } from "./schema";

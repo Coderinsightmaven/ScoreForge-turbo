@@ -45,6 +45,48 @@ function hashKey(key: string): Promise<string> {
   return hashKeyAsync(key);
 }
 
+/**
+ * Internal helper to create an API key for a specific user.
+ * Returns the full key value once (caller is responsible for secure delivery).
+ */
+export async function createApiKeyForUser(
+  ctx: MutationCtx,
+  args: { userId: Id<"users">; name: string }
+): Promise<{ keyId: Id<"apiKeys">; fullKey: string; keyPrefix: string }> {
+  // Validate input length
+  validateStringLength(args.name, "API key name", MAX_LENGTHS.apiKeyName);
+
+  // Enforce per-user API key limit
+  const existingKeys = await ctx.db
+    .query("apiKeys")
+    .withIndex("by_user", (q) => q.eq("userId", args.userId))
+    .collect();
+  const activeKeys = existingKeys.filter((k) => k.isActive);
+  if (activeKeys.length >= 10) {
+    throw errors.limitExceeded(
+      "Maximum of 10 active API keys per user. Revoke or delete an existing key."
+    );
+  }
+
+  const { fullKey, prefix } = generateKey();
+  const hashedKey = await hashKey(fullKey);
+
+  const keyId = await ctx.db.insert("apiKeys", {
+    userId: args.userId,
+    key: hashedKey,
+    keyPrefix: prefix,
+    name: args.name,
+    createdAt: Date.now(),
+    isActive: true,
+  });
+
+  return {
+    keyId,
+    fullKey,
+    keyPrefix: prefix,
+  };
+}
+
 // ============================================
 // Queries
 // ============================================
@@ -109,40 +151,15 @@ export const generateApiKey = mutation({
     const userId = user._id;
 
     await assertNotInMaintenance(ctx, userId);
-
-    // Validate input length
-    validateStringLength(args.name, "API key name", MAX_LENGTHS.apiKeyName);
-
-    // Enforce per-user API key limit
-    const existingKeys = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    const activeKeys = existingKeys.filter((k) => k.isActive);
-    if (activeKeys.length >= 10) {
-      throw errors.limitExceeded(
-        "Maximum of 10 active API keys per user. Revoke or delete an existing key."
-      );
-    }
-
-    // Generate the key
-    const { fullKey, prefix } = generateKey();
-    const hashedKey = await hashKey(fullKey);
-
-    // Store the key
-    const keyId = await ctx.db.insert("apiKeys", {
+    const { keyId, fullKey, keyPrefix } = await createApiKeyForUser(ctx, {
       userId,
-      key: hashedKey,
-      keyPrefix: prefix,
       name: args.name,
-      createdAt: Date.now(),
-      isActive: true,
     });
 
     return {
       keyId,
       fullKey, // Only returned once
-      keyPrefix: prefix,
+      keyPrefix,
     };
   },
 });
@@ -293,7 +310,7 @@ export async function validateApiKey(
   }
 
   // Verify the referenced user still exists (keys from before auth migration may be orphaned)
-  const user = await ctx.db.get(keyRecord.userId);
+  const user = await ctx.db.get("users", keyRecord.userId);
   if (!user) {
     return null;
   }

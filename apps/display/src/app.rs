@@ -83,7 +83,7 @@ impl ScoreForgeApp {
             });
     }
 
-    /// Global credentials dialog — enter Convex URL and API key once.
+    /// Global connection dialog — stores Convex URL and optional manual API key.
     fn show_connect_dialog(&mut self, ctx: &egui::Context) {
         if !self.state.show_connect_dialog {
             return;
@@ -94,7 +94,8 @@ impl ScoreForgeApp {
             .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
-                ui.label("Enter your Convex deployment URL and API key:");
+                ui.label("Enter your Convex deployment URL:");
+                ui.label("API key can be paired automatically from the web app.");
                 ui.label("These credentials are shared by all scoreboards.");
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
@@ -102,18 +103,27 @@ impl ScoreForgeApp {
                     ui.text_edit_singleline(&mut self.state.connect_url);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("API Key:");
+                    ui.label("API Key (optional):");
                     ui.text_edit_singleline(&mut self.state.connect_api_key);
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     if ui.button("Save").clicked() {
-                        self.state.config.last_convex_url =
-                            Some(self.state.connect_url.clone());
+                        self.state.config.last_convex_url = Some(self.state.connect_url.clone());
+                        self.state.config.last_api_key = if self.state.connect_api_key.is_empty() {
+                            None
+                        } else {
+                            Some(self.state.connect_api_key.clone())
+                        };
                         self.state.config.save();
                         self.state.show_connect_dialog = false;
                         self.state
                             .push_toast("Connection settings saved".to_string(), false);
+                    }
+                    if ui.button("Clear API Key").clicked() {
+                        self.state.connect_api_key.clear();
+                        self.state.config.last_api_key = None;
+                        self.state.config.save();
                     }
                     if ui.button("Cancel").clicked() {
                         self.state.show_connect_dialog = false;
@@ -122,7 +132,7 @@ impl ScoreForgeApp {
             });
     }
 
-    /// Per-tab match selection dialog — shown when a project's show_connect_dialog is true.
+    /// Per-tab connection and selection dialog — shown when a project's show_connect_dialog is true.
     /// Uses global credentials; skips URL/key entry entirely.
     fn show_match_select_dialog(&mut self, ctx: &egui::Context) {
         if !self.state.has_projects() {
@@ -136,36 +146,40 @@ impl ScoreForgeApp {
         // Snapshot data before egui closure to avoid borrow issues
         let connection_step = self.state.active_project().connection_step.clone();
         let tournament_list = self.state.active_project().tournament_list.clone();
-        let is_doubles = self.state.active_project().is_doubles_scoreboard();
-        let bracket_list: Vec<_> = self
-            .state
-            .active_project()
-            .bracket_list
-            .iter()
-            .filter(|b| {
-                if is_doubles {
-                    b.participant_type == "doubles"
-                } else {
-                    b.participant_type == "individual"
-                }
-            })
-            .cloned()
-            .collect();
-        let match_list = self.state.active_project().match_list.clone();
+        let court_list = self.state.active_project().court_list.clone();
+        let pairing_code = self.state.active_project().pairing_code.clone();
+        let pairing_expires_at = self.state.active_project().pairing_expires_at;
 
-        egui::Window::new("Select Match")
+        egui::Window::new("Connect Display")
             .collapsible(false)
             .resizable(true)
             .default_height(400.0)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| match &connection_step {
                 ConnectionStep::Disconnected => {
-                    // No credentials configured yet
-                    if self.state.connect_url.is_empty() || self.state.connect_api_key.is_empty() {
+                    if self.state.connect_url.is_empty() {
                         ui.label("No connection configured.");
-                        ui.label("Set your Convex URL and API key first.");
+                        ui.label("Set your Convex URL first.");
                         if ui.button("Open Settings").clicked() {
                             self.state.active_project_mut().show_connect_dialog = false;
+                            self.state.show_connect_dialog = true;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.state.active_project_mut().show_connect_dialog = false;
+                        }
+                    } else if self.state.connect_api_key.is_empty() {
+                        ui.label("No API key configured for this display.");
+                        ui.label("Start device pairing, then enter the code in the web app settings.");
+                        ui.add_space(6.0);
+                        if ui.button("Start Device Pairing").clicked() {
+                            let url = self.state.connect_url.clone();
+                            let manager = ConvexManager::new();
+                            manager.send_command(LiveDataCommand::StartPairing { url });
+                            let project = self.state.active_project_mut();
+                            project.convex_manager = Some(manager);
+                            project.connection_step = ConnectionStep::Pairing;
+                        }
+                        if ui.button("Open Settings").clicked() {
                             self.state.show_connect_dialog = true;
                         }
                         if ui.button("Cancel").clicked() {
@@ -182,6 +196,33 @@ impl ScoreForgeApp {
                         let project = self.state.active_project_mut();
                         project.convex_manager = Some(manager);
                         project.connection_step = ConnectionStep::Connecting;
+                    }
+                }
+                ConnectionStep::Pairing => {
+                    ui.label("Pair this display in the web app:");
+                    ui.add_space(6.0);
+                    if let Some(code) = pairing_code {
+                        ui.heading(code);
+                    } else {
+                        ui.spinner();
+                        ui.label("Creating pairing code...");
+                    }
+                    if let Some(expires_at) = pairing_expires_at {
+                        let now_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as i64)
+                            .unwrap_or(0);
+                        let remaining = ((expires_at - now_ms).max(0)) / 1000;
+                        ui.label(format!("Expires in {remaining}s"));
+                    }
+                    ui.add_space(4.0);
+                    ui.label("Web app path: Settings -> API Keys -> Pair Display Device");
+                    if ui.button("Cancel Pairing").clicked() {
+                        let project = self.state.active_project_mut();
+                        if let Some(manager) = &project.convex_manager {
+                            manager.send_command(LiveDataCommand::Disconnect);
+                        }
+                        project.show_connect_dialog = false;
                     }
                 }
                 ConnectionStep::Connecting => {
@@ -218,26 +259,23 @@ impl ScoreForgeApp {
                         self.state.active_project_mut().show_connect_dialog = false;
                     }
                 }
-                ConnectionStep::SelectBracket => {
-                    ui.label("Select a bracket:");
-                    if bracket_list.is_empty() {
+                ConnectionStep::SelectCourt => {
+                    ui.label("Select a court:");
+                    if court_list.is_empty() {
                         ui.spinner();
-                        ui.label("Loading brackets...");
+                        ui.label("No courts found for this tournament.");
                     }
                     egui::ScrollArea::vertical().max_height(350.0).show(ui, |ui| {
-                        for b in &bracket_list {
-                            let label = format!(
-                                "{} ({}) - {} matches",
-                                b.name, b.status, b.match_count
-                            );
-                            if ui.button(&label).clicked() {
+                        for court in &court_list {
+                            if ui.button(court).clicked() {
                                 let project = self.state.active_project_mut();
                                 if let Some(manager) = &project.convex_manager {
-                                    manager.send_command(LiveDataCommand::SelectBracket(
-                                        b.id.clone(),
+                                    manager.send_command(LiveDataCommand::SelectCourt(
+                                        court.clone(),
                                     ));
                                 }
-                                project.selected_bracket_id = Some(b.id.clone());
+                                project.selected_court = Some(court.clone());
+                                project.show_connect_dialog = false;
                             }
                         }
                     });
@@ -246,41 +284,8 @@ impl ScoreForgeApp {
                             ConnectionStep::SelectTournament;
                     }
                 }
-                ConnectionStep::SelectMatch => {
-                    ui.label("Select a match:");
-                    if match_list.is_empty() {
-                        ui.spinner();
-                        ui.label("Loading matches...");
-                    }
-                    egui::ScrollArea::vertical().max_height(350.0).show(ui, |ui| {
-                        for m in &match_list {
-                            let court_str = m
-                                .court
-                                .as_deref()
-                                .map(|c| format!(" - Court {c}"))
-                                .unwrap_or_default();
-                            let label = format!(
-                                "{} vs {} ({}){}",
-                                m.player1_name, m.player2_name, m.status, court_str
-                            );
-                            if ui.button(&label).clicked() {
-                                let project = self.state.active_project_mut();
-                                if let Some(manager) = &project.convex_manager {
-                                    manager
-                                        .send_command(LiveDataCommand::SelectMatch(m.id.clone()));
-                                }
-                                project.selected_match_id = Some(m.id.clone());
-                                project.show_connect_dialog = false;
-                            }
-                        }
-                    });
-                    if ui.button("Back").clicked() {
-                        self.state.active_project_mut().connection_step =
-                            ConnectionStep::SelectBracket;
-                    }
-                }
                 ConnectionStep::Live => {
-                    ui.colored_label(egui::Color32::GREEN, "Connected - receiving live data");
+                    ui.colored_label(egui::Color32::GREEN, "Connected - auto-following court");
                     if ui.button("Close").clicked() {
                         self.state.active_project_mut().show_connect_dialog = false;
                     }
@@ -667,7 +672,7 @@ impl eframe::App for ScoreForgeApp {
 
         // Request continuous repaint when any project has live data or active display
         let needs_repaint = self.state.projects.iter().any(|p| {
-            p.connection_step == ConnectionStep::Live || p.display_active
+            p.connection_step != ConnectionStep::Disconnected || p.display_active
         });
         if needs_repaint {
             ctx.request_repaint();
