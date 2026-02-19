@@ -147,6 +147,7 @@ export default defineSchema({
     externalId: v.string(),
   })
     .index("by_externalId", ["externalId"])
+    .index("by_email", ["email"])
     .searchIndex("search_name", { searchField: "name", filterFields: [] })
     .searchIndex("search_email", { searchField: "email", filterFields: [] }),
 

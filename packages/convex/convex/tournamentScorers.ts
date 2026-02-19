@@ -88,7 +88,7 @@ export const assignScorer = mutation({
     const normalizedEmail = args.email.toLowerCase().trim();
     const targetUser = await ctx.db
       .query("users")
-      .withIndex("email", (q) => q.eq("email", normalizedEmail))
+      .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
       .first();
 
     if (!targetUser) {

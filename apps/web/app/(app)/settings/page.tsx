@@ -200,16 +200,6 @@ export default function SettingsPage(): React.ReactNode {
                   })}
                 </p>
               </div>
-
-              {user.emailVerificationTime && (
-                <div>
-                  <p className="text-caption text-muted-foreground">Email Status</p>
-                  <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-success">
-                    <CheckCircle className="h-4 w-4" />
-                    Verified
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 

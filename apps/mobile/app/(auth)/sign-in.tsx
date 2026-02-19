@@ -1,7 +1,8 @@
-import { useSignIn } from "@clerk/clerk-expo";
+import { useSignIn, useOAuth } from "@clerk/clerk-expo";
+import * as WebBrowser from "expo-web-browser";
 import { useMutation } from "convex/react";
 import { api } from "@repo/convex";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "expo-router";
 import { getDisplayMessage } from "../../utils/errors";
 import { formatTournamentName } from "../../utils/format";
@@ -18,10 +19,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+WebBrowser.maybeCompleteAuthSession();
+
 type LoginType = "regular" | "scorer";
 
 export default function SignInScreen() {
   const { signIn: clerkSignIn, setActive, isLoaded } = useSignIn();
+  const { startOAuthFlow: startGoogleOAuth } = useOAuth({ strategy: "oauth_google" });
+  const { startOAuthFlow: startAppleOAuth } = useOAuth({ strategy: "oauth_apple" });
   const { setSession } = useTempScorer();
   const router = useRouter();
   const [loginType, setLoginType] = useState<LoginType>("regular");
@@ -37,6 +42,25 @@ export default function SignInScreen() {
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleOAuthSignIn = useCallback(
+    async (provider: "google" | "apple") => {
+      try {
+        setError(null);
+        setLoading(true);
+        const startOAuth = provider === "google" ? startGoogleOAuth : startAppleOAuth;
+        const { createdSessionId, setActive: setOAuthActive } = await startOAuth();
+        if (createdSessionId && setOAuthActive) {
+          await setOAuthActive({ session: createdSessionId });
+        }
+      } catch (err) {
+        setError(getDisplayMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [startGoogleOAuth, startAppleOAuth]
+  );
 
   const signInTempScorer = useMutation(api.temporaryScorers.signIn);
   const lookupTournamentByCode = useMutation(api.temporaryScorers.getTournamentByCode);
@@ -237,6 +261,42 @@ export default function SignInScreen() {
                   <Text className="mb-6 text-center font-sans text-sm text-text-tertiary dark:text-text-tertiary-dark">
                     Sign in with your account
                   </Text>
+
+                  <View className="gap-3">
+                    <TouchableOpacity
+                      className="w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-border bg-bg-secondary py-4 dark:border-border-dark dark:bg-bg-secondary-dark"
+                      onPress={() => handleOAuthSignIn("google")}
+                      disabled={loading}
+                      activeOpacity={0.8}>
+                      <Text className="text-base font-semibold text-text-primary dark:text-text-primary-dark">
+                        G
+                      </Text>
+                      <Text className="text-base font-semibold text-text-primary dark:text-text-primary-dark">
+                        Continue with Google
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-border bg-bg-secondary py-4 dark:border-border-dark dark:bg-bg-secondary-dark"
+                      onPress={() => handleOAuthSignIn("apple")}
+                      disabled={loading}
+                      activeOpacity={0.8}>
+                      <Text className="text-base font-semibold text-text-primary dark:text-text-primary-dark">
+                        {"\uF8FF"}
+                      </Text>
+                      <Text className="text-base font-semibold text-text-primary dark:text-text-primary-dark">
+                        Continue with Apple
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className="my-5 flex-row items-center">
+                    <View className="h-[1px] flex-1 bg-border dark:bg-border-dark" />
+                    <Text className="mx-3 text-xs uppercase text-text-tertiary dark:text-text-tertiary-dark">
+                      or continue with email
+                    </Text>
+                    <View className="h-[1px] flex-1 bg-border dark:bg-border-dark" />
+                  </View>
 
                   <View className="space-y-4">
                     <View>

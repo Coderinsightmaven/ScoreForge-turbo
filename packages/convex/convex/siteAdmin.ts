@@ -112,7 +112,7 @@ export const listUsers = query({
     if (search && search.includes("@")) {
       const user = await ctx.db
         .query("users")
-        .withIndex("email", (q) => q.eq("email", search))
+        .withIndex("by_email", (q) => q.eq("email", search))
         .first();
 
       const users = user ? [user] : [];
