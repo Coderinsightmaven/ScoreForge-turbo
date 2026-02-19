@@ -33,6 +33,7 @@ import {
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { getStackBackground } from "../utils/theme";
 
+import "react-native-reanimated";
 import "../global.css";
 
 const TEMP_SCORER_SESSION_KEY = "tempScorerSession";
