@@ -8,24 +8,26 @@ ScoreForge handles the full tournament lifecycle — from creating brackets and 
 
 - **Tournament formats** — Single elimination, double elimination, round robin
 - **Multi-bracket tournaments** — Run "Men's Singles" and "Women's Doubles" under one event
-- **Live tennis scoring** — Sets, games, points with tiebreaks, advantage/no-ad modes, and full undo history
+- **Live tennis scoring** — Sets, games, points with tiebreaks, advantage/no-ad modes, 50-point undo history, and full audit trails
+- **Mobile scoring** — Split-screen tap interface with haptic feedback and match point detection
+- **Temporary scorers** — QR code access with PIN authentication, 24-hour sessions, brute-force protection
+- **Scoreboard designer** — 1920x1080 canvas editor with 9 component types, live data binding, and multi-monitor broadcast
 - **Role-based access** — Owners manage tournaments, scorers update matches, temporary scorers authenticate with a PIN
-- **Scoreboard display** — Native Rust desktop app for designing and showing live scoreboards on external monitors
-- **Public API** — REST endpoints with API key auth for external integrations
+- **Public API** — 4 REST endpoints with API key auth and per-key rate limiting (100 req/min)
 - **Quick brackets** — Standalone printable bracket generator, no account required
-- **CSV exports** — Download match reports per bracket
+- **Reports & export** — Match score CSV downloads and round-robin standings
 
 ## Tech Stack
 
-| Layer    | Technology                                    |
-| -------- | --------------------------------------------- |
-| Web      | Next.js 16, React 19, Tailwind CSS, shadcn/ui |
-| Mobile   | Expo 54, React Native 0.81, NativeWind        |
-| Display  | Rust (eframe/egui, wgpu, Convex Rust SDK)     |
-| Backend  | Convex (serverless functions, real-time sync) |
-| Auth     | @convex-dev/auth (password-based)             |
-| Monorepo | Turborepo, Bun 1.3                            |
-| Testing  | Vitest, convex-test                           |
+| Layer    | Technology                                      |
+| -------- | ----------------------------------------------- |
+| Web      | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui |
+| Mobile   | Expo 54, React Native 0.81, NativeWind          |
+| Display  | Rust (eframe/egui 0.33, wgpu, Convex Rust SDK)  |
+| Backend  | Convex (serverless functions, real-time sync)   |
+| Auth     | @convex-dev/auth + Clerk                        |
+| Monorepo | Turborepo, Bun 1.3                              |
+| Testing  | Vitest, convex-test                             |
 
 ## Project Structure
 
@@ -95,8 +97,8 @@ bun run format        # Format with Prettier
 Scope to a single package with `--filter`:
 
 ```bash
+bun run dev --filter=web
 bun run test --filter=@repo/convex
-bun run test --filter=web
 ```
 
 ## Testing
@@ -127,5 +129,3 @@ bunx vitest
 | Display   | Local      | Manual `cargo build --release`        |
 
 Convex deploys automatically as part of the Vercel build — `npx convex deploy` runs before `next build` (configured in `apps/web/vercel.json`).
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for full setup instructions and required secrets.
