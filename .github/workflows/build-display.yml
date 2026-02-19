@@ -43,14 +43,21 @@ jobs:
             target/x86_64-apple-darwin/release/scoreforge-display \
             -output scoreforge-display-universal
 
+      - name: Generate macOS icon
+        working-directory: apps/display
+        run: scripts/generate-icns.sh
+
       - name: Package macOS .app bundle
         working-directory: apps/display
         run: |
           APP_DIR="ScoreForge Display.app/Contents"
           mkdir -p "$APP_DIR/MacOS"
+          mkdir -p "$APP_DIR/Resources"
 
           cp scoreforge-display-universal "$APP_DIR/MacOS/scoreforge-display"
           chmod +x "$APP_DIR/MacOS/scoreforge-display"
+
+          cp assets/AppIcon.icns "$APP_DIR/Resources/AppIcon.icns"
 
           cat > "$APP_DIR/Info.plist" << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -71,6 +78,8 @@ jobs:
             <string>0.1.0</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
             <key>NSHighResolutionCapable</key>
             <true/>
           </dict>

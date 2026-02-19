@@ -11,11 +11,24 @@ use app::ScoreForgeApp;
 fn main() -> eframe::Result {
     tracing_subscriber::fmt::init();
 
+    let icon = {
+        let img = image::load_from_memory(include_bytes!("../assets/icon.jpg"))
+            .expect("Failed to load app icon")
+            .into_rgba8();
+        let (w, h) = img.dimensions();
+        egui::IconData {
+            rgba: img.into_raw(),
+            width: w,
+            height: h,
+        }
+    };
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([800.0, 600.0])
-            .with_title("ScoreForge Display"),
+            .with_title("ScoreForge Display")
+            .with_icon(std::sync::Arc::new(icon)),
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
