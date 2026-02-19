@@ -940,4 +940,8 @@ body::after {
     background: #ffffff;
     color: #000000;
   }
+
+  .bracket-page-break {
+    break-before: page;
+  }
 }

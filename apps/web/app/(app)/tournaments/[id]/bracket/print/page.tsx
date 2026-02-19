@@ -125,6 +125,153 @@ export default function PrintBracketPage({
 
   const formatLabels = FORMAT_LABELS;
 
+  // Sort matches within each round by matchNumber for consistent ordering
+  for (const round of roundNumbers) {
+    rounds[round]!.sort((a, b) => a.matchNumber - b.matchNumber);
+  }
+
+  // Determine if we need to split into two pages
+  const firstRoundCount = (rounds[roundNumbers[0]!] || []).length;
+  const needsSplit = firstRoundCount > 8;
+
+  // Split each round's matches into top/bottom halves
+  const splitRounds = (half: "top" | "bottom") => {
+    return roundNumbers.map((round) => {
+      const roundMatches = rounds[round] || [];
+      // Finals or single match — show on both pages for context
+      if (roundMatches.length <= 1) return roundMatches;
+      const mid = Math.ceil(roundMatches.length / 2);
+      return half === "top" ? roundMatches.slice(0, mid) : roundMatches.slice(mid);
+    });
+  };
+
+  const renderMatchCard = (match: (typeof bracket.matches)[number]) => {
+    const isByeMatch = match.status === "bye";
+    return (
+      <div
+        key={match._id}
+        className={`relative flex flex-col bg-white border border-gray-300 rounded-2xl overflow-hidden print:break-inside-avoid ${
+          isByeMatch ? "opacity-60" : ""
+        }`}
+      >
+        <div className="absolute left-3 right-3 top-0 h-px bg-gray-300" />
+        {/* Participant 1 */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 print:py-1.5 print:px-2">
+          <span className="w-5 text-xs text-center text-gray-500 print:text-[10px]">
+            {match.participant1?.seed || "-"}
+          </span>
+          {match.participant1?.isPlaceholder || !match.participant1 ? (
+            <span className="flex-1 bracket-slot-empty print:min-w-[80px]" />
+          ) : (
+            <span
+              className={`flex-1 text-sm text-gray-900 truncate print:text-xs ${
+                match.winnerId === match.participant1?._id ? "font-semibold" : ""
+              }`}
+            >
+              {match.participant1.displayName}
+            </span>
+          )}
+          {!isByeMatch && match.status === "completed" && (
+            <span className="text-sm font-medium text-gray-700 print:text-xs">
+              {match.participant1Score}
+            </span>
+          )}
+        </div>
+        {/* Participant 2 */}
+        <div className="flex items-center gap-2 px-3 py-2 print:py-1.5 print:px-2">
+          <span className="w-5 text-xs text-center text-gray-500 print:text-[10px]">
+            {match.participant2?.seed || "-"}
+          </span>
+          {match.participant2?.isPlaceholder || !match.participant2 ? (
+            <span className="flex-1 bracket-slot-empty print:min-w-[80px]" />
+          ) : (
+            <span
+              className={`flex-1 text-sm text-gray-900 truncate print:text-xs ${
+                match.winnerId === match.participant2?._id ? "font-semibold" : ""
+              }`}
+            >
+              {match.participant2.displayName}
+            </span>
+          )}
+          {!isByeMatch && match.status === "completed" && (
+            <span className="text-sm font-medium text-gray-700 print:text-xs">
+              {match.participant2Score}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderBracketSection = (
+    roundMatchSets: (typeof bracket.matches)[],
+    label?: string,
+    reversed?: boolean
+  ) => {
+    // When reversed, render rounds in reverse order (finals on left, round 1 on right)
+    const displayOrder = reversed
+      ? [...roundNumbers].reverse().map((round) => ({
+          round,
+          matches: roundMatchSets[roundNumbers.indexOf(round)] || [],
+        }))
+      : roundNumbers.map((round, i) => ({ round, matches: roundMatchSets[i] || [] }));
+
+    return (
+      <div>
+        {label && (
+          <p className="mb-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 print:mb-2 print:text-[9px]">
+            {label}
+          </p>
+        )}
+        <div className="overflow-x-auto print:overflow-visible">
+          <div className="flex gap-6 min-w-max justify-center print:gap-3">
+            {displayOrder.map(({ round, matches }) => (
+              <div key={round} className="flex flex-col gap-3 min-w-[200px] print:min-w-[150px]">
+                <div className="text-sm font-semibold text-gray-700 pb-2 border-b border-gray-300 text-center print:text-xs print:pb-1">
+                  {getRoundName(round, roundNumbers.length)}
+                </div>
+                <div className="flex flex-col gap-4 flex-1 justify-around print:gap-2">
+                  {matches.map(renderMatchCard)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHeader = () => (
+    <div className="mx-auto mb-8 max-w-4xl print:mb-6">
+      <div className="relative overflow-hidden rounded-2xl border border-gray-300 bg-white px-6 py-5 text-center print:px-4 print:py-4">
+        <div className="absolute left-6 right-6 top-0 h-px bg-gray-300 print:left-4 print:right-4" />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-500 print:text-[9px]">
+          ScoreForge Bracket
+        </p>
+        <h1 className="mt-2 text-3xl font-bold text-gray-900 print:text-2xl">{tournament.name}</h1>
+        {bracketDetails && (
+          <h2 className="text-xl font-semibold text-gray-700 mt-1 print:text-lg">
+            {bracketDetails.name}
+          </h2>
+        )}
+        <p className="text-gray-600 mt-1 print:text-sm">
+          {formatLabels[bracket.format] || bracket.format} &bull; {bracket.matches.length} matches
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderFooter = () => (
+    <div className="mt-8 text-center text-xs text-gray-400 print:mt-4">
+      Generated by ScoreForge &bull;{" "}
+      {new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-white">
       {/* Print Controls - hidden when printing */}
@@ -167,116 +314,30 @@ export default function PrintBracketPage({
         </div>
       </div>
 
-      {/* Printable Content */}
-      <div className="bracket-print-container p-8 print:p-0">
-        {/* Header */}
-        <div className="mx-auto mb-8 max-w-4xl print:mb-6">
-          <div className="relative overflow-hidden rounded-2xl border border-gray-300 bg-white px-6 py-5 text-center print:px-4 print:py-4">
-            <div className="absolute left-6 right-6 top-0 h-px bg-gray-300 print:left-4 print:right-4" />
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-500 print:text-[9px]">
-              ScoreForge Bracket
-            </p>
-            <h1 className="mt-2 text-3xl font-bold text-gray-900 print:text-2xl">
-              {tournament.name}
-            </h1>
-            {bracketDetails && (
-              <h2 className="text-xl font-semibold text-gray-700 mt-1 print:text-lg">
-                {bracketDetails.name}
-              </h2>
-            )}
-            <p className="text-gray-600 mt-1 print:text-sm">
-              {formatLabels[bracket.format] || bracket.format} &bull; {bracket.matches.length}{" "}
-              matches
-            </p>
+      {needsSplit ? (
+        <>
+          {/* Page 1: Top Half */}
+          <div className="bracket-print-container p-8 print:p-4">
+            {renderHeader()}
+            {renderBracketSection(splitRounds("top"), "Top Half")}
+            {renderFooter()}
           </div>
-        </div>
 
-        {/* Bracket */}
-        <div className="overflow-x-auto print:overflow-visible">
-          <div className="flex gap-6 min-w-max justify-center print:gap-3">
-            {roundNumbers.map((round) => (
-              <div key={round} className="flex flex-col gap-3 min-w-[200px] print:min-w-[150px]">
-                <div className="text-sm font-semibold text-gray-700 pb-2 border-b border-gray-300 text-center print:text-xs print:pb-1">
-                  {getRoundName(round, roundNumbers.length)}
-                </div>
-                <div className="flex flex-col gap-4 flex-1 justify-around print:gap-2">
-                  {(rounds[round] || []).map((match) => {
-                    // Only show as bye if it's an actual bye match (status === "bye")
-                    // Not just because a participant is missing from an incomplete previous round
-                    const isByeMatch = match.status === "bye";
-
-                    return (
-                      <div
-                        key={match._id}
-                        className={`relative flex flex-col bg-white border border-gray-300 rounded-2xl overflow-hidden print:break-inside-avoid ${
-                          isByeMatch ? "opacity-60" : ""
-                        }`}
-                      >
-                        <div className="absolute left-3 right-3 top-0 h-px bg-gray-300" />
-                        {/* Participant 1 */}
-                        <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 print:py-1.5 print:px-2">
-                          <span className="w-5 text-xs text-center text-gray-500 print:text-[10px]">
-                            {match.participant1?.seed || "-"}
-                          </span>
-                          {match.participant1?.isPlaceholder || !match.participant1 ? (
-                            <span className="flex-1 bracket-slot-empty print:min-w-[80px]" />
-                          ) : (
-                            <span
-                              className={`flex-1 text-sm truncate print:text-xs ${
-                                match.winnerId === match.participant1?._id ? "font-semibold" : ""
-                              }`}
-                            >
-                              {match.participant1.displayName}
-                            </span>
-                          )}
-                          {!isByeMatch && match.status === "completed" && (
-                            <span className="text-sm font-medium text-gray-700 print:text-xs">
-                              {match.participant1Score}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Participant 2 */}
-                        <div className="flex items-center gap-2 px-3 py-2 print:py-1.5 print:px-2">
-                          <span className="w-5 text-xs text-center text-gray-500 print:text-[10px]">
-                            {match.participant2?.seed || "-"}
-                          </span>
-                          {match.participant2?.isPlaceholder || !match.participant2 ? (
-                            <span className="flex-1 bracket-slot-empty print:min-w-[80px]" />
-                          ) : (
-                            <span
-                              className={`flex-1 text-sm truncate print:text-xs ${
-                                match.winnerId === match.participant2?._id ? "font-semibold" : ""
-                              }`}
-                            >
-                              {match.participant2.displayName}
-                            </span>
-                          )}
-                          {!isByeMatch && match.status === "completed" && (
-                            <span className="text-sm font-medium text-gray-700 print:text-xs">
-                              {match.participant2Score}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          {/* Page 2: Bottom Half (reversed so finals are on the left edge) */}
+          <div className="bracket-page-break bracket-print-container p-8 print:p-4">
+            {renderHeader()}
+            {renderBracketSection(splitRounds("bottom"), "Bottom Half", true)}
+            {renderFooter()}
           </div>
+        </>
+      ) : (
+        /* Single page: full bracket */
+        <div className="bracket-print-container p-8 print:p-0">
+          {renderHeader()}
+          {renderBracketSection(roundNumbers.map((round) => rounds[round] || []))}
+          {renderFooter()}
         </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center text-xs text-gray-400 print:mt-4">
-          Generated by ScoreForge &bull;{" "}
-          {new Date().toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
