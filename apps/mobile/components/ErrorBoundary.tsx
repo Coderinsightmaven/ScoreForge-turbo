@@ -41,6 +41,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <Text className="mb-6 text-center text-base text-slate-400">
             An unexpected error occurred. Please try again.
           </Text>
+          {this.state.error && (
+            <Text className="mb-6 text-center text-xs text-red-400" selectable>
+              {this.state.error.message}
+              {"\n\n"}
+              {this.state.error.stack?.slice(0, 500)}
+            </Text>
+          )}
           <TouchableOpacity
             className="rounded-xl bg-brand px-8 py-3.5 shadow-lg shadow-brand/20"
             onPress={this.handleRetry}

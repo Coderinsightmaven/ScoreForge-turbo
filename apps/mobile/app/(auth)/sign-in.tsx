@@ -72,7 +72,10 @@ export default function SignInScreen() {
     try {
       setError(null);
       setLoading(true);
-      const { createdSessionId, setActive: setOAuthActive } = await startGoogleOAuth();
+      const redirectUrl = Linking.createURL("/");
+      const { createdSessionId, setActive: setOAuthActive } = await startGoogleOAuth({
+        redirectUrl,
+      });
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
       }
