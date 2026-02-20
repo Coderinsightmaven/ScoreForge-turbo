@@ -1,0 +1,223 @@
+"use client";
+
+import { useQuery } from "convex/react";
+import { api } from "@repo/convex";
+import { useState, useCallback, useEffect } from "react";
+
+interface Player {
+  _id: string;
+  name: string;
+  countryCode: string;
+  ranking?: number;
+  tour: string;
+}
+
+interface ImportPlayersModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onImport: (players: { name: string; nationality: string }[]) => void;
+}
+
+export function ImportPlayersModal({ isOpen, onClose, onImport }: ImportPlayersModalProps) {
+  const [selectedTour, setSelectedTour] = useState<"ATP" | "WTA">("ATP");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPlayers, setSelectedPlayers] = useState<Map<string, Player>>(new Map());
+
+  const players = useQuery(
+    api.playerDatabase.searchPlayers,
+    isOpen
+      ? {
+          tour: selectedTour,
+          searchQuery: searchQuery.trim() || undefined,
+          limit: 50,
+        }
+      : "skip"
+  );
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedTour("ATP");
+      setSearchQuery("");
+      setSelectedPlayers(new Map());
+    }
+  }, [isOpen]);
+
+  const togglePlayer = useCallback((player: Player) => {
+    setSelectedPlayers((prev) => {
+      const next = new Map(prev);
+      if (next.has(player._id)) {
+        next.delete(player._id);
+      } else {
+        next.set(player._id, player);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleImport = useCallback(() => {
+    const playersToImport = Array.from(selectedPlayers.values()).map((p) => ({
+      name: p.name,
+      nationality: p.countryCode,
+    }));
+    onImport(playersToImport);
+    onClose();
+  }, [selectedPlayers, onImport, onClose]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative w-full max-w-lg mx-4 bg-bg-primary border border-border rounded-3xl shadow-2xl flex flex-col max-h-[80vh]">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-border">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-2xl text-text-primary">Import Players</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-bg-secondary text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Tour selector */}
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setSelectedTour("ATP")}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                selectedTour === "ATP"
+                  ? "bg-brand text-black"
+                  : "bg-bg-secondary text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              ATP
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedTour("WTA")}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                selectedTour === "WTA"
+                  ? "bg-brand text-black"
+                  : "bg-bg-secondary text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              WTA
+            </button>
+          </div>
+
+          {/* Search input */}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search players by name..."
+            className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-full text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+            autoFocus
+          />
+        </div>
+
+        {/* Player list */}
+        <div className="flex-1 overflow-y-auto px-6 py-3">
+          {players === undefined ? (
+            <div className="flex items-center justify-center py-12">
+              <span className="w-6 h-6 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+            </div>
+          ) : players.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-text-muted text-sm">No players found</p>
+              {searchQuery && (
+                <p className="text-text-muted text-xs mt-1">Try a different search term</p>
+              )}
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {players.map((player) => {
+                const isSelected = selectedPlayers.has(player._id);
+                return (
+                  <li key={player._id}>
+                    <button
+                      type="button"
+                      onClick={() => togglePlayer(player)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-colors ${
+                        isSelected
+                          ? "bg-brand/10 border border-brand/30"
+                          : "hover:bg-bg-secondary border border-transparent"
+                      }`}
+                    >
+                      {/* Checkmark */}
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isSelected ? "bg-brand border-brand" : "border-border"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg
+                            className="w-3 h-3 text-black"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Flag */}
+                      <span className={`fi fi-${player.countryCode} text-lg flex-shrink-0`} />
+
+                      {/* Name */}
+                      <span className="text-sm text-text-primary font-medium flex-1 truncate">
+                        {player.name}
+                      </span>
+
+                      {/* Ranking */}
+                      {player.ranking && (
+                        <span className="text-xs text-text-muted flex-shrink-0">
+                          #{player.ranking}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border flex items-center justify-between">
+          <span className="text-sm text-text-secondary">
+            {selectedPlayers.size} player{selectedPlayers.size !== 1 ? "s" : ""} selected
+          </span>
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={selectedPlayers.size === 0}
+            className="px-6 py-2.5 bg-brand text-black font-semibold text-sm rounded-full hover:bg-brand-hover transition-colors disabled:bg-brand/50 disabled:cursor-not-allowed"
+          >
+            Add {selectedPlayers.size > 0 ? `${selectedPlayers.size} ` : ""}Player
+            {selectedPlayers.size !== 1 ? "s" : ""}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

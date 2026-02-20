@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getDisplayMessage } from "@/lib/errors";
 import { FileDropzone } from "@/components/ui/file-dropzone";
+import { ImportPlayersModal } from "./ImportPlayersModal";
+import { toast } from "sonner";
 
 /**
  * Format a full name to abbreviated format (e.g., "Joe Berry" -> "J. Berry")
@@ -154,6 +156,8 @@ export default function AddParticipantPage({
   const [player2Name, setPlayer2Name] = useState("");
   const [teamName, setTeamName] = useState("");
   const [seed, setSeed] = useState<string>("");
+  const [nationality, setNationality] = useState("");
+  const [showImportModal, setShowImportModal] = useState(false);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -213,12 +217,14 @@ export default function AddParticipantPage({
           setLoading(false);
           return;
         }
+        const nationalityValue = nationality.trim().toLowerCase() || undefined;
         for (let i = 0; i < names.length; i++) {
           await addParticipant({
             tournamentId: tournamentId as Id<"tournaments">,
             bracketId: selectedBracketId as Id<"tournamentBrackets">,
             playerName: names[i],
             seed: names.length === 1 ? seedValue : undefined, // Only use seed for single participant
+            nationality: names.length === 1 ? nationalityValue : undefined,
           });
         }
       } else if (bracketParticipantType === "doubles") {
@@ -624,6 +630,35 @@ export default function AddParticipantPage({
                 {importError && <p className="text-xs text-error">{importError}</p>}
               </div>
 
+              {/* Import from Database */}
+              {effectiveParticipantType === "individual" && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-text-primary">
+                    Import from Database
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand transition-all"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"
+                      />
+                    </svg>
+                    Import from Player Database
+                  </button>
+                </div>
+              )}
+
               {/* Individual: Single Player Name */}
               {effectiveParticipantType === "individual" && (
                 <div className="space-y-2">
@@ -754,6 +789,31 @@ export default function AddParticipantPage({
                 </span>
               </div>
 
+              {/* Nationality (Optional) */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="nationality"
+                  className="block text-sm font-medium text-text-primary"
+                >
+                  Nationality{" "}
+                  <span className="text-text-muted font-normal">(Optional, Country Code)</span>
+                </label>
+                <input
+                  id="nationality"
+                  name="nationality"
+                  type="text"
+                  maxLength={2}
+                  value={nationality}
+                  onChange={(e) => setNationality(e.target.value)}
+                  placeholder="e.g., US"
+                  className="w-24 px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors uppercase"
+                />
+                <span className="block text-xs text-text-muted">
+                  ISO 3166-1 alpha-2 country code (e.g., US, GB, AU). Only applies to single
+                  entries.
+                </span>
+              </div>
+
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-red/10 border border-red/30 rounded-lg text-sm text-red">
                   <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-red rounded-full text-white text-xs font-bold">
@@ -791,6 +851,33 @@ export default function AddParticipantPage({
           {/* Accent bar */}
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand" />
         </div>
+
+        {/* Import Players Modal */}
+        <ImportPlayersModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={async (players) => {
+            if (!selectedBracketId) {
+              toast.error("Please select a bracket first");
+              return;
+            }
+            try {
+              for (const player of players) {
+                await addParticipant({
+                  tournamentId: tournamentId as Id<"tournaments">,
+                  bracketId: selectedBracketId as Id<"tournamentBrackets">,
+                  playerName: player.name,
+                  nationality: player.nationality,
+                });
+              }
+              toast.success(
+                `Successfully imported ${players.length} player${players.length !== 1 ? "s" : ""}`
+              );
+            } catch (err) {
+              toast.error(getDisplayMessage(err) || "Failed to import players");
+            }
+          }}
+        />
       </div>
     </div>
   );
