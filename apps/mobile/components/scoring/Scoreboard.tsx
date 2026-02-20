@@ -1,6 +1,18 @@
+import { useState, useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useThemeColors } from "@/hooks/use-theme-colors";
 import { Colors, Fonts } from "@/constants/colors";
+
+function formatElapsedTime(elapsedMs: number): string {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 type ScoreboardProps = {
   isLive: boolean;
@@ -13,6 +25,8 @@ type ScoreboardProps = {
   sets: number[][];
   servingParticipant: number;
   isLandscape: boolean;
+  matchStartedTimestamp?: number;
+  isMatchComplete?: boolean;
 };
 
 export function Scoreboard({
@@ -26,8 +40,19 @@ export function Scoreboard({
   sets,
   servingParticipant,
   isLandscape,
+  matchStartedTimestamp,
+  isMatchComplete,
 }: ScoreboardProps) {
   const colors = useThemeColors();
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!matchStartedTimestamp || isMatchComplete) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [matchStartedTimestamp, isMatchComplete]);
+
+  const elapsedTime = matchStartedTimestamp ? formatElapsedTime(now - matchStartedTimestamp) : null;
 
   return (
     <View
@@ -77,6 +102,13 @@ export function Scoreboard({
           </View>
         )}
       </View>
+
+      {/* Elapsed Time */}
+      {elapsedTime && (
+        <View style={styles.timerRow}>
+          <Text style={[styles.timerText, { color: colors.textMuted }]}>{elapsedTime}</Text>
+        </View>
+      )}
 
       {/* Game Status */}
       {gameStatus && (
@@ -196,6 +228,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600",
     textTransform: "uppercase",
+  },
+  timerRow: {
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  timerText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
   },
   gameStatusRow: {
     marginBottom: 12,

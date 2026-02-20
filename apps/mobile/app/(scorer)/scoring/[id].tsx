@@ -3,6 +3,7 @@ import { api } from "@repo/convex";
 import {
   View,
   Text,
+  Pressable,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -51,6 +52,8 @@ export default function ScorerTennisScoringScreen() {
   );
   const initMatch = useMutation(api.tennis.initTennisMatch);
   const scorePoint = useMutation(api.tennis.scoreTennisPoint);
+  const scoreAce = useMutation(api.tennis.scoreTennisAce);
+  const scoreFault = useMutation(api.tennis.scoreTennisFault);
   const undoPoint = useMutation(api.tennis.undoTennisPoint);
   const startMatch = useMutation(api.matches.startMatch);
 
@@ -181,6 +184,28 @@ export default function ScorerTennisScoringScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await undoPoint({ matchId, tempScorerToken });
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", getDisplayMessage(err));
+    }
+  };
+
+  const handleAce = async () => {
+    if (!match || match.status !== "live" || match.tennisState?.isMatchComplete) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await scoreAce({ matchId, tempScorerToken });
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", getDisplayMessage(err));
+    }
+  };
+
+  const handleFault = async () => {
+    if (!match || match.status !== "live" || match.tennisState?.isMatchComplete) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await scoreFault({ matchId, tempScorerToken });
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Error", getDisplayMessage(err));
@@ -459,6 +484,8 @@ export default function ScorerTennisScoringScreen() {
     sets,
     servingParticipant,
     isLandscape,
+    matchStartedTimestamp: state?.matchStartedTimestamp,
+    isMatchComplete: state?.isMatchComplete,
   };
 
   if (isLandscape) {
@@ -534,6 +561,31 @@ export default function ScorerTennisScoringScreen() {
 
         <View style={styles.centerOverlay} pointerEvents="box-none">
           <Scoreboard {...scoreboardProps} />
+          <View style={styles.aceFaultRow}>
+            <Pressable
+              onPress={handleAce}
+              disabled={!isLive}
+              style={[
+                styles.aceFaultButton,
+                { backgroundColor: isLive ? Colors.brand.DEFAULT : "rgba(112,172,21,0.4)" },
+              ]}>
+              <Text style={styles.aceFaultText}>Ace</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleFault}
+              disabled={!isLive}
+              style={[
+                styles.aceFaultButton,
+                {
+                  backgroundColor: isLive ? "rgba(64,64,64,1)" : "rgba(64,64,64,0.4)",
+                },
+              ]}>
+              <Text style={[styles.aceFaultText, { color: "#FFFFFF" }]}>
+                {state?.faultState === 1 ? "Double Fault" : "Fault"}
+              </Text>
+            </Pressable>
+          </View>
+          {state?.faultState === 1 && <Text style={styles.secondServeText}>2nd Serve</Text>}
           <TouchableOpacity
             style={[
               styles.undoButton,
@@ -602,6 +654,31 @@ export default function ScorerTennisScoringScreen() {
 
       <View style={[styles.portraitScoreboardContainer, { backgroundColor: colors.bgPage }]}>
         <Scoreboard {...scoreboardProps} />
+        <View style={styles.aceFaultRow}>
+          <Pressable
+            onPress={handleAce}
+            disabled={!isLive}
+            style={[
+              styles.aceFaultButton,
+              { backgroundColor: isLive ? Colors.brand.DEFAULT : "rgba(112,172,21,0.4)" },
+            ]}>
+            <Text style={styles.aceFaultText}>Ace</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleFault}
+            disabled={!isLive}
+            style={[
+              styles.aceFaultButton,
+              {
+                backgroundColor: isLive ? "rgba(64,64,64,1)" : "rgba(64,64,64,0.4)",
+              },
+            ]}>
+            <Text style={[styles.aceFaultText, { color: "#FFFFFF" }]}>
+              {state?.faultState === 1 ? "Double Fault" : "Fault"}
+            </Text>
+          </Pressable>
+        </View>
+        {state?.faultState === 1 && <Text style={styles.secondServeText}>2nd Serve</Text>}
         <TouchableOpacity
           style={[
             styles.undoButton,
@@ -748,6 +825,32 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: "center",
     justifyContent: "center",
+  },
+  aceFaultRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  aceFaultButton: {
+    borderRadius: 9999,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  aceFaultText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#000000",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  secondServeText: {
+    marginTop: 4,
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#F59E0B",
   },
   undoButton: {
     marginTop: 16,
