@@ -90,6 +90,7 @@ export const listParticipants = query({
       createdAt: v.number(),
       isPlaceholder: v.optional(v.boolean()),
       bracketId: v.optional(v.id("tournamentBrackets")),
+      nationality: v.optional(v.string()),
     })
   ),
   handler: async (ctx, args) => {
@@ -149,6 +150,7 @@ export const listParticipants = query({
       createdAt: p.createdAt,
       isPlaceholder: p.isPlaceholder,
       bracketId: p.bracketId,
+      nationality: p.nationality,
     }));
   },
 });
@@ -169,6 +171,7 @@ export const getParticipant = query({
       player2Name: v.optional(v.string()),
       teamName: v.optional(v.string()),
       seed: v.optional(v.number()),
+      nationality: v.optional(v.string()),
       wins: v.number(),
       losses: v.number(),
       draws: v.number(),
@@ -211,6 +214,7 @@ export const getParticipant = query({
       player2Name: participant.player2Name,
       teamName: participant.teamName,
       seed: participant.seed,
+      nationality: participant.nationality,
       wins: participant.wins,
       losses: participant.losses,
       draws: participant.draws,
@@ -243,6 +247,8 @@ export const addParticipant = mutation({
     teamName: v.optional(v.string()),
     // Optional seed
     seed: v.optional(v.number()),
+    // Optional nationality (ISO 3166-1 alpha-2 country code, lowercase)
+    nationality: v.optional(v.string()),
   },
   returns: v.id("tournamentParticipants"),
   handler: async (ctx, args) => {
@@ -347,6 +353,7 @@ export const addParticipant = mutation({
       displayName,
       ...participantData,
       seed: args.seed,
+      nationality: args.nationality,
       wins: 0,
       losses: 0,
       draws: 0,
@@ -372,6 +379,8 @@ export const updateParticipant = mutation({
     player2Name: v.optional(v.string()),
     // For team tournaments
     teamName: v.optional(v.string()),
+    // Optional nationality (ISO 3166-1 alpha-2 country code, lowercase)
+    nationality: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -412,7 +421,13 @@ export const updateParticipant = mutation({
       player1Name?: string;
       player2Name?: string;
       teamName?: string;
+      nationality?: string;
     } = {};
+
+    // Update nationality if provided
+    if (args.nationality !== undefined) {
+      updates.nationality = args.nationality;
+    }
 
     switch (participant.type) {
       case "individual":
