@@ -30,16 +30,21 @@ export function ImportPlayersModal({ isOpen, onClose, onImport }: ImportPlayersM
   const handleSeed = useCallback(async () => {
     setIsSeeding(true);
     try {
-      const result = await seedAction({ tour: selectedTour });
+      const [atpResult, wtaResult] = await Promise.all([
+        seedAction({ tour: "ATP" }),
+        seedAction({ tour: "WTA" }),
+      ]);
+      const totalImported = atpResult.imported + wtaResult.imported;
+      const totalSkipped = atpResult.skipped + wtaResult.skipped;
       toast.success(
-        `Imported ${result.imported} ${selectedTour} players (${result.skipped} skipped)`
+        `Imported ${totalImported} players (${atpResult.imported} ATP, ${wtaResult.imported} WTA, ${totalSkipped} skipped)`
       );
     } catch {
       toast.error("Failed to seed player database");
     } finally {
       setIsSeeding(false);
     }
-  }, [seedAction, selectedTour]);
+  }, [seedAction]);
 
   const players = useQuery(
     api.playerDatabase.searchPlayers,
@@ -165,7 +170,8 @@ export function ImportPlayersModal({ isOpen, onClose, onImport }: ImportPlayersM
                     No {selectedTour} players in database
                   </p>
                   <p className="text-text-muted text-xs mt-1 mb-4">
-                    Seed the database from the JeffSackmann tennis datasets to get started.
+                    Seed the database with ATP &amp; WTA players from the JeffSackmann tennis
+                    datasets.
                   </p>
                   <button
                     type="button"
@@ -176,7 +182,7 @@ export function ImportPlayersModal({ isOpen, onClose, onImport }: ImportPlayersM
                     {isSeeding && (
                       <span className="w-4 h-4 border-2 border-text-muted/30 border-t-text-primary rounded-full animate-spin" />
                     )}
-                    {isSeeding ? "Seeding..." : `Seed ${selectedTour} Players`}
+                    {isSeeding ? "Seeding ATP & WTA..." : "Seed ATP & WTA Players"}
                   </button>
                 </>
               ) : (
