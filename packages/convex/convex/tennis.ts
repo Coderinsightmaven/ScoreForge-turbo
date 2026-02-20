@@ -412,6 +412,10 @@ export const initTennisMatch = mutation({
       tiebreakTarget: resolvedConfig.setTiebreakTarget,
       tiebreakMode: undefined,
       isMatchComplete: false,
+      // Stat tracking
+      aces: [0, 0],
+      doubleFaults: [0, 0],
+      faultState: 0,
     };
 
     await ctx.db.patch("matches", args.matchId, {
@@ -556,6 +560,14 @@ export const scoreTennisPoint = mutation({
 
     // Save current state to history before making changes
     state.history = addToHistory(state);
+
+    // Reset fault state on normal point
+    state.faultState = 0;
+
+    // Set match start timestamp on first point
+    if (!state.matchStartedTimestamp) {
+      state.matchStartedTimestamp = Date.now();
+    }
 
     // Process based on whether we're in a tiebreak or regular game
     if (state.isTiebreak) {
@@ -770,6 +782,676 @@ export const scoreTennisPoint = mutation({
 });
 
 /**
+ * Score an ace — awards point to the serving participant and tracks the ace stat
+ */
+export const scoreTennisAce = mutation({
+  args: {
+    matchId: v.id("matches"),
+    tempScorerToken: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
+    await assertNotInMaintenance(ctx, userId);
+
+    const match = await ctx.db.get("matches", args.matchId);
+    if (!match) {
+      throw errors.notFound("Match");
+    }
+
+    const tournament = await ctx.db.get("tournaments", match.tournamentId);
+    if (!tournament) {
+      throw errors.notFound("Tournament");
+    }
+
+    // Check user's access (owner, scorer, or temp scorer can score)
+    const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
+    if (!hasAccess) {
+      throw errors.unauthorized();
+    }
+
+    // Validate both participants are assigned
+    if (!match.participant1Id || !match.participant2Id) {
+      throw errors.invalidState("Both participants must be assigned before scoring");
+    }
+
+    if (match.status !== "live") {
+      throw errors.invalidState("Match is not live");
+    }
+
+    if (!match.tennisState) {
+      throw errors.invalidState("Tennis state not initialized");
+    }
+
+    if (match.tennisState.isMatchComplete) {
+      throw errors.invalidState("Match is already complete");
+    }
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+    const loggingEnabled = userScoringLogs?.enabled === true;
+    const stateBefore = loggingEnabled ? JSON.stringify(match.tennisState) : undefined;
+
+    // Helper to log scoring action
+    const logAction = async (action: "ace", stateAfter: TennisState, details: object) => {
+      if (!loggingEnabled) return;
+
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get("tournamentParticipants", match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get("tournamentParticipants", match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action,
+        actorId: userId ?? undefined,
+        sport: "tennis",
+        details,
+        stateBefore,
+        stateAfter: JSON.stringify(stateAfter),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    };
+
+    const resolvedConfig = resolveTennisConfig(tournament);
+    const state: TennisState = normalizeTennisState({ ...match.tennisState }, resolvedConfig);
+
+    // Save current state to history before making changes
+    state.history = addToHistory(state);
+
+    // The ace winner is the serving participant
+    const winner = state.servingParticipant as 1 | 2;
+
+    // Increment ace counter for the server
+    const serverIdx = winner - 1;
+    if (!state.aces) state.aces = [0, 0];
+    state.aces[serverIdx] = (state.aces[serverIdx] ?? 0) + 1;
+
+    // Reset fault state on ace
+    state.faultState = 0;
+
+    // Set match start timestamp on first point
+    if (!state.matchStartedTimestamp) {
+      state.matchStartedTimestamp = Date.now();
+    }
+
+    // Process the point (same scoring logic as scoreTennisPoint)
+    if (state.isTiebreak) {
+      const { tiebreakOver, tiebreakWinner, newPoints } = processTiebreakPoint(state, winner);
+
+      if (tiebreakOver && tiebreakWinner) {
+        if (state.tiebreakMode === "match") {
+          const matchTiebreakScore = [...newPoints];
+
+          const { matchOver, matchWinner, newSets } = processMatchSet(
+            state,
+            tiebreakWinner,
+            matchTiebreakScore
+          );
+
+          state.sets = newSets;
+          state.currentSetGames = [0, 0];
+          state.currentGamePoints = [0, 0];
+          state.isTiebreak = false;
+          state.tiebreakPoints = [0, 0];
+          state.tiebreakMode = undefined;
+
+          if (matchOver) {
+            state.isMatchComplete = true;
+            const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+
+            await ctx.db.patch("matches", args.matchId, {
+              tennisState: state,
+              participant1Score: p1Sets,
+              participant2Score: p2Sets,
+              winnerId,
+              status: "completed",
+              completedAt: Date.now(),
+            });
+
+            await updateParticipantStats(ctx, match, matchWinner as 1 | 2, p1Sets, p2Sets);
+            await advanceBracket(ctx, match, matchWinner as 1 | 2);
+            await logAction("ace", state, { servingParticipant: winner });
+
+            await ctx.runMutation(internal.tournaments.checkAndCompleteTournament, {
+              tournamentId: match.tournamentId,
+            });
+
+            return null;
+          }
+
+          const nextFirstServer = getNextFirstServerOfSet(
+            state.firstServerOfSet,
+            matchTiebreakScore
+          );
+          state.firstServerOfSet = nextFirstServer;
+          state.servingParticipant = nextFirstServer;
+        } else {
+          // Tiebreak won - update games and check set
+          const finalSetGames = [...state.currentSetGames];
+          finalSetGames[tiebreakWinner - 1] = (finalSetGames[tiebreakWinner - 1] ?? 0) + 1;
+
+          // Process set win (tiebreak winner wins set 7-6)
+          const { matchOver, matchWinner, newSets } = processMatchSet(
+            state,
+            tiebreakWinner,
+            finalSetGames
+          );
+
+          state.sets = newSets;
+          state.currentSetGames = [0, 0];
+          state.currentGamePoints = [0, 0];
+          state.isTiebreak = false;
+          state.tiebreakPoints = [0, 0];
+          state.tiebreakMode = undefined;
+
+          if (matchOver) {
+            state.isMatchComplete = true;
+            const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+
+            await ctx.db.patch("matches", args.matchId, {
+              tennisState: state,
+              participant1Score: p1Sets,
+              participant2Score: p2Sets,
+              winnerId,
+              status: "completed",
+              completedAt: Date.now(),
+            });
+
+            await updateParticipantStats(ctx, match, matchWinner as 1 | 2, p1Sets, p2Sets);
+            await advanceBracket(ctx, match, matchWinner as 1 | 2);
+            await logAction("ace", state, { servingParticipant: winner });
+
+            await ctx.runMutation(internal.tournaments.checkAndCompleteTournament, {
+              tournamentId: match.tournamentId,
+            });
+
+            return null;
+          }
+
+          const nextFirstServer = getNextFirstServerOfSet(state.firstServerOfSet, finalSetGames);
+          state.firstServerOfSet = nextFirstServer;
+          state.servingParticipant = nextFirstServer;
+        }
+      } else {
+        // Tiebreak continues
+        state.tiebreakPoints = newPoints;
+        // Server changes: after first point, then every 2 points
+        const totalPoints = (newPoints[0] ?? 0) + (newPoints[1] ?? 0);
+        if (totalPoints > 0) {
+          const pointsSinceFirst = totalPoints;
+          if (
+            pointsSinceFirst === 1 ||
+            (pointsSinceFirst > 1 && (pointsSinceFirst - 1) % 2 === 0)
+          ) {
+            state.servingParticipant = state.servingParticipant === 1 ? 2 : 1;
+          }
+        }
+      }
+    } else {
+      // Regular game
+      const { gameOver, gameWinner, newPoints } = processGamePoint(state, winner);
+
+      if (gameOver && gameWinner) {
+        // Game won - update set
+        const { setOver, setWinner, newGames, startTiebreak } = processSetGame(state, gameWinner);
+
+        if (startTiebreak) {
+          // Start tiebreak
+          state.currentSetGames = newGames;
+          state.currentGamePoints = [0, 0];
+          state.isTiebreak = true;
+          state.tiebreakPoints = [0, 0];
+          state.tiebreakMode = "set";
+          state.tiebreakTarget = isDecidingSet(state)
+            ? (state.finalSetTiebreakTarget ?? state.setTiebreakTarget)
+            : state.setTiebreakTarget;
+          // Server for tiebreak is whoever would serve next in rotation
+          state.servingParticipant = getNextServer(state);
+        } else if (setOver && setWinner) {
+          // Set won - check for match
+          const setScore = state.currentSetGames.map((g, i) => (i === setWinner - 1 ? g + 1 : g));
+          const { matchOver, matchWinner, newSets } = processMatchSet(state, setWinner, setScore);
+
+          state.sets = newSets;
+          state.currentSetGames = [0, 0];
+          state.currentGamePoints = [0, 0];
+
+          if (matchOver && matchWinner) {
+            state.isMatchComplete = true;
+            const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+
+            await ctx.db.patch("matches", args.matchId, {
+              tennisState: state,
+              participant1Score: p1Sets,
+              participant2Score: p2Sets,
+              winnerId,
+              status: "completed",
+              completedAt: Date.now(),
+            });
+
+            await updateParticipantStats(ctx, match, matchWinner, p1Sets, p2Sets);
+            await advanceBracket(ctx, match, matchWinner);
+            await logAction("ace", state, { servingParticipant: winner });
+
+            await ctx.runMutation(internal.tournaments.checkAndCompleteTournament, {
+              tournamentId: match.tournamentId,
+            });
+
+            return null;
+          } else {
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+            const shouldStartMatchTiebreak =
+              state.useMatchTiebreak === true &&
+              p1Sets === state.setsToWin - 1 &&
+              p2Sets === state.setsToWin - 1;
+
+            if (shouldStartMatchTiebreak) {
+              state.isTiebreak = true;
+              state.tiebreakPoints = [0, 0];
+              state.tiebreakMode = "match";
+              state.tiebreakTarget = state.matchTiebreakTarget ?? DEFAULT_MATCH_TIEBREAK_TARGET;
+              state.servingParticipant = getNextServer(state);
+            } else {
+              const nextFirstServer = getNextFirstServerOfSet(state.firstServerOfSet, setScore);
+              state.firstServerOfSet = nextFirstServer;
+              state.servingParticipant = nextFirstServer;
+            }
+          }
+        } else {
+          // Set continues
+          state.currentSetGames = newGames;
+          state.currentGamePoints = [0, 0];
+          state.servingParticipant = getNextServer(state);
+        }
+      } else {
+        // Game continues
+        state.currentGamePoints = newPoints;
+      }
+    }
+
+    // Update match with new state
+    const { p1Sets, p2Sets } = countSetsWon(state.sets);
+
+    await ctx.db.patch("matches", args.matchId, {
+      tennisState: state,
+      participant1Score: p1Sets,
+      participant2Score: p2Sets,
+    });
+
+    await logAction("ace", state, { servingParticipant: winner });
+    return null;
+  },
+});
+
+/**
+ * Score a fault — first tap records a fault, second tap records a double fault
+ * and awards a point to the receiver
+ */
+export const scoreTennisFault = mutation({
+  args: {
+    matchId: v.id("matches"),
+    tempScorerToken: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const userId = user?._id ?? null;
+    await assertNotInMaintenance(ctx, userId);
+
+    const match = await ctx.db.get("matches", args.matchId);
+    if (!match) {
+      throw errors.notFound("Match");
+    }
+
+    const tournament = await ctx.db.get("tournaments", match.tournamentId);
+    if (!tournament) {
+      throw errors.notFound("Tournament");
+    }
+
+    // Check user's access (owner, scorer, or temp scorer can score)
+    const hasAccess = await canScoreTournament(ctx, tournament, userId, args.tempScorerToken);
+    if (!hasAccess) {
+      throw errors.unauthorized();
+    }
+
+    // Validate both participants are assigned
+    if (!match.participant1Id || !match.participant2Id) {
+      throw errors.invalidState("Both participants must be assigned before scoring");
+    }
+
+    if (match.status !== "live") {
+      throw errors.invalidState("Match is not live");
+    }
+
+    if (!match.tennisState) {
+      throw errors.invalidState("Tennis state not initialized");
+    }
+
+    if (match.tennisState.isMatchComplete) {
+      throw errors.invalidState("Match is already complete");
+    }
+
+    // Check if scoring logs are enabled for this user
+    const userScoringLogs = await ctx.db
+      .query("userScoringLogs")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .first();
+    const loggingEnabled = userScoringLogs?.enabled === true;
+    const stateBefore = loggingEnabled ? JSON.stringify(match.tennisState) : undefined;
+
+    // Helper to log scoring action
+    const logAction = async (
+      action: "fault" | "double_fault",
+      stateAfter: TennisState,
+      details: object
+    ) => {
+      if (!loggingEnabled) return;
+
+      let participant1Name: string | undefined;
+      let participant2Name: string | undefined;
+      if (match.participant1Id) {
+        const p1 = await ctx.db.get("tournamentParticipants", match.participant1Id);
+        participant1Name = p1?.displayName;
+      }
+      if (match.participant2Id) {
+        const p2 = await ctx.db.get("tournamentParticipants", match.participant2Id);
+        participant2Name = p2?.displayName;
+      }
+
+      await ctx.scheduler.runAfter(0, internal.scoringLogs.logScoringAction, {
+        tournamentId: match.tournamentId,
+        matchId: args.matchId,
+        action,
+        actorId: userId ?? undefined,
+        sport: "tennis",
+        details,
+        stateBefore,
+        stateAfter: JSON.stringify(stateAfter),
+        participant1Name,
+        participant2Name,
+        round: match.round,
+        matchNumber: match.matchNumber,
+      });
+    };
+
+    const resolvedConfig = resolveTennisConfig(tournament);
+    const state: TennisState = normalizeTennisState({ ...match.tennisState }, resolvedConfig);
+
+    // Save current state to history before making changes
+    state.history = addToHistory(state);
+
+    const currentFaultState = state.faultState ?? 0;
+    const serverIdx = (state.servingParticipant as 1 | 2) - 1;
+
+    if (currentFaultState === 0) {
+      // First fault — record it but don't score a point
+      state.faultState = 1;
+
+      // Set match start timestamp on first point/fault
+      if (!state.matchStartedTimestamp) {
+        state.matchStartedTimestamp = Date.now();
+      }
+
+      await ctx.db.patch("matches", args.matchId, {
+        tennisState: state,
+      });
+
+      await logAction("fault", state, { servingParticipant: state.servingParticipant });
+      return null;
+    }
+
+    // Double fault — award point to receiver
+    if (!state.doubleFaults) state.doubleFaults = [0, 0];
+    state.doubleFaults[serverIdx] = (state.doubleFaults[serverIdx] ?? 0) + 1;
+
+    // Reset fault state
+    state.faultState = 0;
+
+    // Set match start timestamp if not set
+    if (!state.matchStartedTimestamp) {
+      state.matchStartedTimestamp = Date.now();
+    }
+
+    // The receiver (opposite of server) wins the point
+    const winner = (state.servingParticipant === 1 ? 2 : 1) as 1 | 2;
+
+    // Process the point (same scoring logic as scoreTennisPoint)
+    if (state.isTiebreak) {
+      const { tiebreakOver, tiebreakWinner, newPoints } = processTiebreakPoint(state, winner);
+
+      if (tiebreakOver && tiebreakWinner) {
+        if (state.tiebreakMode === "match") {
+          const matchTiebreakScore = [...newPoints];
+
+          const { matchOver, matchWinner, newSets } = processMatchSet(
+            state,
+            tiebreakWinner,
+            matchTiebreakScore
+          );
+
+          state.sets = newSets;
+          state.currentSetGames = [0, 0];
+          state.currentGamePoints = [0, 0];
+          state.isTiebreak = false;
+          state.tiebreakPoints = [0, 0];
+          state.tiebreakMode = undefined;
+
+          if (matchOver) {
+            state.isMatchComplete = true;
+            const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+
+            await ctx.db.patch("matches", args.matchId, {
+              tennisState: state,
+              participant1Score: p1Sets,
+              participant2Score: p2Sets,
+              winnerId,
+              status: "completed",
+              completedAt: Date.now(),
+            });
+
+            await updateParticipantStats(ctx, match, matchWinner as 1 | 2, p1Sets, p2Sets);
+            await advanceBracket(ctx, match, matchWinner as 1 | 2);
+            await logAction("double_fault", state, {
+              servingParticipant: state.servingParticipant,
+            });
+
+            await ctx.runMutation(internal.tournaments.checkAndCompleteTournament, {
+              tournamentId: match.tournamentId,
+            });
+
+            return null;
+          }
+
+          const nextFirstServer = getNextFirstServerOfSet(
+            state.firstServerOfSet,
+            matchTiebreakScore
+          );
+          state.firstServerOfSet = nextFirstServer;
+          state.servingParticipant = nextFirstServer;
+        } else {
+          // Tiebreak won - update games and check set
+          const finalSetGames = [...state.currentSetGames];
+          finalSetGames[tiebreakWinner - 1] = (finalSetGames[tiebreakWinner - 1] ?? 0) + 1;
+
+          // Process set win (tiebreak winner wins set 7-6)
+          const { matchOver, matchWinner, newSets } = processMatchSet(
+            state,
+            tiebreakWinner,
+            finalSetGames
+          );
+
+          state.sets = newSets;
+          state.currentSetGames = [0, 0];
+          state.currentGamePoints = [0, 0];
+          state.isTiebreak = false;
+          state.tiebreakPoints = [0, 0];
+          state.tiebreakMode = undefined;
+
+          if (matchOver) {
+            state.isMatchComplete = true;
+            const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+
+            await ctx.db.patch("matches", args.matchId, {
+              tennisState: state,
+              participant1Score: p1Sets,
+              participant2Score: p2Sets,
+              winnerId,
+              status: "completed",
+              completedAt: Date.now(),
+            });
+
+            await updateParticipantStats(ctx, match, matchWinner as 1 | 2, p1Sets, p2Sets);
+            await advanceBracket(ctx, match, matchWinner as 1 | 2);
+            await logAction("double_fault", state, {
+              servingParticipant: state.servingParticipant,
+            });
+
+            await ctx.runMutation(internal.tournaments.checkAndCompleteTournament, {
+              tournamentId: match.tournamentId,
+            });
+
+            return null;
+          }
+
+          const nextFirstServer = getNextFirstServerOfSet(state.firstServerOfSet, finalSetGames);
+          state.firstServerOfSet = nextFirstServer;
+          state.servingParticipant = nextFirstServer;
+        }
+      } else {
+        // Tiebreak continues
+        state.tiebreakPoints = newPoints;
+        // Server changes: after first point, then every 2 points
+        const totalPoints = (newPoints[0] ?? 0) + (newPoints[1] ?? 0);
+        if (totalPoints > 0) {
+          const pointsSinceFirst = totalPoints;
+          if (
+            pointsSinceFirst === 1 ||
+            (pointsSinceFirst > 1 && (pointsSinceFirst - 1) % 2 === 0)
+          ) {
+            state.servingParticipant = state.servingParticipant === 1 ? 2 : 1;
+          }
+        }
+      }
+    } else {
+      // Regular game
+      const { gameOver, gameWinner, newPoints } = processGamePoint(state, winner);
+
+      if (gameOver && gameWinner) {
+        // Game won - update set
+        const { setOver, setWinner, newGames, startTiebreak } = processSetGame(state, gameWinner);
+
+        if (startTiebreak) {
+          // Start tiebreak
+          state.currentSetGames = newGames;
+          state.currentGamePoints = [0, 0];
+          state.isTiebreak = true;
+          state.tiebreakPoints = [0, 0];
+          state.tiebreakMode = "set";
+          state.tiebreakTarget = isDecidingSet(state)
+            ? (state.finalSetTiebreakTarget ?? state.setTiebreakTarget)
+            : state.setTiebreakTarget;
+          // Server for tiebreak is whoever would serve next in rotation
+          state.servingParticipant = getNextServer(state);
+        } else if (setOver && setWinner) {
+          // Set won - check for match
+          const setScore = state.currentSetGames.map((g, i) => (i === setWinner - 1 ? g + 1 : g));
+          const { matchOver, matchWinner, newSets } = processMatchSet(state, setWinner, setScore);
+
+          state.sets = newSets;
+          state.currentSetGames = [0, 0];
+          state.currentGamePoints = [0, 0];
+
+          if (matchOver && matchWinner) {
+            state.isMatchComplete = true;
+            const winnerId = matchWinner === 1 ? match.participant1Id : match.participant2Id;
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+
+            await ctx.db.patch("matches", args.matchId, {
+              tennisState: state,
+              participant1Score: p1Sets,
+              participant2Score: p2Sets,
+              winnerId,
+              status: "completed",
+              completedAt: Date.now(),
+            });
+
+            await updateParticipantStats(ctx, match, matchWinner, p1Sets, p2Sets);
+            await advanceBracket(ctx, match, matchWinner);
+            await logAction("double_fault", state, {
+              servingParticipant: state.servingParticipant,
+            });
+
+            await ctx.runMutation(internal.tournaments.checkAndCompleteTournament, {
+              tournamentId: match.tournamentId,
+            });
+
+            return null;
+          } else {
+            const { p1Sets, p2Sets } = countSetsWon(newSets);
+            const shouldStartMatchTiebreak =
+              state.useMatchTiebreak === true &&
+              p1Sets === state.setsToWin - 1 &&
+              p2Sets === state.setsToWin - 1;
+
+            if (shouldStartMatchTiebreak) {
+              state.isTiebreak = true;
+              state.tiebreakPoints = [0, 0];
+              state.tiebreakMode = "match";
+              state.tiebreakTarget = state.matchTiebreakTarget ?? DEFAULT_MATCH_TIEBREAK_TARGET;
+              state.servingParticipant = getNextServer(state);
+            } else {
+              const nextFirstServer = getNextFirstServerOfSet(state.firstServerOfSet, setScore);
+              state.firstServerOfSet = nextFirstServer;
+              state.servingParticipant = nextFirstServer;
+            }
+          }
+        } else {
+          // Set continues
+          state.currentSetGames = newGames;
+          state.currentGamePoints = [0, 0];
+          state.servingParticipant = getNextServer(state);
+        }
+      } else {
+        // Game continues
+        state.currentGamePoints = newPoints;
+      }
+    }
+
+    // Update match with new state
+    const { p1Sets, p2Sets } = countSetsWon(state.sets);
+
+    await ctx.db.patch("matches", args.matchId, {
+      tennisState: state,
+      participant1Score: p1Sets,
+      participant2Score: p2Sets,
+    });
+
+    await logAction("double_fault", state, { servingParticipant: state.servingParticipant });
+    return null;
+  },
+});
+
+/**
  * Undo the last point scored.
  * If the match was completed by the last point, this also:
  * - Reverts match status from "completed" to "live"
@@ -848,6 +1530,10 @@ export const undoTennisPoint = mutation({
       tiebreakMode: previousSnapshot.tiebreakMode ?? match.tennisState.tiebreakMode,
       isMatchComplete: previousSnapshot.isMatchComplete,
       history: newHistory,
+      // Restore stat fields from snapshot (fall back to current if snapshot doesn't have them)
+      aces: previousSnapshot.aces ?? match.tennisState.aces,
+      doubleFaults: previousSnapshot.doubleFaults ?? match.tennisState.doubleFaults,
+      faultState: previousSnapshot.faultState ?? match.tennisState.faultState ?? 0,
     };
 
     // Calculate sets won for score display
