@@ -5,8 +5,8 @@ import { api } from "@repo/convex";
 import type { Id } from "@repo/convex/dataModel";
 import type { TennisState } from "@repo/convex/types/tennis";
 import { getDisplayMessage } from "@/lib/errors";
-import { getPointDisplay, isDoublesName, splitDoublesName } from "@/lib/tennis";
-import { useState, useCallback } from "react";
+import { formatElapsedTime, getPointDisplay, isDoublesName, splitDoublesName } from "@/lib/tennis";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/app/components/ConfirmDialog";
@@ -113,8 +113,24 @@ export function FullScreenScoring({
   // Mutations
   const scoreTennisPoint = useMutation(api.tennis.scoreTennisPoint);
   const undoTennisPoint = useMutation(api.tennis.undoTennisPoint);
+  const scoreAce = useMutation(api.tennis.scoreTennisAce);
+  const scoreFault = useMutation(api.tennis.scoreTennisFault);
 
   const isMatchComplete = tennisState?.isMatchComplete;
+
+  // Match timer
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!tennisState?.matchStartedTimestamp || tennisState?.isMatchComplete) {
+      return;
+    }
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [tennisState?.matchStartedTimestamp, tennisState?.isMatchComplete]);
+
+  const matchStartedTimestamp = tennisState?.matchStartedTimestamp;
+  const elapsedTime = matchStartedTimestamp ? formatElapsedTime(now - matchStartedTimestamp) : null;
 
   // Serving status
   const serving1 = tennisState?.servingParticipant === 1;
@@ -148,6 +164,28 @@ export function FullScreenScoring({
       title: "Undo Point",
       description: "Undo last point? This will revert to the previous state.",
     });
+  };
+
+  const handleAce = async () => {
+    if (!canScore || isMatchComplete) return;
+    setIsUpdating(true);
+    try {
+      await scoreAce({ matchId: matchId as Id<"matches"> });
+    } catch (err) {
+      toast.error(getDisplayMessage(err) || "Failed to score ace");
+    }
+    setIsUpdating(false);
+  };
+
+  const handleFault = async () => {
+    if (!canScore || isMatchComplete) return;
+    setIsUpdating(true);
+    try {
+      await scoreFault({ matchId: matchId as Id<"matches"> });
+    } catch (err) {
+      toast.error(getDisplayMessage(err) || "Failed to score fault");
+    }
+    setIsUpdating(false);
   };
 
   const p1Name = participant1?.displayName || "Player 1";
@@ -248,6 +286,43 @@ export function FullScreenScoring({
                 <p className="text-center text-sm text-text-muted mt-2 tracking-wider">
                   {tennisState.sets.map((set) => `${set[0]}-${set[1]}`).join("  ")}
                 </p>
+              )}
+
+              {/* Match time */}
+              {elapsedTime && (
+                <p className="text-center text-xs text-text-muted mt-3 font-mono tracking-wider">
+                  {elapsedTime}
+                </p>
+              )}
+
+              {/* 2nd Serve indicator */}
+              {tennisState.faultState === 1 && (
+                <div className="flex justify-center mt-3">
+                  <span className="px-3 py-1 text-xs font-semibold text-warning bg-warning/20 rounded-full">
+                    2nd Serve
+                  </span>
+                </div>
+              )}
+
+              {/* Ace / Fault buttons */}
+              {canScore && !tennisState.isMatchComplete && (
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  <button
+                    onClick={handleAce}
+                    disabled={isUpdating}
+                    className="px-5 py-2 text-sm font-semibold text-black rounded-full transition-colors disabled:opacity-50"
+                    style={{ backgroundColor: "#BFFF00" }}
+                  >
+                    ACE
+                  </button>
+                  <button
+                    onClick={handleFault}
+                    disabled={isUpdating}
+                    className="px-5 py-2 text-sm font-semibold text-text-primary bg-bg-secondary border border-border rounded-full hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+                  >
+                    {tennisState.faultState === 1 ? "Double Fault" : "Fault"}
+                  </button>
+                </div>
               )}
             </div>
           )}

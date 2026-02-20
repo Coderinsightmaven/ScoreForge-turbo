@@ -93,3 +93,18 @@ export function splitDoublesName(name: string): [string, string] {
   const parts = name.split(" / ");
   return [parts[0] ?? "", parts[1] ?? ""];
 }
+
+/**
+ * Format elapsed time in milliseconds to MM:SS or H:MM:SS
+ */
+export function formatElapsedTime(elapsedMs: number): string {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
