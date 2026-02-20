@@ -1,5 +1,6 @@
 pub mod background;
 pub mod image;
+pub mod tennis_flag;
 pub mod tennis_name;
 pub mod tennis_score;
 pub mod tennis_serving;
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::data::live_data::TennisLiveData;
+use crate::flags::FlagCache;
 
 // --- Serde wrappers for egui types ---
 
@@ -84,6 +86,7 @@ pub enum ComponentType {
     TennisDoublesName,
     TennisServingIndicator,
     TennisMatchTime,
+    TennisPlayerFlag,
 }
 
 impl ComponentType {
@@ -99,6 +102,7 @@ impl ComponentType {
             Self::TennisDoublesName => "Doubles Name",
             Self::TennisServingIndicator => "Serving Indicator",
             Self::TennisMatchTime => "Match Time",
+            Self::TennisPlayerFlag => "Player Flag",
         }
     }
 }
@@ -174,6 +178,9 @@ pub enum ComponentData {
         indicator_size: f32,
     },
     TennisMatchTime,
+    TennisPlayerFlag {
+        player_number: u8,
+    },
 }
 
 // --- Scoreboard Component ---
@@ -218,6 +225,7 @@ impl ScoreboardComponent {
                 indicator_size: 12.0,
             },
             ComponentType::TennisMatchTime => ComponentData::TennisMatchTime,
+            ComponentType::TennisPlayerFlag => ComponentData::TennisPlayerFlag { player_number: 1 },
         };
 
         Self {
@@ -254,6 +262,7 @@ pub fn render_component(
     ctx: &RenderContext,
     live_data: Option<&TennisLiveData>,
     texture_cache: &TextureCache,
+    flag_cache: &FlagCache,
     zoom: f32,
     pan: Vec2,
 ) {
@@ -344,6 +353,15 @@ pub fn render_component(
                 &component.style,
                 live_data,
                 zoom,
+            );
+        }
+        ComponentData::TennisPlayerFlag { player_number } => {
+            tennis_flag::render_tennis_flag(
+                painter,
+                rect,
+                *player_number,
+                live_data,
+                flag_cache,
             );
         }
     }

@@ -82,6 +82,7 @@ pub fn show_canvas(ui: &mut egui::Ui, state: &mut AppState) {
             &ctx,
             project.live_match_data.as_ref(),
             &state.texture_cache,
+            &state.flag_cache,
             canvas_zoom,
             effective_pan,
         );

@@ -28,6 +28,7 @@ pub fn show_component_library(ui: &mut egui::Ui, state: &mut AppState) {
         ComponentType::TennisDoublesName,
         ComponentType::TennisServingIndicator,
         ComponentType::TennisMatchTime,
+        ComponentType::TennisPlayerFlag,
     ] {
         if ui.button(ct.label()).clicked() {
             add_component(state, *ct);
@@ -47,6 +48,7 @@ fn add_component(state: &mut AppState, component_type: ComponentType) {
         ComponentType::Text => Vec2::new(200.0, 50.0),
         ComponentType::Image => Vec2::new(200.0, 200.0),
         ComponentType::TennisServingIndicator => Vec2::new(30.0, 30.0),
+        ComponentType::TennisPlayerFlag => Vec2::new(60.0, 40.0),
         _ => Vec2::new(120.0, 60.0),
     };
 

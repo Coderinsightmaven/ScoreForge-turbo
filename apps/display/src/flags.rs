@@ -110,6 +110,20 @@ impl FlagCache {
     pub fn is_empty(&self) -> bool {
         self.textures.is_empty()
     }
+
+    /// Copy texture handles from another cache so that a secondary viewport
+    /// (e.g. the display window) can render flags without re-loading PNGs.
+    pub fn sync_from(&mut self, other: &FlagCache) {
+        if !other.loaded {
+            return;
+        }
+        for (code, handle) in &other.textures {
+            if !self.textures.contains_key(code) {
+                self.textures.insert(code.clone(), handle.clone());
+            }
+        }
+        self.loaded = true;
+    }
 }
 
 #[cfg(test)]

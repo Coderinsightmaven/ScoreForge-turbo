@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::components::{RenderContext, ScoreboardComponent, TextureCache, render_component};
 use crate::data::live_data::TennisLiveData;
+use crate::flags::FlagCache;
 use crate::state::Scoreboard;
 
 /// Shared state for the display viewport
@@ -13,6 +14,7 @@ pub struct DisplayState {
     pub components: Vec<ScoreboardComponent>,
     pub live_data: Option<TennisLiveData>,
     pub texture_cache: TextureCache,
+    pub flag_cache: FlagCache,
     pub should_close: bool,
     pub fullscreen: bool,
     pub offset_x: i32,
@@ -28,6 +30,7 @@ impl Default for DisplayState {
             components: Vec::new(),
             live_data: None,
             texture_cache: TextureCache::new(),
+            flag_cache: FlagCache::new(),
             should_close: false,
             fullscreen: false,
             offset_x: 0,
@@ -186,6 +189,7 @@ fn render_display(ui: &mut egui::Ui, state: &std::sync::MutexGuard<'_, DisplaySt
             &RenderContext::Display,
             state.live_data.as_ref(),
             &state.texture_cache,
+            &state.flag_cache,
             scale,
             pan,
         );

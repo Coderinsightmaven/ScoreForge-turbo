@@ -352,6 +352,7 @@ impl ScoreForgeApp {
                     ds.components = project.components.clone();
                     ds.live_data = project.live_match_data.clone();
                     ds.texture_cache.sync_from(&self.state.texture_cache);
+                    ds.flag_cache.sync_from(&self.state.flag_cache);
                     ds.should_close = false;
                     ds.fullscreen = project.display_fullscreen;
                     ds.offset_x = project.display_offset_x.parse().unwrap_or(0);
