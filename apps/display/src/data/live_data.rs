@@ -8,6 +8,9 @@ pub struct TennisLiveData {
     /// Full display name including partner for doubles (from displayName)
     pub player1_display_name: String,
     pub player2_display_name: String,
+    /// ISO 3166-1 alpha-2 country code (e.g. "US", "GB")
+    pub player1_nationality: Option<String>,
+    pub player2_nationality: Option<String>,
     pub sets: Vec<SetScore>,
     pub current_game_points: [u32; 2],
     pub tiebreak_points: [u32; 2],
@@ -82,6 +85,8 @@ mod tests {
             player2_name: "Bob".to_string(),
             player1_display_name: "Alice Smith".to_string(),
             player2_display_name: "Bob Jones".to_string(),
+            player1_nationality: Some("US".to_string()),
+            player2_nationality: Some("GB".to_string()),
             sets: vec![
                 SetScore {
                     player1_games: 6,
@@ -134,6 +139,8 @@ mod tests {
             player2_name: "B".to_string(),
             player1_display_name: "A".to_string(),
             player2_display_name: "B".to_string(),
+            player1_nationality: None,
+            player2_nationality: None,
             sets: vec![],
             current_game_points: [0, 0],
             tiebreak_points: [0, 0],

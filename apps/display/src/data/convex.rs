@@ -445,6 +445,10 @@ fn parse_match_data(val: &Value) -> Option<TennisLiveData> {
         .and_then(|p| get_str(p, "playerName").or_else(|| get_str(p, "player1Name")))
         .unwrap_or_else(|| player2_display_name.clone());
 
+    // Nationality (optional ISO country code)
+    let player1_nationality = p1.and_then(|p| get_str(p, "nationality"));
+    let player2_nationality = p2.and_then(|p| get_str(p, "nationality"));
+
     // Tennis state
     let tennis_state = get_obj(match_obj, "tennisState");
 
@@ -491,6 +495,8 @@ fn parse_match_data(val: &Value) -> Option<TennisLiveData> {
         player2_name,
         player1_display_name,
         player2_display_name,
+        player1_nationality,
+        player2_nationality,
         sets,
         current_game_points,
         tiebreak_points,
