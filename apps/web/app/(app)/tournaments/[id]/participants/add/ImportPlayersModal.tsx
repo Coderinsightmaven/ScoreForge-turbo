@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "@repo/convex";
 import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 
 interface Player {
   _id: string;
@@ -22,6 +23,23 @@ export function ImportPlayersModal({ isOpen, onClose, onImport }: ImportPlayersM
   const [selectedTour, setSelectedTour] = useState<"ATP" | "WTA">("ATP");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlayers, setSelectedPlayers] = useState<Map<string, Player>>(new Map());
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const seedAction = useAction(api.playerDatabaseSeed.seedPlayerDatabase);
+
+  const handleSeed = useCallback(async () => {
+    setIsSeeding(true);
+    try {
+      const result = await seedAction({ tour: selectedTour });
+      toast.success(
+        `Imported ${result.imported} ${selectedTour} players (${result.skipped} skipped)`
+      );
+    } catch {
+      toast.error("Failed to seed player database");
+    } finally {
+      setIsSeeding(false);
+    }
+  }, [seedAction, selectedTour]);
 
   const players = useQuery(
     api.playerDatabase.searchPlayers,
@@ -141,9 +159,31 @@ export function ImportPlayersModal({ isOpen, onClose, onImport }: ImportPlayersM
             </div>
           ) : players.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-text-muted text-sm">No players found</p>
-              {searchQuery && (
-                <p className="text-text-muted text-xs mt-1">Try a different search term</p>
+              {!searchQuery ? (
+                <>
+                  <p className="text-text-primary text-sm font-medium">
+                    No {selectedTour} players in database
+                  </p>
+                  <p className="text-text-muted text-xs mt-1 mb-4">
+                    Seed the database from the JeffSackmann tennis datasets to get started.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSeed}
+                    disabled={isSeeding}
+                    className="px-5 py-2.5 border border-border rounded-full text-sm font-semibold text-text-primary hover:bg-bg-secondary transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                  >
+                    {isSeeding && (
+                      <span className="w-4 h-4 border-2 border-text-muted/30 border-t-text-primary rounded-full animate-spin" />
+                    )}
+                    {isSeeding ? "Seeding..." : `Seed ${selectedTour} Players`}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-text-muted text-sm">No players found</p>
+                  <p className="text-text-muted text-xs mt-1">Try a different search term</p>
+                </>
               )}
             </div>
           ) : (
