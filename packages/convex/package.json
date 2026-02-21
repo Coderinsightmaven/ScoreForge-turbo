@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "convex": "^1.31.7",
+    "convex": "^1.32.0",
     "svix": "^1.85.0"
   },
   "devDependencies": {
@@ -34,8 +34,8 @@
     "@edge-runtime/vm": "^5.0.0",
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.2",
-    "@types/bcryptjs": "^3.0.0",
-    "@types/node": "^24.10.9",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^25.3.0",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "convex-test": "^0.0.41",
