@@ -60,6 +60,16 @@ const CSV_PLAYER2_HEADERS = new Set([
   "partner 2",
 ]);
 
+const CSV_NATIONALITY_HEADERS = new Set([
+  "nationality",
+  "country",
+  "country code",
+  "countrycode",
+  "country_code",
+  "nat",
+  "flag",
+]);
+
 function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -352,18 +362,18 @@ export default function AddParticipantPage({
 
   const csvHelperText =
     effectiveParticipantType === "doubles"
-      ? "Columns: player1, player2 (or use the first two columns). One row per pair."
-      : "Column: name (or use the first column). One row per participant.";
+      ? "Columns: player 1, player 2, nationality (optional). One row per pair."
+      : "Columns: name, nationality (optional). One row per participant.";
 
   const downloadTemplate = () => {
     let content: string;
     if (effectiveParticipantType === "doubles") {
       content =
-        "player 1,player 2\nJohn Doe,Jane Smith\nBob Wilson,Alice Brown\nMike Chen,Sarah Lee";
+        "player 1,player 2,nationality\nJohn Doe,Jane Smith,US\nBob Wilson,Alice Brown,GB\nMike Chen,Sarah Lee,AU";
     } else if (effectiveParticipantType === "team") {
-      content = "name\nTeam Alpha\nTeam Beta\nTeam Gamma";
+      content = "name,nationality\nTeam Alpha,US\nTeam Beta,GB\nTeam Gamma,AU";
     } else {
-      content = "name\nJohn Doe\nJane Smith\nBob Wilson";
+      content = "name,nationality\nJohn Doe,US\nJane Smith,GB\nBob Wilson,AU";
     }
     const blob = new Blob([content], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -401,10 +411,17 @@ export default function AddParticipantPage({
         (cell) =>
           CSV_SINGLE_HEADERS.has(cell) ||
           CSV_PLAYER1_HEADERS.has(cell) ||
-          CSV_PLAYER2_HEADERS.has(cell)
+          CSV_PLAYER2_HEADERS.has(cell) ||
+          CSV_NATIONALITY_HEADERS.has(cell)
       );
 
       const dataRows = hasHeader ? rows.slice(1) : rows;
+
+      // Detect nationality column
+      const nationalityIndex = hasHeader
+        ? headerRow.findIndex((cell) => CSV_NATIONALITY_HEADERS.has(cell))
+        : -1;
+      const hasNationality = nationalityIndex !== -1;
 
       if (effectiveParticipantType === "doubles") {
         const rawPlayer1Index = hasHeader
@@ -416,39 +433,68 @@ export default function AddParticipantPage({
         const player1Index = rawPlayer1Index === -1 ? 0 : rawPlayer1Index;
         const player2Index = rawPlayer2Index === -1 ? 1 : rawPlayer2Index;
 
-        const player1Values: string[] = [];
-        const player2Values: string[] = [];
+        const pairs: { p1: string; p2: string; nat?: string }[] = [];
 
         dataRows.forEach((row) => {
           const player1 = row[player1Index]?.trim() ?? "";
           const player2 = row[player2Index]?.trim() ?? "";
+          const nat = hasNationality
+            ? row[nationalityIndex]?.trim().toLowerCase() || undefined
+            : undefined;
           if (player1 && player2) {
-            player1Values.push(player1);
-            player2Values.push(player2);
+            pairs.push({ p1: player1, p2: player2, nat });
           }
         });
 
-        if (player1Values.length === 0) {
+        if (pairs.length === 0) {
           setImportError("No valid doubles pairs found in the CSV.");
           return;
         }
 
-        if (maxParticipants && currentParticipantCount + player1Values.length > maxParticipants) {
+        if (maxParticipants && currentParticipantCount + pairs.length > maxParticipants) {
           const remaining = maxParticipants - currentParticipantCount;
           setImportError(
-            `CSV contains ${player1Values.length} pairs but only ${remaining} spot${remaining === 1 ? "" : "s"} remaining in this bracket.`
+            `CSV contains ${pairs.length} pairs but only ${remaining} spot${remaining === 1 ? "" : "s"} remaining in this bracket.`
           );
           return;
         }
 
-        setPlayer1Name(player1Values.join(", "));
-        setPlayer2Name(player2Values.join(", "));
+        // If nationality is present, directly submit all entries
+        if (hasNationality) {
+          if (!selectedBracketId) {
+            setImportError("Please select a bracket before importing.");
+            return;
+          }
+          setLoading(true);
+          try {
+            for (const pair of pairs) {
+              await addParticipant({
+                tournamentId: tournamentId as Id<"tournaments">,
+                bracketId: selectedBracketId as Id<"tournamentBrackets">,
+                player1Name: pair.p1,
+                player2Name: pair.p2,
+                nationality: pair.nat,
+              });
+            }
+            setImportSummary(
+              `Added ${pairs.length} ${pairs.length === 1 ? "pair" : "pairs"} from ${file.name}.`
+            );
+            router.push(`/tournaments/${tournamentId}?tab=participants`);
+          } catch (err) {
+            setImportError(getDisplayMessage(err) || "Failed to import participants.");
+            setLoading(false);
+          }
+          return;
+        }
+
+        setPlayer1Name(pairs.map((p) => p.p1).join(", "));
+        setPlayer2Name(pairs.map((p) => p.p2).join(", "));
         setPlayerName("");
         setTeamName("");
         setSeed("");
         setError(null);
         setImportSummary(
-          `Imported ${player1Values.length} ${player1Values.length === 1 ? "pair" : "pairs"} from ${file.name}.`
+          `Imported ${pairs.length} ${pairs.length === 1 ? "pair" : "pairs"} from ${file.name}.`
         );
         return;
       }
@@ -457,44 +503,88 @@ export default function AddParticipantPage({
         ? headerRow.findIndex((cell) => CSV_SINGLE_HEADERS.has(cell))
         : 0;
       const nameIndex = rawNameIndex === -1 ? 0 : rawNameIndex;
-      const names = dataRows
-        .map((row) => row[nameIndex]?.trim() ?? "")
-        .filter((name) => name.length > 0);
 
-      if (names.length === 0) {
+      const entries: { name: string; nat?: string }[] = [];
+      dataRows.forEach((row) => {
+        const name = row[nameIndex]?.trim() ?? "";
+        const nat = hasNationality
+          ? row[nationalityIndex]?.trim().toLowerCase() || undefined
+          : undefined;
+        if (name.length > 0) {
+          entries.push({ name, nat });
+        }
+      });
+
+      if (entries.length === 0) {
         setImportError("No valid names found in the CSV.");
         return;
       }
 
-      if (maxParticipants && currentParticipantCount + names.length > maxParticipants) {
+      if (maxParticipants && currentParticipantCount + entries.length > maxParticipants) {
         const remaining = maxParticipants - currentParticipantCount;
         setImportError(
-          `CSV contains ${names.length} participants but only ${remaining} spot${remaining === 1 ? "" : "s"} remaining in this bracket.`
+          `CSV contains ${entries.length} participants but only ${remaining} spot${remaining === 1 ? "" : "s"} remaining in this bracket.`
         );
         return;
       }
 
+      // If nationality is present, directly submit all entries
+      if (hasNationality) {
+        if (!selectedBracketId) {
+          setImportError("Please select a bracket before importing.");
+          return;
+        }
+        setLoading(true);
+        try {
+          for (const entry of entries) {
+            if (effectiveParticipantType === "team") {
+              await addParticipant({
+                tournamentId: tournamentId as Id<"tournaments">,
+                bracketId: selectedBracketId as Id<"tournamentBrackets">,
+                teamName: entry.name,
+                nationality: entry.nat,
+              });
+            } else {
+              await addParticipant({
+                tournamentId: tournamentId as Id<"tournaments">,
+                bracketId: selectedBracketId as Id<"tournamentBrackets">,
+                playerName: entry.name,
+                nationality: entry.nat,
+              });
+            }
+          }
+          const label = effectiveParticipantType === "team" ? "teams" : "players";
+          setImportSummary(`Added ${entries.length} ${label} from ${file.name}.`);
+          router.push(`/tournaments/${tournamentId}?tab=participants`);
+        } catch (err) {
+          setImportError(getDisplayMessage(err) || "Failed to import participants.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      // No nationality — populate form fields for review (existing behavior)
       if (effectiveParticipantType === "team") {
-        setTeamName(names.join(", "));
+        setTeamName(entries.map((e) => e.name).join(", "));
         setPlayerName("");
         setPlayer1Name("");
         setPlayer2Name("");
         setSeed("");
         setError(null);
         setImportSummary(
-          `Imported ${names.length} ${names.length === 1 ? "team" : "teams"} from ${file.name}.`
+          `Imported ${entries.length} ${entries.length === 1 ? "team" : "teams"} from ${file.name}.`
         );
         return;
       }
 
-      setPlayerName(names.join(", "));
+      setPlayerName(entries.map((e) => e.name).join(", "));
       setPlayer1Name("");
       setPlayer2Name("");
       setTeamName("");
       setSeed("");
       setError(null);
       setImportSummary(
-        `Imported ${names.length} ${names.length === 1 ? "player" : "players"} from ${file.name}.`
+        `Imported ${entries.length} ${entries.length === 1 ? "player" : "players"} from ${file.name}.`
       );
     } catch (csvError) {
       setImportError(csvError instanceof Error ? csvError.message : "Failed to parse the CSV.");

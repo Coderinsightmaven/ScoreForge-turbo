@@ -945,3 +945,9 @@ body::after {
     break-before: page;
   }
 }
+
+/* Override Russian flag to show black */
+.fi-ru {
+  background-image: none !important;
+  background-color: #000000 !important;
+}
