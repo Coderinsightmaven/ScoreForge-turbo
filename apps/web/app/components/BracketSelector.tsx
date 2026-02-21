@@ -109,12 +109,30 @@ export function BracketSelector({
     }
   };
 
-  const statusIndicator = (status: Bracket["status"]) => {
+  const statusIndicator = (status: Bracket["status"], isSelected: boolean) => {
     switch (status) {
       case "active":
-        return <span className="w-2 h-2 bg-success rounded-full animate-pulse" />;
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
+            <span
+              className={`text-[10px] font-medium uppercase ${isSelected ? "text-success" : "text-success/70"}`}
+            >
+              Live
+            </span>
+          </span>
+        );
       case "completed":
-        return <span className="w-2 h-2 bg-gold rounded-full" />;
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 bg-gold rounded-full" />
+            <span
+              className={`text-[10px] font-medium uppercase ${isSelected ? "text-gold" : "text-gold/70"}`}
+            >
+              Done
+            </span>
+          </span>
+        );
       default:
         return <span className="w-2 h-2 bg-text-muted/30 rounded-full" />;
     }
@@ -267,7 +285,7 @@ export function BracketSelector({
                 : "border-transparent text-text-muted hover:bg-bg-secondary hover:text-text-primary"
             }`}
           >
-            {statusIndicator(bracket.status)}
+            {statusIndicator(bracket.status, selectedBracketId === bracket._id)}
             <span>{bracket.name}</span>
             <span
               className={`text-xs font-normal ${selectedBracketId === bracket._id ? "text-brand/60" : "text-text-muted"}`}

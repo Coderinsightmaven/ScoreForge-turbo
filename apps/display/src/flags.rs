@@ -91,9 +91,95 @@ impl FlagCache {
         self.loaded = true;
     }
 
-    /// Get a flag texture by lowercase ISO 3166-1 alpha-2 country code.
+    /// Get a flag texture by lowercase country code.
+    /// Accepts ISO 3166-1 alpha-2, IOC/FIFA 3-letter codes, and common aliases.
     pub fn get(&self, country_code: &str) -> Option<&TextureHandle> {
-        self.textures.get(country_code)
+        self.textures.get(country_code).or_else(|| {
+            let alias = match country_code {
+                // Argentina
+                "arg" => "ar",
+                // Austria
+                "aut" => "at",
+                // Australia
+                "aus" => "au",
+                // Belgium
+                "bel" => "be",
+                // Bulgaria
+                "bul" | "bgr" => "bg",
+                // Brazil
+                "bra" => "br",
+                // Canada
+                "can" => "ca",
+                // Switzerland
+                "sui" | "che" => "ch",
+                // Chile
+                "chi" | "chl" => "cl",
+                // China
+                "chn" => "cn",
+                // Colombia
+                "col" => "co",
+                // Czech Republic / Czechia
+                "cze" => "cz",
+                // Germany
+                "ger" | "deu" => "de",
+                // Denmark
+                "den" | "dnk" => "dk",
+                // Spain
+                "esp" => "es",
+                // Finland
+                "fin" => "fi",
+                // France
+                "fra" => "fr",
+                // Great Britain / United Kingdom
+                "gbr" | "uk" | "en" | "eng" | "sco" | "wal" => "gb",
+                // Georgia
+                "geo" => "ge",
+                // Greece
+                "gre" | "grc" => "gr",
+                // Croatia
+                "cro" | "hrv" => "hr",
+                // India
+                "ind" => "in",
+                // Italy
+                "ita" => "it",
+                // Japan
+                "jpn" => "jp",
+                // South Korea
+                "kor" => "kr",
+                // Kazakhstan
+                "kaz" => "kz",
+                // Netherlands
+                "ned" | "nld" | "hol" => "nl",
+                // Norway
+                "nor" => "no",
+                // Poland
+                "pol" => "pl",
+                // Portugal
+                "por" | "prt" => "pt",
+                // Romania
+                "rou" | "rom" => "ro",
+                // Serbia
+                "srb" => "rs",
+                // Russia
+                "rus" => "ru",
+                // Sweden
+                "swe" => "se",
+                // Thailand
+                "tha" => "th",
+                // Tunisia
+                "tun" => "tn",
+                // Taiwan / Chinese Taipei
+                "tpe" | "twn" => "tw",
+                // Ukraine
+                "ukr" => "ua",
+                // United States
+                "usa" => "us",
+                // South Africa
+                "rsa" | "zaf" => "za",
+                _ => return None,
+            };
+            self.textures.get(alias)
+        })
     }
 
     /// Returns true if flags have been loaded into textures.

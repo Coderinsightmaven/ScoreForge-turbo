@@ -1,6 +1,6 @@
 use egui::Vec2;
 
-use crate::components::{ComponentType, ScoreboardComponent};
+use crate::components::{ComponentData, ComponentType, ScoreboardComponent};
 use crate::state::AppState;
 
 pub fn show_component_library(ui: &mut egui::Ui, state: &mut AppState) {
@@ -37,6 +37,13 @@ pub fn show_component_library(ui: &mut egui::Ui, state: &mut AppState) {
 }
 
 fn add_component(state: &mut AppState, component_type: ComponentType) {
+    // Snapshot default font before mutable project borrow
+    let default_font = state
+        .font_library
+        .list_fonts()
+        .first()
+        .map(|e| e.family_name.clone());
+
     let project = state.active_project_mut();
     project.push_undo();
 
@@ -66,6 +73,21 @@ fn add_component(state: &mut AppState, component_type: ComponentType) {
 
     let mut component = ScoreboardComponent::new(component_type, center, default_size);
     component.z_index = max_z + 1;
+
+    // Apply default font from library to text-eligible components
+    if let Some(font) = default_font {
+        let has_text_style = matches!(
+            component.data,
+            ComponentData::Text { .. }
+                | ComponentData::TennisScore { .. }
+                | ComponentData::TennisName { .. }
+                | ComponentData::TennisDoubles { .. }
+                | ComponentData::TennisMatchTime
+        );
+        if has_text_style {
+            component.style.font_family = Some(font);
+        }
+    }
 
     project.selected_ids.clear();
     project.selected_ids.insert(component.id);

@@ -1,15 +1,22 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@repo/convex";
 import { Id } from "@repo/convex/dataModel";
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getDisplayMessage } from "@/lib/errors";
 import { FileDropzone } from "@/components/ui/file-dropzone";
-import { ImportPlayersModal } from "./ImportPlayersModal";
 import { toast } from "sonner";
+
+interface Player {
+  _id: string;
+  name: string;
+  countryCode: string;
+  ranking?: number;
+  tour: string;
+}
 
 /**
  * Format a full name to abbreviated format (e.g., "Joe Berry" -> "J. Berry")
@@ -150,11 +157,12 @@ export default function AddParticipantPage({
   const [selectedBracketId, setSelectedBracketId] = useState<string>("");
   const [initialBracketSet, setInitialBracketSet] = useState(false);
 
-  // Set initial bracket from URL or default to first bracket
+  // Set initial bracket from URL or default to first draft bracket
   useEffect(() => {
-    const firstBracket = brackets?.[0];
-    if (brackets && brackets.length > 0 && firstBracket && !initialBracketSet) {
-      if (bracketIdFromUrl && brackets.some((b) => b._id === bracketIdFromUrl)) {
+    const availableBrackets = brackets?.filter((b) => b.status === "draft");
+    const firstBracket = availableBrackets?.[0];
+    if (availableBrackets && availableBrackets.length > 0 && firstBracket && !initialBracketSet) {
+      if (bracketIdFromUrl && availableBrackets.some((b) => b._id === bracketIdFromUrl)) {
         setSelectedBracketId(bracketIdFromUrl);
       } else {
         setSelectedBracketId(firstBracket._id);
@@ -168,9 +176,83 @@ export default function AddParticipantPage({
   const [teamName, setTeamName] = useState("");
   const [seed, setSeed] = useState<string>("");
   const [nationality, setNationality] = useState("");
-  const [showImportModal, setShowImportModal] = useState(false);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // View state: search (default), manual entry, or CSV import
+  const [view, setView] = useState<"search" | "manual" | "csv">("search");
+
+  // Player database search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dbSelectedPlayers, setDbSelectedPlayers] = useState<Map<string, Player>>(new Map());
+  const [activeTab, setActiveTab] = useState<"official" | "custom">("official");
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [isImportingFromDb, setIsImportingFromDb] = useState(false);
+
+  const seedAction = useAction(api.playerDatabaseSeed.seedPlayerDatabase);
+
+  // Get bracket gender for tour filtering
+  const selectedBracket = brackets?.find((b) => b._id === selectedBracketId);
+  const bracketGender = selectedBracket?.gender;
+  const tourFilter =
+    bracketGender === "mens" ? "ATP" : bracketGender === "womens" ? "WTA" : undefined;
+
+  const officialResults = useQuery(
+    api.playerDatabase.searchPlayers,
+    view === "search" && activeTab === "official"
+      ? {
+          tour: tourFilter,
+          searchQuery: searchQuery.trim() || undefined,
+          limit: 50,
+        }
+      : "skip"
+  );
+
+  const customResults = useQuery(
+    api.playerDatabase.searchPlayers,
+    view === "search" && activeTab === "custom"
+      ? {
+          tour: "CUSTOM",
+          searchQuery: searchQuery.trim() || undefined,
+          limit: 50,
+        }
+      : "skip"
+  );
+
+  // Filter out CUSTOM players from official results
+  const officialPlayers = officialResults?.filter((p) => p.tour !== "CUSTOM");
+  const searchPlayers = activeTab === "official" ? officialPlayers : customResults;
+
+  const handleSeed = useCallback(async () => {
+    setIsSeeding(true);
+    try {
+      const [atpResult, wtaResult] = await Promise.all([
+        seedAction({ tour: "ATP" }),
+        seedAction({ tour: "WTA" }),
+      ]);
+      const totalImported = atpResult.imported + wtaResult.imported;
+      const totalSkipped = atpResult.skipped + wtaResult.skipped;
+      toast.success(
+        `Imported ${totalImported} players (${atpResult.imported} ATP, ${wtaResult.imported} WTA, ${totalSkipped} skipped)`
+      );
+    } catch {
+      toast.error("Failed to seed player database");
+    } finally {
+      setIsSeeding(false);
+    }
+  }, [seedAction]);
+
+  const togglePlayer = useCallback((player: Player) => {
+    setDbSelectedPlayers((prev) => {
+      const next = new Map(prev);
+      if (next.has(player._id)) {
+        next.delete(player._id);
+      } else {
+        next.set(player._id, player);
+      }
+      return next;
+    });
+  }, []);
 
   if (tournament === undefined) {
     return <LoadingSkeleton />;
@@ -185,8 +267,16 @@ export default function AddParticipantPage({
     return <NotAuthorized tournamentId={tournamentId} />;
   }
 
-  const canRegister = tournament.status === "draft";
+  // Allow adding participants when tournament is draft or active (bracket-level check happens below)
+  const canRegister = tournament.status === "draft" || tournament.status === "active";
   if (!canRegister) {
+    return <TournamentNotDraft tournamentId={tournamentId} />;
+  }
+
+  // Only show brackets that are still in draft
+  const draftBrackets = brackets?.filter((b) => b.status === "draft");
+
+  if (draftBrackets && draftBrackets.length === 0) {
     return <TournamentNotDraft tournamentId={tournamentId} />;
   }
 
@@ -240,10 +330,14 @@ export default function AddParticipantPage({
         }
         // Save manually entered players to database for future reuse
         for (const name of names) {
-          addCustomPlayer({
-            name,
-            countryCode: names.length === 1 ? nationalityValue : undefined,
-          }).catch(() => {}); // Fire-and-forget
+          try {
+            await addCustomPlayer({
+              name,
+              countryCode: names.length === 1 ? nationalityValue : undefined,
+            });
+          } catch {
+            // Best-effort — don't block participant creation
+          }
         }
       } else if (bracketParticipantType === "doubles") {
         if (!player1Name.trim() || !player2Name.trim()) {
@@ -320,9 +414,6 @@ export default function AddParticipantPage({
       setLoading(false);
     }
   };
-
-  // Get selected bracket info (tournaments always have at least one bracket)
-  const selectedBracket = brackets?.find((b) => b._id === selectedBracketId);
 
   // Use bracket's participant type if set, otherwise fall back to tournament's
   const effectiveParticipantType = selectedBracket?.participantType || tournament.participantType;
@@ -559,6 +650,14 @@ export default function AddParticipantPage({
                 playerName: entry.name,
                 nationality: entry.nat,
               });
+              try {
+                await addCustomPlayer({
+                  name: entry.name,
+                  countryCode: entry.nat,
+                });
+              } catch {
+                // Best-effort
+              }
             }
           }
           const label = effectiveParticipantType === "team" ? "teams" : "players";
@@ -599,6 +698,38 @@ export default function AddParticipantPage({
     }
   };
 
+  const handleImportFromDb = async () => {
+    if (!selectedBracketId) {
+      toast.error("Please select a bracket first");
+      return;
+    }
+    if (dbSelectedPlayers.size === 0) return;
+
+    setIsImportingFromDb(true);
+    try {
+      const playersToImport = Array.from(dbSelectedPlayers.values());
+      for (const player of playersToImport) {
+        await addParticipant({
+          tournamentId: tournamentId as Id<"tournaments">,
+          bracketId: selectedBracketId as Id<"tournamentBrackets">,
+          playerName: player.name,
+          nationality: player.countryCode || undefined,
+        });
+      }
+      toast.success(
+        `Successfully imported ${playersToImport.length} player${playersToImport.length !== 1 ? "s" : ""}`
+      );
+      router.push(`/tournaments/${tournamentId}?tab=participants`);
+    } catch (err) {
+      toast.error(getDisplayMessage(err) || "Failed to import players");
+    } finally {
+      setIsImportingFromDb(false);
+    }
+  };
+
+  const genderLabel =
+    bracketGender === "mens" ? "men's" : bracketGender === "womens" ? "women's" : undefined;
+
   return (
     <div className="flex items-start justify-center">
       <div className="w-full max-w-lg space-y-6">
@@ -610,6 +741,7 @@ export default function AddParticipantPage({
         </Link>
 
         <div className="surface-panel surface-panel-rail relative overflow-hidden">
+          {/* Header — always visible */}
           <div className="text-center px-8 pt-10 pb-6">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand/30 bg-brand/10">
               <svg
@@ -626,7 +758,7 @@ export default function AddParticipantPage({
                 />
               </svg>
             </div>
-            <h1 className="text-heading text-text-primary mb-2">Add participant</h1>
+            <h1 className="text-heading text-text-primary mb-2">Add participants</h1>
             <p className="text-sm text-text-secondary">{getFormTitle()}</p>
             <div className="mt-4 flex items-center justify-center gap-2 text-sm">
               <span className="text-brand font-semibold">{currentParticipantCount}</span>
@@ -638,7 +770,9 @@ export default function AddParticipantPage({
               )}
               <span className="text-text-muted">participants</span>
               {selectedBracket && (
-                <span className="text-text-muted">in {selectedBracket.name}</span>
+                <span className="text-text-muted">
+                  in <span className="font-semibold text-text-primary">{selectedBracket.name}</span>
+                </span>
               )}
             </div>
           </div>
@@ -659,324 +793,454 @@ export default function AddParticipantPage({
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-6">
-              {/* Bracket Selection (always required) */}
-              <div className="space-y-2">
-                <label htmlFor="bracketId" className="block text-sm font-medium text-text-primary">
-                  Bracket <span className="text-error">*</span>
-                </label>
-                <select
-                  id="bracketId"
-                  value={selectedBracketId}
-                  onChange={(e) => {
-                    const newBracketId = e.target.value;
-                    const newBracket = brackets?.find((b) => b._id === newBracketId);
-                    const newParticipantType =
-                      newBracket?.participantType || tournament.participantType;
-                    const oldParticipantType = effectiveParticipantType;
-
-                    // Clear form fields if participant type changes
-                    if (newParticipantType !== oldParticipantType) {
-                      setPlayerName("");
-                      setPlayer1Name("");
-                      setPlayer2Name("");
-                      setTeamName("");
-                      setSeed("");
-                    }
-                    setSelectedBracketId(newBracketId);
-                  }}
-                  className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary focus:outline-none focus:border-brand transition-colors"
-                  required
-                >
-                  <option value="">Select a bracket</option>
-                  {brackets?.map((bracket) => {
-                    const bracketType = bracket.participantType || tournament.participantType;
-                    const typeLabel =
-                      bracketType === "individual"
-                        ? "Singles"
-                        : bracketType === "doubles"
-                          ? "Doubles"
-                          : "Teams";
-                    return (
-                      <option key={bracket._id} value={bracket._id}>
-                        {bracket.name} - {typeLabel} ({bracket.participantCount}
-                        {bracket.maxParticipants ? ` / ${bracket.maxParticipants}` : ""})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-text-primary">
-                  Import from CSV
-                </label>
-                <FileDropzone
-                  onFiles={handleCsvImport}
-                  accept={{ "text/csv": [".csv"] }}
-                  label="Drop CSV here or click to upload"
-                  helperText={csvHelperText}
-                />
-                <button
-                  type="button"
-                  onClick={downloadTemplate}
-                  className="text-xs text-brand hover:text-brand-bright transition-colors underline underline-offset-2"
-                >
-                  Download template CSV
-                </button>
-                {importSummary && <p className="text-xs text-success">{importSummary}</p>}
-                {importError && <p className="text-xs text-error">{importError}</p>}
-              </div>
-
-              {/* Import from Database */}
-              {effectiveParticipantType === "individual" && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-text-primary">
-                    Import from Database
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowImportModal(true)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-brand transition-all"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"
-                      />
-                    </svg>
-                    Import from Player Database
-                  </button>
-                </div>
-              )}
-
-              {/* Individual: Single Player Name */}
-              {effectiveParticipantType === "individual" && (
-                <div className="space-y-2">
-                  <label
-                    htmlFor="playerName"
-                    className="block text-sm font-medium text-text-primary"
-                  >
-                    Player Name(s)
-                  </label>
+            <>
+              {/* ===== SEARCH VIEW (default) ===== */}
+              {view === "search" && (
+                <div className="px-8 pb-8">
+                  {/* Search input */}
                   <input
-                    id="playerName"
-                    name="playerName"
                     type="text"
-                    required
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="e.g., John Doe, Jane Smith, Bob Wilson"
-                    className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search players by name..."
+                    className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-full text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
                     autoFocus
                   />
-                  <span className="block text-xs text-text-muted">
-                    Separate multiple names with commas to add them all at once
-                  </span>
+
+                  {/* Tab pills */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("official")}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        activeTab === "official"
+                          ? "bg-brand/10 text-brand border border-brand/30"
+                          : "text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-transparent"
+                      }`}
+                    >
+                      Official
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("custom")}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        activeTab === "custom"
+                          ? "bg-brand/10 text-brand border border-brand/30"
+                          : "text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-transparent"
+                      }`}
+                    >
+                      Custom
+                    </button>
+                  </div>
+
+                  {/* Player list */}
+                  <div className="mt-3 max-h-[40vh] overflow-y-auto -mx-2">
+                    {searchPlayers === undefined ? (
+                      <div className="flex items-center justify-center py-12">
+                        <span className="w-6 h-6 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+                      </div>
+                    ) : searchPlayers.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        {!searchQuery ? (
+                          activeTab === "official" ? (
+                            <>
+                              <p className="text-text-primary text-sm font-medium">
+                                No {genderLabel ?? ""} players in database
+                              </p>
+                              <p className="text-text-muted text-xs mt-1 mb-4">
+                                Seed the database with ATP &amp; WTA players from the JeffSackmann
+                                tennis datasets.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={handleSeed}
+                                disabled={isSeeding}
+                                className="px-5 py-2.5 border border-border rounded-full text-sm font-semibold text-text-primary hover:bg-bg-secondary transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                              >
+                                {isSeeding && (
+                                  <span className="w-4 h-4 border-2 border-text-muted/30 border-t-text-primary rounded-full animate-spin" />
+                                )}
+                                {isSeeding ? "Seeding ATP & WTA..." : "Seed ATP & WTA Players"}
+                              </button>
+                            </>
+                          ) : (
+                            <p className="text-text-muted text-sm">No custom players yet</p>
+                          )
+                        ) : (
+                          <>
+                            <p className="text-text-muted text-sm">No players found</p>
+                            <p className="text-text-muted text-xs mt-1">
+                              Try a different search term
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <ul className="space-y-1">
+                        {searchPlayers.map((player) => {
+                          const isSelected = dbSelectedPlayers.has(player._id);
+                          return (
+                            <li key={player._id}>
+                              <button
+                                type="button"
+                                onClick={() => togglePlayer(player)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-colors ${
+                                  isSelected
+                                    ? "bg-brand/10 border border-brand/30"
+                                    : "hover:bg-bg-secondary border border-transparent"
+                                }`}
+                              >
+                                <div
+                                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    isSelected ? "bg-brand border-brand" : "border-border"
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <svg
+                                      className="w-3 h-3 text-black"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                      strokeWidth={3}
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+
+                                {player.countryCode && (
+                                  <span
+                                    className={`fi fi-${player.countryCode} text-lg flex-shrink-0`}
+                                  />
+                                )}
+
+                                <span className="text-sm text-text-primary font-medium flex-1 truncate">
+                                  {player.name}
+                                </span>
+
+                                {!bracketGender && player.tour !== "CUSTOM" && (
+                                  <span className="text-[10px] text-text-muted font-medium px-1.5 py-0.5 bg-bg-secondary rounded-full flex-shrink-0">
+                                    {player.tour}
+                                  </span>
+                                )}
+
+                                {player.ranking && (
+                                  <span className="text-xs text-text-muted flex-shrink-0">
+                                    #{player.ranking}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Footer: selection count + add button */}
+                  {maxParticipants &&
+                    !isImportingFromDb &&
+                    dbSelectedPlayers.size > 0 &&
+                    currentParticipantCount + dbSelectedPlayers.size > maxParticipants && (
+                      <div className="mt-4 flex items-center gap-2 p-3 bg-red/10 border border-red/30 rounded-lg text-sm text-red">
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-red rounded-full text-white text-xs font-bold">
+                          !
+                        </span>
+                        Max participants reached. Only {maxParticipants - currentParticipantCount}{" "}
+                        spot
+                        {maxParticipants - currentParticipantCount !== 1 ? "s" : ""} remaining.
+                      </div>
+                    )}
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-sm text-text-secondary">
+                      {dbSelectedPlayers.size} player
+                      {dbSelectedPlayers.size !== 1 ? "s" : ""} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleImportFromDb}
+                      disabled={
+                        dbSelectedPlayers.size === 0 ||
+                        isImportingFromDb ||
+                        (!!maxParticipants &&
+                          currentParticipantCount + dbSelectedPlayers.size > maxParticipants)
+                      }
+                      className="px-6 py-2.5 bg-brand text-black font-semibold text-sm rounded-full hover:bg-brand-hover transition-colors disabled:bg-brand/50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                    >
+                      {isImportingFromDb && (
+                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      )}
+                      Add {dbSelectedPlayers.size > 0 ? `${dbSelectedPlayers.size} ` : ""}Player
+                      {dbSelectedPlayers.size !== 1 ? "s" : ""}
+                    </button>
+                  </div>
+
+                  {/* Secondary links */}
+                  <div className="mt-6 pt-4 border-t border-border flex items-center justify-center gap-6">
+                    <button
+                      type="button"
+                      onClick={() => setView("manual")}
+                      className="text-sm text-text-secondary hover:text-brand transition-colors"
+                    >
+                      Add a custom player
+                    </button>
+                    <span className="text-text-muted">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setView("csv")}
+                      className="text-sm text-text-secondary hover:text-brand transition-colors"
+                    >
+                      Import from CSV
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Doubles: Two Player Names */}
-              {effectiveParticipantType === "doubles" && (
-                <>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="player1Name"
-                      className="block text-sm font-medium text-text-primary"
-                    >
-                      Player 1 Name(s)
-                    </label>
-                    <input
-                      id="player1Name"
-                      name="player1Name"
-                      type="text"
-                      required
-                      value={player1Name}
-                      onChange={(e) => setPlayer1Name(e.target.value)}
-                      placeholder="e.g., John Doe, Jane Smith"
-                      className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="player2Name"
-                      className="block text-sm font-medium text-text-primary"
-                    >
-                      Player 2 Name(s)
-                    </label>
-                    <input
-                      id="player2Name"
-                      name="player2Name"
-                      type="text"
-                      required
-                      value={player2Name}
-                      onChange={(e) => setPlayer2Name(e.target.value)}
-                      placeholder="e.g., Bob Wilson, Alice Brown"
-                      className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
-                    />
-                    <span className="block text-xs text-text-muted">
-                      For multiple pairs, separate names with commas (same order in both fields)
-                    </span>
-                  </div>
-                  {/* Preview of display name */}
-                  {player1Name.trim() && player2Name.trim() && (
-                    <div className="px-4 py-3 bg-brand/5 border border-brand/20 rounded-lg">
-                      <span className="text-xs text-text-muted block mb-1">
-                        Display Name Preview
-                      </span>
-                      <span className="text-sm font-medium text-brand">
-                        {formatDoublesDisplayName(
-                          player1Name.split(",")[0]?.trim() || "",
-                          player2Name.split(",")[0]?.trim() || ""
-                        )}
-                        {player1Name.includes(",") && " (+ more)"}
+              {/* ===== MANUAL VIEW ===== */}
+              {view === "manual" && (
+                <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-6">
+                  <button
+                    type="button"
+                    onClick={() => setView("search")}
+                    className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-brand transition-colors"
+                  >
+                    <span>←</span> Back to search
+                  </button>
+
+                  {/* Individual: Single Player Name */}
+                  {effectiveParticipantType === "individual" && (
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="playerName"
+                        className="block text-sm font-medium text-text-primary"
+                      >
+                        Player Name(s)
+                      </label>
+                      <input
+                        id="playerName"
+                        name="playerName"
+                        type="text"
+                        required
+                        value={playerName}
+                        onChange={(e) => setPlayerName(e.target.value)}
+                        placeholder="e.g., John Doe, Jane Smith, Bob Wilson"
+                        className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+                        autoFocus
+                      />
+                      <span className="block text-xs text-text-muted">
+                        Separate multiple names with commas to add them all at once
                       </span>
                     </div>
                   )}
-                </>
-              )}
 
-              {/* Team: Team Name */}
-              {effectiveParticipantType === "team" && (
-                <div className="space-y-2">
-                  <label htmlFor="teamName" className="block text-sm font-medium text-text-primary">
-                    Team Name(s)
-                  </label>
-                  <input
-                    id="teamName"
-                    name="teamName"
-                    type="text"
-                    required
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="e.g., Team Alpha, Team Beta, Team Gamma"
-                    className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
-                    autoFocus
-                  />
-                  <span className="block text-xs text-text-muted">
-                    Separate multiple team names with commas to add them all at once
-                  </span>
-                </div>
-              )}
-
-              {/* Seed (Optional) */}
-              <div className="space-y-2">
-                <label htmlFor="seed" className="block text-sm font-medium text-text-primary">
-                  Seed <span className="text-text-muted font-normal">(Optional)</span>
-                </label>
-                <input
-                  id="seed"
-                  name="seed"
-                  type="number"
-                  min={1}
-                  value={seed}
-                  onChange={(e) => setSeed(e.target.value)}
-                  placeholder="e.g., 1 for top seed"
-                  className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
-                />
-                <span className="block text-xs text-text-muted">
-                  Seeds determine bracket placement. Lower numbers = higher seed.
-                </span>
-              </div>
-
-              {/* Nationality (Optional) */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="nationality"
-                  className="block text-sm font-medium text-text-primary"
-                >
-                  Nationality{" "}
-                  <span className="text-text-muted font-normal">(Optional, Country Code)</span>
-                </label>
-                <input
-                  id="nationality"
-                  name="nationality"
-                  type="text"
-                  maxLength={2}
-                  value={nationality}
-                  onChange={(e) => setNationality(e.target.value)}
-                  placeholder="e.g., US"
-                  className="w-24 px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors uppercase"
-                />
-                <span className="block text-xs text-text-muted">
-                  ISO 3166-1 alpha-2 country code (e.g., US, GB, AU). Only applies to single
-                  entries.
-                </span>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 p-3 bg-red/10 border border-red/30 rounded-lg text-sm text-red">
-                  <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-red rounded-full text-white text-xs font-bold">
-                    !
-                  </span>
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <Link
-                  href={`/tournaments/${tournamentId}`}
-                  className="flex-1 px-4 py-3 text-center bg-bg-secondary border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-text-muted transition-all"
-                >
-                  Cancel
-                </Link>
-                <button
-                  type="submit"
-                  disabled={loading || !isFormValid()}
-                  className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 bg-brand text-text-inverse font-semibold rounded-lg hover:bg-brand-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <span className="w-5 h-5 border-2 border-text-inverse/30 border-t-text-inverse rounded-full animate-spin" />
-                  ) : (
+                  {/* Doubles: Two Player Names */}
+                  {effectiveParticipantType === "doubles" && (
                     <>
-                      <span>Add Participant(s)</span>
-                      <span>→</span>
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="player1Name"
+                          className="block text-sm font-medium text-text-primary"
+                        >
+                          Player 1 Name(s)
+                        </label>
+                        <input
+                          id="player1Name"
+                          name="player1Name"
+                          type="text"
+                          required
+                          value={player1Name}
+                          onChange={(e) => setPlayer1Name(e.target.value)}
+                          placeholder="e.g., John Doe, Jane Smith"
+                          className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="player2Name"
+                          className="block text-sm font-medium text-text-primary"
+                        >
+                          Player 2 Name(s)
+                        </label>
+                        <input
+                          id="player2Name"
+                          name="player2Name"
+                          type="text"
+                          required
+                          value={player2Name}
+                          onChange={(e) => setPlayer2Name(e.target.value)}
+                          placeholder="e.g., Bob Wilson, Alice Brown"
+                          className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+                        />
+                        <span className="block text-xs text-text-muted">
+                          For multiple pairs, separate names with commas (same order in both fields)
+                        </span>
+                      </div>
+                      {player1Name.trim() && player2Name.trim() && (
+                        <div className="px-4 py-3 bg-brand/5 border border-brand/20 rounded-lg">
+                          <span className="text-xs text-text-muted block mb-1">
+                            Display Name Preview
+                          </span>
+                          <span className="text-sm font-medium text-brand">
+                            {formatDoublesDisplayName(
+                              player1Name.split(",")[0]?.trim() || "",
+                              player2Name.split(",")[0]?.trim() || ""
+                            )}
+                            {player1Name.includes(",") && " (+ more)"}
+                          </span>
+                        </div>
+                      )}
                     </>
                   )}
-                </button>
-              </div>
-            </form>
+
+                  {/* Team: Team Name */}
+                  {effectiveParticipantType === "team" && (
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="teamName"
+                        className="block text-sm font-medium text-text-primary"
+                      >
+                        Team Name(s)
+                      </label>
+                      <input
+                        id="teamName"
+                        name="teamName"
+                        type="text"
+                        required
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        placeholder="e.g., Team Alpha, Team Beta, Team Gamma"
+                        className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+                        autoFocus
+                      />
+                      <span className="block text-xs text-text-muted">
+                        Separate multiple team names with commas to add them all at once
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Seed (Optional) */}
+                  <div className="space-y-2">
+                    <label htmlFor="seed" className="block text-sm font-medium text-text-primary">
+                      Seed <span className="text-text-muted font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      id="seed"
+                      name="seed"
+                      type="number"
+                      min={1}
+                      value={seed}
+                      onChange={(e) => setSeed(e.target.value)}
+                      placeholder="e.g., 1 for top seed"
+                      className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
+                    />
+                    <span className="block text-xs text-text-muted">
+                      Seeds determine bracket placement. Lower numbers = higher seed.
+                    </span>
+                  </div>
+
+                  {/* Nationality (Optional) */}
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="nationality"
+                      className="block text-sm font-medium text-text-primary"
+                    >
+                      Nationality{" "}
+                      <span className="text-text-muted font-normal">(Optional, Country Code)</span>
+                    </label>
+                    <input
+                      id="nationality"
+                      name="nationality"
+                      type="text"
+                      maxLength={2}
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      placeholder="e.g., US"
+                      className="w-24 px-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors uppercase"
+                    />
+                    <span className="block text-xs text-text-muted">
+                      ISO 3166-1 alpha-2 country code (e.g., US, GB, AU). Only applies to single
+                      entries.
+                    </span>
+                  </div>
+
+                  {error && (
+                    <div className="flex items-center gap-2 p-3 bg-red/10 border border-red/30 rounded-lg text-sm text-red">
+                      <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-red rounded-full text-white text-xs font-bold">
+                        !
+                      </span>
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <Link
+                      href={`/tournaments/${tournamentId}`}
+                      className="flex-1 px-4 py-3 text-center bg-bg-secondary border border-border rounded-lg text-text-secondary hover:text-text-primary hover:border-text-muted transition-all"
+                    >
+                      Cancel
+                    </Link>
+                    <button
+                      type="submit"
+                      disabled={loading || !isFormValid()}
+                      className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 bg-brand text-text-inverse font-semibold rounded-lg hover:bg-brand-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <span className="w-5 h-5 border-2 border-text-inverse/30 border-t-text-inverse rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Add Participant(s)</span>
+                          <span>→</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* ===== CSV VIEW ===== */}
+              {view === "csv" && (
+                <div className="px-8 pb-10 space-y-6">
+                  <button
+                    type="button"
+                    onClick={() => setView("search")}
+                    className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-brand transition-colors"
+                  >
+                    <span>←</span> Back to search
+                  </button>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-text-primary">
+                      Import from CSV
+                    </label>
+                    <FileDropzone
+                      onFiles={handleCsvImport}
+                      accept={{ "text/csv": [".csv"] }}
+                      label="Drop CSV here or click to upload"
+                      helperText={csvHelperText}
+                    />
+                    <button
+                      type="button"
+                      onClick={downloadTemplate}
+                      className="text-xs text-brand hover:text-brand-bright transition-colors underline underline-offset-2"
+                    >
+                      Download template CSV
+                    </button>
+                    {importSummary && <p className="text-xs text-success">{importSummary}</p>}
+                    {importError && <p className="text-xs text-error">{importError}</p>}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Accent bar */}
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand" />
         </div>
-
-        {/* Import Players Modal */}
-        <ImportPlayersModal
-          isOpen={showImportModal}
-          onClose={() => setShowImportModal(false)}
-          bracketGender={selectedBracket?.gender}
-          onImport={async (players) => {
-            if (!selectedBracketId) {
-              toast.error("Please select a bracket first");
-              return;
-            }
-            try {
-              for (const player of players) {
-                await addParticipant({
-                  tournamentId: tournamentId as Id<"tournaments">,
-                  bracketId: selectedBracketId as Id<"tournamentBrackets">,
-                  playerName: player.name,
-                  nationality: player.nationality,
-                });
-              }
-              toast.success(
-                `Successfully imported ${players.length} player${players.length !== 1 ? "s" : ""}`
-              );
-            } catch (err) {
-              toast.error(getDisplayMessage(err) || "Failed to import players");
-            }
-          }}
-        />
       </div>
     </div>
   );

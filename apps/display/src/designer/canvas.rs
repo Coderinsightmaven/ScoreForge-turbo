@@ -336,7 +336,7 @@ fn handle_drag_move(
 }
 
 fn handle_keyboard(ui: &egui::Ui, state: &mut AppState) {
-    if ui.input(|i| i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace))
+    if ui.input(|i| i.key_pressed(egui::Key::Delete))
         && !state.active_project().selected_ids.is_empty()
     {
         let project = state.active_project_mut();

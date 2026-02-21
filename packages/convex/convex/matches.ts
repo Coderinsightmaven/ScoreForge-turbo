@@ -545,6 +545,8 @@ export const createOneOffMatch = mutation({
     tournamentId: v.id("tournaments"),
     participant1Name: v.string(),
     participant2Name: v.string(),
+    participant1Nationality: v.optional(v.string()),
+    participant2Nationality: v.optional(v.string()),
     court: v.optional(v.string()),
   },
   returns: v.id("matches"),
@@ -597,11 +599,15 @@ export const createOneOffMatch = mutation({
     const nextMatchNumber =
       roundZeroMatches.reduce((max, match) => Math.max(max, match.matchNumber), 0) + 1;
 
-    const makeParticipantInsert = (displayName: string) => {
+    const normalizedNat1 = args.participant1Nationality?.trim().toLowerCase() || undefined;
+    const normalizedNat2 = args.participant2Nationality?.trim().toLowerCase() || undefined;
+
+    const makeParticipantInsert = (displayName: string, nationality?: string) => {
       const base = {
         tournamentId: args.tournamentId,
         type: tournament.participantType,
         displayName,
+        nationality,
         wins: 0,
         losses: 0,
         draws: 0,
@@ -621,11 +627,11 @@ export const createOneOffMatch = mutation({
 
     const participant1Id = await ctx.db.insert(
       "tournamentParticipants",
-      makeParticipantInsert(participant1Name)
+      makeParticipantInsert(participant1Name, normalizedNat1)
     );
     const participant2Id = await ctx.db.insert(
       "tournamentParticipants",
-      makeParticipantInsert(participant2Name)
+      makeParticipantInsert(participant2Name, normalizedNat2)
     );
 
     const matchId = await ctx.db.insert("matches", {
@@ -642,6 +648,49 @@ export const createOneOffMatch = mutation({
     });
 
     return matchId;
+  },
+});
+
+/**
+ * Delete a one-off match (any status)
+ */
+export const deleteOneOffMatch = mutation({
+  args: {
+    matchId: v.id("matches"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    const userId = user._id;
+
+    const match = await ctx.db.get("matches", args.matchId);
+    if (!match) {
+      throw errors.notFound("Match");
+    }
+
+    const tournament = await ctx.db.get("tournaments", match.tournamentId);
+    if (!tournament) {
+      throw errors.notFound("Tournament");
+    }
+
+    if (tournament.createdBy !== userId) {
+      throw errors.unauthorized("Only the tournament owner can delete matches");
+    }
+
+    if (match.bracketType !== "one_off") {
+      throw errors.invalidState("Only one-off matches can be deleted");
+    }
+
+    // Delete the associated participants
+    if (match.participant1Id) {
+      await ctx.db.delete(match.participant1Id);
+    }
+    if (match.participant2Id) {
+      await ctx.db.delete(match.participant2Id);
+    }
+
+    await ctx.db.delete(args.matchId);
+    return null;
   },
 });
 

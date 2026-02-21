@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getDisplayMessage } from "@/lib/errors";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function MatchesTab({
   tournamentId,
@@ -28,14 +29,30 @@ export function MatchesTab({
   availableCourts?: string[];
 }): React.ReactNode {
   const router = useRouter();
-  const matches = useQuery(api.matches.listMatches, {
+  const filteredMatches = useQuery(api.matches.listMatches, {
     tournamentId: tournamentId as Id<"tournaments">,
     bracketId: bracketId ? (bracketId as Id<"tournamentBrackets">) : undefined,
   });
+  // Always fetch one-off matches separately so they show regardless of bracket filter
+  const oneOffMatchesQuery = useQuery(
+    api.matches.listMatches,
+    bracketId
+      ? {
+          tournamentId: tournamentId as Id<"tournaments">,
+          bracketType: "one_off",
+        }
+      : "skip"
+  );
+  const matches =
+    filteredMatches && bracketId && oneOffMatchesQuery
+      ? [...filteredMatches, ...oneOffMatchesQuery]
+      : filteredMatches;
   const createOneOffMatch = useMutation(api.matches.createOneOffMatch);
 
   const [participant1Name, setParticipant1Name] = useState("");
   const [participant2Name, setParticipant2Name] = useState("");
+  const [participant1Nationality, setParticipant1Nationality] = useState("");
+  const [participant2Nationality, setParticipant2Nationality] = useState("");
   const [selectedCourt, setSelectedCourt] = useState("");
   const [isCreatingOneOff, setIsCreatingOneOff] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -63,11 +80,15 @@ export function MatchesTab({
         tournamentId: tournamentId as Id<"tournaments">,
         participant1Name: p1,
         participant2Name: p2,
+        participant1Nationality: participant1Nationality.trim() || undefined,
+        participant2Nationality: participant2Nationality.trim() || undefined,
         court: selectedCourt.trim() || undefined,
       });
 
       setParticipant1Name("");
       setParticipant2Name("");
+      setParticipant1Nationality("");
+      setParticipant2Nationality("");
       router.push(`/matches/${matchId}`);
     } catch (error) {
       setCreateError(getDisplayMessage(error));
@@ -123,26 +144,50 @@ export function MatchesTab({
           <form onSubmit={handleCreateOneOffMatch} className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="one-off-p1">Participant 1</Label>
-              <Input
-                id="one-off-p1"
-                value={participant1Name}
-                onChange={(event) => setParticipant1Name(event.target.value)}
-                placeholder="e.g. Serena Williams"
-                disabled={!canCreateOneOff || isCreatingOneOff}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="one-off-p1"
+                  value={participant1Name}
+                  onChange={(event) => setParticipant1Name(event.target.value)}
+                  placeholder="e.g. Serena Williams"
+                  disabled={!canCreateOneOff || isCreatingOneOff}
+                  required
+                  className="flex-1"
+                />
+                <Input
+                  id="one-off-p1-nat"
+                  value={participant1Nationality}
+                  onChange={(event) => setParticipant1Nationality(event.target.value)}
+                  placeholder="e.g. US"
+                  disabled={!canCreateOneOff || isCreatingOneOff}
+                  maxLength={2}
+                  className="w-20 uppercase"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="one-off-p2">Participant 2</Label>
-              <Input
-                id="one-off-p2"
-                value={participant2Name}
-                onChange={(event) => setParticipant2Name(event.target.value)}
-                placeholder="e.g. Coco Gauff"
-                disabled={!canCreateOneOff || isCreatingOneOff}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="one-off-p2"
+                  value={participant2Name}
+                  onChange={(event) => setParticipant2Name(event.target.value)}
+                  placeholder="e.g. Coco Gauff"
+                  disabled={!canCreateOneOff || isCreatingOneOff}
+                  required
+                  className="flex-1"
+                />
+                <Input
+                  id="one-off-p2-nat"
+                  value={participant2Nationality}
+                  onChange={(event) => setParticipant2Nationality(event.target.value)}
+                  placeholder="e.g. US"
+                  disabled={!canCreateOneOff || isCreatingOneOff}
+                  maxLength={2}
+                  className="w-20 uppercase"
+                />
+              </div>
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -239,6 +284,7 @@ export function MatchesTab({
                     match={match}
                     index={index}
                     matchStatusStyles={matchStatusStyles}
+                    canDelete={canManage}
                   />
                 ))}
               </div>
@@ -270,6 +316,7 @@ function MatchCard({
   match,
   index,
   matchStatusStyles,
+  canDelete,
 }: {
   match: {
     _id: string;
@@ -287,7 +334,10 @@ function MatchCard({
   };
   index: number;
   matchStatusStyles: Record<string, string>;
+  canDelete?: boolean;
 }): React.ReactNode {
+  const deleteOneOffMatch = useMutation(api.matches.deleteOneOffMatch);
+  const [isDeleting, setIsDeleting] = useState(false);
   const roundLabel = match.bracketType === "one_off" ? "One-Off" : `Round ${match.round}`;
   const isWinner1 = match.winnerId === match.participant1?._id;
   const isWinner2 = match.winnerId === match.participant2?._id;
@@ -311,6 +361,32 @@ function MatchCard({
           )}
           {match.status}
         </span>
+        {canDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDeleting(true);
+              deleteOneOffMatch({ matchId: match._id as Id<"matches"> })
+                .then(() => {
+                  toast.success("Match deleted");
+                })
+                .catch(() => {
+                  toast.error("Failed to delete match");
+                  setIsDeleting(false);
+                });
+            }}
+            disabled={isDeleting}
+            className="ml-2 p-1.5 rounded-full text-muted-foreground hover:text-error hover:bg-error/10 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
       </div>
       <div className="mt-3 grid gap-2">
         <div

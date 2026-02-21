@@ -29,6 +29,7 @@ export function ImportPlayersModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlayers, setSelectedPlayers] = useState<Map<string, Player>>(new Map());
   const [isSeeding, setIsSeeding] = useState(false);
+  const [activeTab, setActiveTab] = useState<"official" | "custom">("official");
 
   const seedAction = useAction(api.playerDatabaseSeed.seedPlayerDatabase);
 
@@ -55,9 +56,9 @@ export function ImportPlayersModal({
   const tourFilter =
     bracketGender === "mens" ? "ATP" : bracketGender === "womens" ? "WTA" : undefined;
 
-  const players = useQuery(
+  const officialResults = useQuery(
     api.playerDatabase.searchPlayers,
-    isOpen
+    isOpen && activeTab === "official"
       ? {
           tour: tourFilter,
           searchQuery: searchQuery.trim() || undefined,
@@ -66,11 +67,28 @@ export function ImportPlayersModal({
       : "skip"
   );
 
+  const customResults = useQuery(
+    api.playerDatabase.searchPlayers,
+    isOpen && activeTab === "custom"
+      ? {
+          tour: "CUSTOM",
+          searchQuery: searchQuery.trim() || undefined,
+          limit: 50,
+        }
+      : "skip"
+  );
+
+  // Filter out CUSTOM players from official results (backend may mix them in)
+  const officialPlayers = officialResults?.filter((p) => p.tour !== "CUSTOM");
+
+  const players = activeTab === "official" ? officialPlayers : customResults;
+
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setSearchQuery("");
       setSelectedPlayers(new Map());
+      setActiveTab("official");
     }
   }, [isOpen]);
 
@@ -139,6 +157,32 @@ export function ImportPlayersModal({
             className="w-full px-4 py-3 bg-bg-secondary border border-border rounded-full text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand transition-colors"
             autoFocus
           />
+
+          {/* Tab pills */}
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setActiveTab("official")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                activeTab === "official"
+                  ? "bg-brand/10 text-brand border border-brand/30"
+                  : "text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-transparent"
+              }`}
+            >
+              Official
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("custom")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                activeTab === "custom"
+                  ? "bg-brand/10 text-brand border border-brand/30"
+                  : "text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-transparent"
+              }`}
+            >
+              Custom
+            </button>
+          </div>
         </div>
 
         {/* Player list */}
@@ -150,26 +194,30 @@ export function ImportPlayersModal({
           ) : players.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               {!searchQuery ? (
-                <>
-                  <p className="text-text-primary text-sm font-medium">
-                    No {genderLabel ?? ""} players in database
-                  </p>
-                  <p className="text-text-muted text-xs mt-1 mb-4">
-                    Seed the database with ATP &amp; WTA players from the JeffSackmann tennis
-                    datasets.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleSeed}
-                    disabled={isSeeding}
-                    className="px-5 py-2.5 border border-border rounded-full text-sm font-semibold text-text-primary hover:bg-bg-secondary transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                  >
-                    {isSeeding && (
-                      <span className="w-4 h-4 border-2 border-text-muted/30 border-t-text-primary rounded-full animate-spin" />
-                    )}
-                    {isSeeding ? "Seeding ATP & WTA..." : "Seed ATP & WTA Players"}
-                  </button>
-                </>
+                activeTab === "official" ? (
+                  <>
+                    <p className="text-text-primary text-sm font-medium">
+                      No {genderLabel ?? ""} players in database
+                    </p>
+                    <p className="text-text-muted text-xs mt-1 mb-4">
+                      Seed the database with ATP &amp; WTA players from the JeffSackmann tennis
+                      datasets.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleSeed}
+                      disabled={isSeeding}
+                      className="px-5 py-2.5 border border-border rounded-full text-sm font-semibold text-text-primary hover:bg-bg-secondary transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                    >
+                      {isSeeding && (
+                        <span className="w-4 h-4 border-2 border-text-muted/30 border-t-text-primary rounded-full animate-spin" />
+                      )}
+                      {isSeeding ? "Seeding ATP & WTA..." : "Seed ATP & WTA Players"}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-text-muted text-sm">No custom players yet</p>
+                )
               ) : (
                 <>
                   <p className="text-text-muted text-sm">No players found</p>

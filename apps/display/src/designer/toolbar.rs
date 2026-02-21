@@ -132,7 +132,7 @@ fn export_sfbz(state: &mut AppState) {
         .save_file();
 
     if let Some(path) = path {
-        match crate::storage::scoreboard::export_sfbz(&file, &state.asset_library, &path) {
+        match crate::storage::scoreboard::export_sfbz(&file, &state.asset_library, &state.font_library, &path) {
             Ok(()) => {
                 state.push_toast("Scoreboard exported".to_string(), false);
             }
@@ -150,11 +150,12 @@ fn import_sfbz(state: &mut AppState) {
         .pick_file();
 
     if let Some(path) = path {
-        match crate::storage::scoreboard::import_sfbz(&path, &mut state.asset_library) {
+        match crate::storage::scoreboard::import_sfbz(&path, &mut state.asset_library, &mut state.font_library) {
             Ok(file) => {
                 let project = ProjectState::from_file(file);
                 state.projects.push(project);
                 state.active_index = state.projects.len() - 1;
+                state.fonts_changed = true;
                 state.push_toast("Scoreboard imported".to_string(), false);
             }
             Err(e) => {

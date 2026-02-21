@@ -402,9 +402,13 @@ fn show_font_list(ui: &mut egui::Ui, font_list: &[&FontEntry]) -> FontListAction
                 .color(egui::Color32::from_gray(120)),
         );
     } else {
-        for entry in font_list {
+        for (i, entry) in font_list.iter().enumerate() {
             ui.horizontal(|ui| {
-                ui.label(&entry.family_name);
+                if i == 0 {
+                    ui.label(format!("{} (default)", entry.family_name));
+                } else {
+                    ui.label(&entry.family_name);
+                }
                 if ui.small_button("X").on_hover_text("Delete font").clicked() {
                     action = FontListAction::Delete(entry.id);
                 }

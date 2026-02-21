@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
-import { useQuery } from "convex/react";
+import React, { useState, useCallback } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/convex";
 import Link from "next/link";
 import { Id } from "@repo/convex/dataModel";
 import { TabSkeleton } from "@/app/components/TabSkeleton";
+import { ConfirmDialog } from "@/app/components/ConfirmDialog";
+import { toast } from "sonner";
 
 export function ParticipantsTab({
   tournamentId,
@@ -25,11 +27,45 @@ export function ParticipantsTab({
     bracketId: bracketId ? (bracketId as Id<"tournamentBrackets">) : undefined,
   });
 
+  const brackets = useQuery(api.tournamentBrackets.listBrackets, {
+    tournamentId: tournamentId as Id<"tournaments">,
+  });
+
+  const removeParticipant = useMutation(api.tournamentParticipants.removeParticipant);
+
+  const [pendingRemove, setPendingRemove] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const handleRemove = useCallback(async () => {
+    if (!pendingRemove) return;
+    try {
+      await removeParticipant({
+        participantId: pendingRemove.id as Id<"tournamentParticipants">,
+      });
+      toast.success(`Removed ${pendingRemove.name}`);
+    } catch {
+      toast.error("Failed to remove participant");
+    }
+    setPendingRemove(null);
+  }, [pendingRemove, removeParticipant]);
+
   if (!participants) {
     return <TabSkeleton />;
   }
 
-  const canAdd = canManage && status === "draft";
+  // Allow adding if the selected bracket is in draft, or if any bracket is in draft (no bracket selected)
+  const selectedBracket = bracketId ? brackets?.find((b) => b._id === bracketId) : null;
+  const hasDraftBracket = selectedBracket
+    ? selectedBracket.status === "draft"
+    : (brackets?.some((b) => b.status === "draft") ?? false);
+  const canAdd = canManage && (status === "draft" || status === "active") && hasDraftBracket;
+
+  // Build a set of draft bracket IDs for per-row remove checks
+  const draftBracketIds = new Set(
+    brackets?.filter((b) => b.status === "draft").map((b) => b._id) ?? []
+  );
 
   const getParticipantDisplayName = (participant: (typeof participants)[0]) => {
     // For doubles, show full names instead of abbreviated displayName
@@ -84,6 +120,11 @@ export function ParticipantsTab({
       ) : (
         <div className="flex flex-col gap-2">
           {participants.map((participant, index) => {
+            const canRemove =
+              canManage &&
+              (status === "draft" || status === "active") &&
+              (!participant.bracketId || draftBracketIds.has(participant.bracketId));
+
             return (
               <div
                 key={participant._id}
@@ -104,11 +145,44 @@ export function ParticipantsTab({
                     {getParticipantDisplayName(participant)}
                   </span>
                 </div>
+                {canRemove && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPendingRemove({
+                        id: participant._id,
+                        name: getParticipantDisplayName(participant),
+                      })
+                    }
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                    title="Remove participant"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        onConfirm={handleRemove}
+        onCancel={() => setPendingRemove(null)}
+        title="Remove Participant"
+        description={`Remove ${pendingRemove?.name ?? "this participant"} from the bracket? This cannot be undone.`}
+        confirmLabel="Remove"
+        variant="danger"
+      />
     </div>
   );
 }

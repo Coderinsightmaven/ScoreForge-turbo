@@ -139,7 +139,8 @@ export function BracketTab({
 
   if (bracket.matches.length === 0) {
     const participantCount = bracketId && bracketDetails ? bracketDetails.participantCount : 0;
-    const canGenerate = canManage && status === "draft" && participantCount >= 2;
+    const bracketStatus = bracketId && bracketDetails ? bracketDetails.status : status;
+    const canGenerate = canManage && bracketStatus === "draft" && participantCount >= 2;
 
     return (
       <div className="surface-panel surface-panel-rail flex flex-col items-center py-16 text-center">

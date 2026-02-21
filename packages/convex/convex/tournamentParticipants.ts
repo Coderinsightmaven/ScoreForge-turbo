@@ -267,9 +267,9 @@ export const addParticipant = mutation({
       throw errors.unauthorized("Only the tournament owner can add participants");
     }
 
-    // Check tournament status
-    if (tournament.status !== "draft") {
-      throw errors.invalidState("Tournament is not in draft status");
+    // Check tournament status — allow adding to active tournaments if the bracket is still draft
+    if (tournament.status !== "draft" && tournament.status !== "active") {
+      throw errors.invalidState("Tournament is not accepting new participants");
     }
 
     // Verify the bracket exists and belongs to this tournament
@@ -494,9 +494,17 @@ export const removeParticipant = mutation({
       throw errors.unauthorized("Only the tournament owner can remove participants");
     }
 
-    // Can only remove before tournament starts
-    if (tournament.status !== "draft") {
-      throw errors.invalidState("Cannot remove participants after tournament has started");
+    // Can only remove when tournament is draft or active
+    if (tournament.status !== "draft" && tournament.status !== "active") {
+      throw errors.invalidState("Cannot remove participants after tournament has completed");
+    }
+
+    // If participant is in a bracket, check bracket is still in draft
+    if (participant.bracketId) {
+      const bracket = await ctx.db.get("tournamentBrackets", participant.bracketId);
+      if (bracket && bracket.status !== "draft") {
+        throw errors.invalidState("Cannot remove participants from a bracket that has started");
+      }
     }
 
     await ctx.db.delete("tournamentParticipants", args.participantId);

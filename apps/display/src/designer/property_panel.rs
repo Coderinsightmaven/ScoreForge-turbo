@@ -37,19 +37,31 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
         ui.separator();
         ui.heading("All Components");
         let mut click_id = None;
+        let mut delete_id = None;
         let project = state.active_project();
         let mut sorted: Vec<_> = project.components.iter().collect();
         sorted.sort_by(|a, b| a.display_label().cmp(&b.display_label()));
         for comp in sorted {
             let label = comp.display_label();
-            if ui
-                .selectable_label(project.selected_ids.contains(&comp.id), &label)
-                .clicked()
-            {
-                click_id = Some(comp.id);
-            }
+            ui.horizontal(|ui| {
+                if ui
+                    .selectable_label(project.selected_ids.contains(&comp.id), &label)
+                    .clicked()
+                {
+                    click_id = Some(comp.id);
+                }
+                if ui.small_button("X").on_hover_text("Delete component").clicked() {
+                    delete_id = Some(comp.id);
+                }
+            });
         }
-        if let Some(id) = click_id {
+        if let Some(id) = delete_id {
+            let project = state.active_project_mut();
+            project.push_undo();
+            project.selected_ids.remove(&id);
+            project.components.retain(|c| c.id != id);
+            project.is_dirty = true;
+        } else if let Some(id) = click_id {
             let project = state.active_project_mut();
             project.selected_ids.clear();
             project.selected_ids.insert(id);
@@ -457,16 +469,25 @@ fn show_font_picker(
 ) -> FontAction {
     let mut action = FontAction::None;
 
-    let current_label = current_font_family
-        .as_deref()
-        .unwrap_or("Default");
+    let default_font_name = font_list.first().map(|e| e.family_name.as_str());
+    let current_label = match current_font_family.as_deref() {
+        Some(name) => name.to_string(),
+        None => match default_font_name {
+            Some(name) => format!("Default ({name})"),
+            None => "Default".to_string(),
+        },
+    };
 
     egui::ComboBox::from_label("Font")
-        .selected_text(current_label)
+        .selected_text(&current_label)
         .show_ui(ui, |ui| {
             // Default option
             let is_default = current_font_family.is_none();
-            if ui.selectable_label(is_default, "Default").clicked() && !is_default {
+            let default_label = match default_font_name {
+                Some(name) => format!("Default ({name})"),
+                None => "Default".to_string(),
+            };
+            if ui.selectable_label(is_default, &default_label).clicked() && !is_default {
                 action = FontAction::Select(None);
             }
 

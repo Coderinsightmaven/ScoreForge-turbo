@@ -9,6 +9,7 @@ use zip::write::SimpleFileOptions;
 
 use crate::components::{ComponentData, ScoreboardComponent};
 use crate::storage::assets::AssetLibrary;
+use crate::storage::fonts::FontLibrary;
 
 mod serde_color32 {
     use egui::Color32;
@@ -65,9 +66,17 @@ fn collect_asset_ids(components: &[ScoreboardComponent]) -> HashSet<Uuid> {
         .collect()
 }
 
+fn collect_font_families(components: &[ScoreboardComponent]) -> HashSet<String> {
+    components
+        .iter()
+        .filter_map(|c| c.style.font_family.clone())
+        .collect()
+}
+
 pub fn export_sfbz(
     file: &ScoreboardFile,
     asset_library: &AssetLibrary,
+    font_library: &FontLibrary,
     path: &Path,
 ) -> Result<(), String> {
     let out_file = fs::File::create(path).map_err(|e| format!("Failed to create file: {e}"))?;
@@ -97,6 +106,23 @@ pub fn export_sfbz(
         }
     }
 
+    // Write referenced fonts
+    let font_families = collect_font_families(&file.components);
+    for family in &font_families {
+        if let Some(entry) = font_library.find_by_family_name(family) {
+            if let Some(font_path) = font_library.get_font_path(&entry.id) {
+                if let Some(filename) = font_path.file_name().and_then(|n| n.to_str()) {
+                    let data =
+                        fs::read(&font_path).map_err(|e| format!("Failed to read font: {e}"))?;
+                    zip.start_file(format!("fonts/{filename}"), options)
+                        .map_err(|e| format!("Failed to write zip entry: {e}"))?;
+                    zip.write_all(&data)
+                        .map_err(|e| format!("Failed to write font: {e}"))?;
+                }
+            }
+        }
+    }
+
     zip.finish()
         .map_err(|e| format!("Failed to finalize zip: {e}"))?;
     Ok(())
@@ -105,6 +131,7 @@ pub fn export_sfbz(
 pub fn import_sfbz(
     path: &Path,
     asset_library: &mut AssetLibrary,
+    font_library: &mut FontLibrary,
 ) -> Result<ScoreboardFile, String> {
     let zip_file = fs::File::open(path).map_err(|e| format!("Failed to open file: {e}"))?;
     let mut archive =
@@ -127,7 +154,7 @@ pub fn import_sfbz(
         f
     };
 
-    // Import assets
+    // Import assets and fonts
     let temp_dir = std::env::temp_dir().join(format!("sfbz-import-{}", Uuid::new_v4()));
     fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {e}"))?;
 
@@ -158,6 +185,27 @@ pub fn import_sfbz(
             fs::write(&temp_path, &data).map_err(|e| format!("Failed to write temp asset: {e}"))?;
 
             asset_library.import_image_with_id(asset_id, &temp_path)?;
+        } else if let Some(filename) = name.strip_prefix("fonts/") {
+            if filename.is_empty() {
+                continue;
+            }
+            // Extract UUID from filename (e.g. "uuid.ttf")
+            let stem = Path::new(filename)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+            let Ok(font_id) = Uuid::parse_str(stem) else {
+                continue;
+            };
+
+            let temp_path = temp_dir.join(filename);
+            let mut data = Vec::new();
+            entry
+                .read_to_end(&mut data)
+                .map_err(|e| format!("Failed to read font: {e}"))?;
+            fs::write(&temp_path, &data).map_err(|e| format!("Failed to write temp font: {e}"))?;
+
+            font_library.import_font_with_id(font_id, &temp_path)?;
         }
     }
 
