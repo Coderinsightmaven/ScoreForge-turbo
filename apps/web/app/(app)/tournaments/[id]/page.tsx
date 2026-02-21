@@ -9,11 +9,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Skeleton, SkeletonBracket, SkeletonTabs } from "@/app/components/Skeleton";
 import { BracketSelector } from "@/app/components/BracketSelector";
 import dynamic from "next/dynamic";
-const BracketManagementModal = dynamic(() =>
-  import("@/app/components/BracketManagementModal").then((m) => ({
-    default: m.BracketManagementModal,
-  }))
-);
 import { getDisplayMessage } from "@/lib/errors";
 import { Id } from "@repo/convex/dataModel";
 import { toast } from "sonner";
@@ -46,7 +41,6 @@ export default function TournamentDetailPage({
     tabParam && validTabs.includes(tabParam as Tab) ? (tabParam as Tab) : "bracket";
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [selectedBracketId, setSelectedBracketId] = useState<string | null>(null);
-  const [showBracketManagement, setShowBracketManagement] = useState(false);
 
   useEffect(() => {
     if (tabParam && validTabs.includes(tabParam as Tab)) {
@@ -142,10 +136,9 @@ export default function TournamentDetailPage({
           tournamentId={id}
           selectedBracketId={selectedBracketId}
           onSelectBracket={setSelectedBracketId}
-          showManageButton={
+          showAddButton={
             canManage && (tournament.status === "draft" || tournament.status === "active")
           }
-          onManageBrackets={() => setShowBracketManagement(true)}
         />
       )}
 
@@ -214,11 +207,6 @@ export default function TournamentDetailPage({
         )}
         {activeTab === "scorers" && <ScorersTab tournamentId={id} />}
       </main>
-
-      {/* Bracket Management Modal */}
-      {showBracketManagement && (
-        <BracketManagementModal tournamentId={id} onClose={() => setShowBracketManagement(false)} />
-      )}
     </div>
   );
 }
