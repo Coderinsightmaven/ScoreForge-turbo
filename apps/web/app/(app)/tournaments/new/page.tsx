@@ -162,7 +162,7 @@ export default function NewTournamentPage(): React.ReactNode {
               {/* Format */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Tournament Format</CardTitle>
+                  <CardTitle>Bracket Format</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3">
