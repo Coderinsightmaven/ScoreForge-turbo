@@ -1,10 +1,72 @@
+use crate::components::ComponentData;
 use crate::data::convex::ConvexManager;
 use crate::data::live_data::{ConnectionStep, LiveDataCommand};
 use crate::state::AppState;
+use crate::storage::fonts::FontEntry;
 
 pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
     ui.heading("Display");
     ui.separator();
+
+    // --- All Scoreboards overview (only when 2+ projects open) ---
+    if state.projects.len() >= 2 {
+        let header = format!("All Scoreboards ({} open)", state.projects.len());
+        let id = ui.make_persistent_id("all_scoreboards_overview");
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
+            .show_header(ui, |ui| {
+                ui.label(egui::RichText::new(header).strong());
+            })
+            .body(|ui| {
+                let mut switch_to: Option<usize> = None;
+                for (i, project) in state.projects.iter().enumerate() {
+                    let status_color = match &project.connection_step {
+                        ConnectionStep::Live => egui::Color32::GREEN,
+                        ConnectionStep::Disconnected => egui::Color32::from_gray(100),
+                        _ => egui::Color32::YELLOW,
+                    };
+                    let status_label = match &project.connection_step {
+                        ConnectionStep::Disconnected => "Disconnected",
+                        ConnectionStep::Pairing => "Pairing",
+                        ConnectionStep::Connecting => "Connecting",
+                        ConnectionStep::SelectTournament | ConnectionStep::SelectCourt => {
+                            "Selecting"
+                        }
+                        ConnectionStep::Live => "Live",
+                    };
+                    let is_active = i == state.active_index;
+
+                    ui.horizontal(|ui| {
+                        ui.colored_label(status_color, "\u{25cf}");
+                        let name_text = egui::RichText::new(&project.scoreboard.name)
+                            .underline();
+                        let name_text = if is_active {
+                            name_text.strong()
+                        } else {
+                            name_text
+                        };
+                        if ui.link(name_text).clicked() && !is_active {
+                            switch_to = Some(i);
+                        }
+                        ui.label(
+                            egui::RichText::new(format!("[{status_label}]"))
+                                .small()
+                                .color(status_color),
+                        );
+                        if project.display_active {
+                            ui.label(
+                                egui::RichText::new("\u{25b6}")
+                                    .small()
+                                    .color(egui::Color32::from_rgb(100, 200, 100)),
+                            );
+                        }
+                    });
+                }
+                if let Some(idx) = switch_to {
+                    state.active_index = idx;
+                }
+            });
+        ui.separator();
+    }
 
     // --- Connection section ---
     ui.label(egui::RichText::new("Connection").strong());
@@ -247,6 +309,114 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
             }
         });
     }
+
+    ui.separator();
+
+    // --- Fonts section (global) ---
+    ui.label(egui::RichText::new("Fonts").strong());
+
+    let font_action = show_font_list(ui, &state.font_library.list_fonts());
+
+    match font_action {
+        FontListAction::None => {}
+        FontListAction::Import => {
+            if let Some(path) = rfd::FileDialog::new()
+                .add_filter("Fonts", &["ttf", "otf"])
+                .pick_file()
+            {
+                match state.font_library.import_font(&path) {
+                    Ok(_id) => {
+                        // Look up the family name of the font we just imported
+                        let family_name = state
+                            .font_library
+                            .list_fonts()
+                            .iter()
+                            .find(|e| e.id == _id)
+                            .map(|e| e.family_name.clone());
+
+                        // Apply to all eligible components in all open projects
+                        if let Some(family) = &family_name {
+                            for project in &mut state.projects {
+                                for comp in &mut project.components {
+                                    let eligible = matches!(
+                                        comp.data,
+                                        ComponentData::Text { .. }
+                                            | ComponentData::TennisScore { .. }
+                                            | ComponentData::TennisName { .. }
+                                            | ComponentData::TennisDoubles { .. }
+                                            | ComponentData::TennisMatchTime
+                                    );
+                                    if eligible {
+                                        comp.style.font_family = Some(family.clone());
+                                    }
+                                }
+                                project.is_dirty = true;
+                            }
+                        }
+
+                        // Register with egui immediately so the font is available
+                        // for rendering in this same frame
+                        state.register_fonts(ui.ctx());
+                        state.fonts_changed = false;
+                        state.push_toast("Font imported and applied".to_string(), false);
+                    }
+                    Err(e) => {
+                        state.push_toast(format!("Font import failed: {e}"), true);
+                    }
+                }
+            }
+        }
+        FontListAction::Delete(id) => {
+            if let Some(entry) = state.font_library.list_fonts().iter().find(|e| e.id == id) {
+                let family = entry.family_name.clone();
+                for project in &mut state.projects {
+                    for comp in &mut project.components {
+                        if comp.style.font_family.as_deref() == Some(&family) {
+                            comp.style.font_family = None;
+                        }
+                    }
+                }
+            }
+            state.font_library.delete_font(&id).ok();
+            // Re-register immediately so stale font families are cleared
+            // before the canvas renders this frame
+            state.register_fonts(ui.ctx());
+            state.fonts_changed = false;
+            state.push_toast("Font deleted".to_string(), false);
+        }
+    }
+}
+
+enum FontListAction {
+    None,
+    Import,
+    Delete(uuid::Uuid),
+}
+
+fn show_font_list(ui: &mut egui::Ui, font_list: &[&FontEntry]) -> FontListAction {
+    let mut action = FontListAction::None;
+
+    if font_list.is_empty() {
+        ui.label(
+            egui::RichText::new("No custom fonts imported")
+                .color(egui::Color32::from_gray(120)),
+        );
+    } else {
+        for entry in font_list {
+            ui.horizontal(|ui| {
+                ui.label(&entry.family_name);
+                if ui.small_button("X").on_hover_text("Delete font").clicked() {
+                    action = FontListAction::Delete(entry.id);
+                }
+            });
+        }
+    }
+
+    if ui.button("Import Font (.ttf, .otf)").clicked() {
+        action = FontListAction::Import;
+    }
+
+    action
 }
 
 fn sanitize_int_input(input: &str) -> String {

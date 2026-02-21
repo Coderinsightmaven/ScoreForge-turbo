@@ -11,6 +11,7 @@ use crate::data::live_data::{ConnectionStep, LiveDataMessage, TennisLiveData, To
 use crate::display::renderer::DisplayState;
 use crate::flags::FlagCache;
 use crate::storage::assets::AssetLibrary;
+use crate::storage::fonts::FontLibrary;
 use crate::storage::scoreboard::{AppConfig, ScoreboardFile};
 
 #[derive(Debug, Clone)]
@@ -196,6 +197,29 @@ impl ProjectState {
         }
     }
 
+    /// Human-readable status summary for tooltips and overview panels.
+    pub fn status_summary(&self) -> String {
+        let connection = match &self.connection_step {
+            ConnectionStep::Disconnected => "Disconnected",
+            ConnectionStep::Pairing => "Pairing",
+            ConnectionStep::Connecting => "Connecting",
+            ConnectionStep::SelectTournament | ConnectionStep::SelectCourt => "Selecting",
+            ConnectionStep::Live => "Live",
+        };
+
+        let mut parts = vec![connection.to_string()];
+
+        if let Some(court) = &self.selected_court {
+            parts.push(format!("Court: {court}"));
+        }
+
+        if self.display_active {
+            parts.push("Display active".to_string());
+        }
+
+        parts.join(" — ")
+    }
+
     pub fn to_scoreboard_file(&self) -> ScoreboardFile {
         ScoreboardFile {
             version: 1,
@@ -273,7 +297,7 @@ impl ProjectState {
                 }
                 LiveDataMessage::Disconnected => {
                     self.connection_step = ConnectionStep::Disconnected;
-                    self.live_match_data = None;
+                    // Keep live_match_data so the display continues showing the last known score
                 }
             }
         }
@@ -295,6 +319,7 @@ pub struct AppState {
 
     // Assets (global)
     pub asset_library: AssetLibrary,
+    pub font_library: FontLibrary,
     pub texture_cache: TextureCache,
     pub flag_cache: FlagCache,
 
@@ -319,6 +344,9 @@ pub struct AppState {
 
     // Monitor list (global)
     pub monitors: Vec<MonitorInfo>,
+
+    // Flag: fonts were imported/deleted, need re-registration with egui
+    pub fonts_changed: bool,
 }
 
 impl AppState {
@@ -336,6 +364,7 @@ impl AppState {
             snap_to_grid: config.snap_to_grid,
             clipboard: Vec::new(),
             asset_library: AssetLibrary::new(),
+            font_library: FontLibrary::new(),
             texture_cache: TextureCache::new(),
             flag_cache: FlagCache::new(),
             config,
@@ -348,6 +377,7 @@ impl AppState {
             new_height: "1080".to_string(),
             toasts: Vec::new(),
             monitors,
+            fonts_changed: false,
         }
     }
 
@@ -392,6 +422,56 @@ impl AppState {
             is_error,
             created_at: std::time::Instant::now(),
         });
+    }
+
+    /// Register all fonts from the font library with egui.
+    /// This should be called at startup and after importing new fonts.
+    pub fn register_fonts(&self, ctx: &egui::Context) {
+        let mut fonts = egui::FontDefinitions::default();
+
+        for entry in self.font_library.list_fonts() {
+            if let Some(data) = self.font_library.read_font_bytes(&entry.id) {
+                let family = egui::FontFamily::Name(entry.family_name.clone().into());
+                fonts.font_data.insert(
+                    entry.family_name.clone(),
+                    egui::FontData::from_owned(data).into(),
+                );
+                fonts
+                    .families
+                    .entry(family)
+                    .or_default()
+                    .insert(0, entry.family_name.clone());
+                // Also add default proportional as fallback so missing glyphs still render
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Name(entry.family_name.clone().into()))
+                    .or_default()
+                    .push("Hack".to_string());
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Name(entry.family_name.clone().into()))
+                    .or_default()
+                    .push("Ubuntu-Light".to_string());
+            }
+        }
+
+        if fonts.font_data.is_empty() {
+            // No custom fonts — reset to defaults to clear any stale font families
+            ctx.set_fonts(egui::FontDefinitions::default());
+        } else {
+            // Merge with existing default fonts: keep all default families, add our custom ones
+            let mut merged = egui::FontDefinitions::default();
+            for (name, data) in fonts.font_data {
+                merged.font_data.insert(name, data);
+            }
+            for (family, mut names) in fonts.families {
+                let entry = merged.families.entry(family).or_default();
+                // Prepend our font names, then keep the defaults as fallback
+                names.append(entry);
+                *entry = names;
+            }
+            ctx.set_fonts(merged);
+        }
     }
 
     pub fn delete_asset(&mut self, id: &Uuid) {

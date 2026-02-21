@@ -74,6 +74,13 @@ mod serde_vec2 {
 
 // --- Component Types ---
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FlagShape {
+    #[default]
+    Circle,
+    Rectangle,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComponentType {
     Text,
@@ -122,6 +129,8 @@ pub struct ComponentStyle {
     pub horizontal_align: HorizontalAlign,
     #[serde(default)]
     pub auto_fit_text: bool,
+    #[serde(default)]
+    pub font_family: Option<String>,
 }
 
 impl Default for ComponentStyle {
@@ -134,6 +143,7 @@ impl Default for ComponentStyle {
             border_width: 0.0,
             horizontal_align: HorizontalAlign::Center,
             auto_fit_text: false,
+            font_family: None,
         }
     }
 }
@@ -143,6 +153,20 @@ pub enum HorizontalAlign {
     Left,
     Center,
     Right,
+}
+
+// --- Flag defaults ---
+
+fn default_flag_border_color() -> Color32 {
+    Color32::WHITE
+}
+
+fn default_flag_border_width() -> f32 {
+    2.0
+}
+
+fn default_flag_opacity() -> f32 {
+    1.0
 }
 
 // --- Component Data ---
@@ -180,6 +204,15 @@ pub enum ComponentData {
     TennisMatchTime,
     TennisPlayerFlag {
         player_number: u8,
+        #[serde(default)]
+        flag_shape: FlagShape,
+        #[serde(default = "default_flag_border_color")]
+        #[serde(with = "serde_color32")]
+        border_color: Color32,
+        #[serde(default = "default_flag_border_width")]
+        border_width: f32,
+        #[serde(default = "default_flag_opacity")]
+        opacity: f32,
     },
 }
 
@@ -225,7 +258,13 @@ impl ScoreboardComponent {
                 indicator_size: 12.0,
             },
             ComponentType::TennisMatchTime => ComponentData::TennisMatchTime,
-            ComponentType::TennisPlayerFlag => ComponentData::TennisPlayerFlag { player_number: 1 },
+            ComponentType::TennisPlayerFlag => ComponentData::TennisPlayerFlag {
+                player_number: 1,
+                flag_shape: FlagShape::Circle,
+                border_color: Color32::WHITE,
+                border_width: 2.0,
+                opacity: 1.0,
+            },
         };
 
         Self {
@@ -238,6 +277,42 @@ impl ScoreboardComponent {
             locked: false,
             style: ComponentStyle::default(),
             data,
+        }
+    }
+
+    /// Descriptive label including player/set context from the component data.
+    /// E.g. "Game Score P1", "Set 1 Score P2", "Player 1 Name".
+    /// Descriptive label including player/set context from the component data.
+    /// E.g. "Game Score Player 1", "Set 1 Score Player 2", "Player 1 Name".
+    pub fn display_label(&self) -> String {
+        match &self.data {
+            ComponentData::TennisScore { player_number, set_number } => {
+                match self.component_type {
+                    ComponentType::TennisGameScore => {
+                        format!("Game Score Player {player_number}")
+                    }
+                    ComponentType::TennisSetScore => {
+                        format!("Set {set_number} Score Player {player_number}")
+                    }
+                    ComponentType::TennisMatchScore => {
+                        format!("Match Score Player {player_number}")
+                    }
+                    _ => self.component_type.label().to_string(),
+                }
+            }
+            ComponentData::TennisName { player_number } => {
+                format!("Player {player_number} Name")
+            }
+            ComponentData::TennisDoubles { player_number } => {
+                format!("Doubles Player {player_number} Name")
+            }
+            ComponentData::TennisServing { player_number, .. } => {
+                format!("Serving Player {player_number}")
+            }
+            ComponentData::TennisPlayerFlag { player_number, .. } => {
+                format!("Flag Player {player_number}")
+            }
+            _ => self.component_type.label().to_string(),
         }
     }
 
@@ -355,11 +430,15 @@ pub fn render_component(
                 zoom,
             );
         }
-        ComponentData::TennisPlayerFlag { player_number } => {
+        ComponentData::TennisPlayerFlag { player_number, flag_shape, border_color, border_width, opacity } => {
             tennis_flag::render_tennis_flag(
                 painter,
                 rect,
                 *player_number,
+                *flag_shape,
+                *border_color,
+                *border_width,
+                *opacity,
                 live_data,
                 flag_cache,
             );

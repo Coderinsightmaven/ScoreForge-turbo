@@ -3,6 +3,7 @@ use egui::Color32;
 use crate::components::{ComponentData, HorizontalAlign};
 use crate::state::AppState;
 use crate::storage::assets::AssetEntry;
+use crate::storage::fonts::FontEntry;
 
 /// Action returned by the asset picker UI, applied after the component borrow ends.
 enum AssetAction {
@@ -11,6 +12,12 @@ enum AssetAction {
     Select(uuid::Uuid),
     Clear,
     Delete(uuid::Uuid),
+}
+
+/// Action returned by the font picker UI, applied after the component borrow ends.
+enum FontAction {
+    None,
+    Select(Option<String>),
 }
 
 pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
@@ -31,12 +38,10 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
         ui.heading("All Components");
         let mut click_id = None;
         let project = state.active_project();
-        for comp in &project.components {
-            let label = format!(
-                "{} ({})",
-                comp.component_type.label(),
-                &comp.id.to_string()[..8]
-            );
+        let mut sorted: Vec<_> = project.components.iter().collect();
+        sorted.sort_by(|a, b| a.display_label().cmp(&b.display_label()));
+        for comp in sorted {
+            let label = comp.display_label();
             if ui
                 .selectable_label(project.selected_ids.contains(&comp.id), &label)
                 .clicked()
@@ -54,11 +59,13 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
 
     let selected_id = *project.selected_ids.iter().next().unwrap();
 
-    // --- Phase A: Snapshot asset list before component borrow ---
+    // --- Phase A: Snapshot asset + font lists before component borrow ---
     let asset_list: Vec<AssetEntry> = state.asset_library.list_assets().into_iter().cloned().collect();
+    let font_list: Vec<FontEntry> = state.font_library.list_fonts().into_iter().cloned().collect();
 
-    // --- Phase B: Mutable component borrow for editing, collect AssetAction ---
+    // --- Phase B: Mutable component borrow for editing, collect AssetAction/FontAction ---
     let mut action = AssetAction::None;
+    let mut font_action = FontAction::None;
 
     let project = state.active_project_mut();
     let Some(comp) = project.components.iter_mut().find(|c| c.id == selected_id) else {
@@ -67,7 +74,7 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
     };
 
     // Type label
-    ui.label(format!("Type: {}", comp.component_type.label()));
+    ui.label(format!("Type: {}", comp.display_label()));
     ui.separator();
 
     // Position
@@ -112,83 +119,100 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
 
     ui.separator();
 
-    // Style
-    ui.label("Style");
+    // Check if this component uses text styling
+    let has_text_style = matches!(
+        comp.data,
+        ComponentData::Text { .. }
+            | ComponentData::TennisScore { .. }
+            | ComponentData::TennisName { .. }
+            | ComponentData::TennisDoubles { .. }
+            | ComponentData::TennisMatchTime
+    );
 
-    ui.checkbox(&mut comp.style.auto_fit_text, "Auto-fit text");
+    if has_text_style {
+        // Style
+        ui.label("Style");
 
-    if !comp.style.auto_fit_text {
+        // Font family picker
+        font_action = show_font_picker(ui, &mut comp.style.font_family, &font_list);
+
+        ui.checkbox(&mut comp.style.auto_fit_text, "Auto-fit text");
+
+        if !comp.style.auto_fit_text {
+            ui.horizontal(|ui| {
+                ui.label("Font Size:");
+                ui.add(
+                    egui::DragValue::new(&mut comp.style.font_size)
+                        .speed(0.5)
+                        .range(1.0..=200.0),
+                );
+            });
+        }
+
+        // Font color
         ui.horizontal(|ui| {
-            ui.label("Font Size:");
-            ui.add(
-                egui::DragValue::new(&mut comp.style.font_size)
-                    .speed(0.5)
-                    .range(1.0..=200.0),
+            ui.label("Font Color:");
+            let mut color = color32_to_rgba(comp.style.font_color);
+            if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
+                comp.style.font_color = rgba_to_color32(color);
+            }
+        });
+
+        // Background color
+        ui.horizontal(|ui| {
+            let mut has_bg = comp.style.background_color.is_some();
+            ui.checkbox(&mut has_bg, "Background");
+            if has_bg {
+                let mut color =
+                    color32_to_rgba(comp.style.background_color.unwrap_or(Color32::BLACK));
+                if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
+                    comp.style.background_color = Some(rgba_to_color32(color));
+                }
+            } else {
+                comp.style.background_color = None;
+            }
+        });
+
+        // Border
+        ui.horizontal(|ui| {
+            let mut has_border = comp.style.border_color.is_some();
+            ui.checkbox(&mut has_border, "Border");
+            if has_border {
+                let mut color =
+                    color32_to_rgba(comp.style.border_color.unwrap_or(Color32::WHITE));
+                if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
+                    comp.style.border_color = Some(rgba_to_color32(color));
+                }
+                ui.add(
+                    egui::DragValue::new(&mut comp.style.border_width)
+                        .speed(0.1)
+                        .range(0.0..=20.0),
+                );
+            } else {
+                comp.style.border_color = None;
+            }
+        });
+
+        // Alignment
+        ui.horizontal(|ui| {
+            ui.label("Align:");
+            ui.selectable_value(
+                &mut comp.style.horizontal_align,
+                HorizontalAlign::Left,
+                "Left",
+            );
+            ui.selectable_value(
+                &mut comp.style.horizontal_align,
+                HorizontalAlign::Center,
+                "Center",
+            );
+            ui.selectable_value(
+                &mut comp.style.horizontal_align,
+                HorizontalAlign::Right,
+                "Right",
             );
         });
     }
-
-    // Font color
-    ui.horizontal(|ui| {
-        ui.label("Font Color:");
-        let mut color = color32_to_rgba(comp.style.font_color);
-        if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
-            comp.style.font_color = rgba_to_color32(color);
-        }
-    });
-
-    // Background color
-    ui.horizontal(|ui| {
-        let mut has_bg = comp.style.background_color.is_some();
-        ui.checkbox(&mut has_bg, "Background");
-        if has_bg {
-            let mut color = color32_to_rgba(comp.style.background_color.unwrap_or(Color32::BLACK));
-            if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
-                comp.style.background_color = Some(rgba_to_color32(color));
-            }
-        } else {
-            comp.style.background_color = None;
-        }
-    });
-
-    // Border
-    ui.horizontal(|ui| {
-        let mut has_border = comp.style.border_color.is_some();
-        ui.checkbox(&mut has_border, "Border");
-        if has_border {
-            let mut color = color32_to_rgba(comp.style.border_color.unwrap_or(Color32::WHITE));
-            if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
-                comp.style.border_color = Some(rgba_to_color32(color));
-            }
-            ui.add(
-                egui::DragValue::new(&mut comp.style.border_width)
-                    .speed(0.1)
-                    .range(0.0..=20.0),
-            );
-        } else {
-            comp.style.border_color = None;
-        }
-    });
-
-    // Alignment
-    ui.horizontal(|ui| {
-        ui.label("Align:");
-        ui.selectable_value(
-            &mut comp.style.horizontal_align,
-            HorizontalAlign::Left,
-            "Left",
-        );
-        ui.selectable_value(
-            &mut comp.style.horizontal_align,
-            HorizontalAlign::Center,
-            "Center",
-        );
-        ui.selectable_value(
-            &mut comp.style.horizontal_align,
-            HorizontalAlign::Right,
-            "Right",
-        );
-    });
 
     ui.separator();
 
@@ -257,8 +281,44 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
         ComponentData::TennisMatchTime => {
             ui.label("Displays elapsed match time.");
         }
-        ComponentData::TennisPlayerFlag { player_number } => {
+        ComponentData::TennisPlayerFlag { player_number, flag_shape, border_color, border_width, opacity } => {
             show_player_picker(ui, player_number);
+            ui.add_space(8.0);
+            ui.label("Shape");
+            ui.horizontal(|ui| {
+                use crate::components::FlagShape;
+                if ui.selectable_label(*flag_shape == FlagShape::Circle, "Circle").clicked() {
+                    *flag_shape = FlagShape::Circle;
+                }
+                if ui.selectable_label(*flag_shape == FlagShape::Rectangle, "Rectangle").clicked() {
+                    *flag_shape = FlagShape::Rectangle;
+                }
+            });
+            ui.add_space(8.0);
+            ui.label("Border");
+            ui.horizontal(|ui| {
+                ui.label("Color:");
+                let mut color = color32_to_rgba(*border_color);
+                if ui.color_edit_button_rgba_unmultiplied(&mut color).changed() {
+                    *border_color = rgba_to_color32(color);
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Width:");
+                ui.add(
+                    egui::DragValue::new(border_width)
+                        .speed(0.1)
+                        .range(0.0..=20.0),
+                );
+            });
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label("Opacity:");
+                ui.add(
+                    egui::Slider::new(opacity, 0.0..=1.0)
+                        .fixed_decimals(2),
+                );
+            });
         }
     }
 
@@ -319,6 +379,18 @@ pub fn show_property_panel(ui: &mut egui::Ui, state: &mut AppState) {
             state.push_toast("Asset deleted".to_string(), false);
         }
     }
+
+    // --- Phase D: Apply deferred font action ---
+    match font_action {
+        FontAction::None => {}
+        FontAction::Select(family) => {
+            let project = state.active_project_mut();
+            if let Some(comp) = project.components.iter_mut().find(|c| c.id == selected_id) {
+                comp.style.font_family = family;
+            }
+            project.is_dirty = true;
+        }
+    }
 }
 
 fn show_player_picker(ui: &mut egui::Ui, player_number: &mut u8) {
@@ -374,6 +446,42 @@ fn show_asset_picker(
             });
         }
     }
+
+    action
+}
+
+fn show_font_picker(
+    ui: &mut egui::Ui,
+    current_font_family: &mut Option<String>,
+    font_list: &[FontEntry],
+) -> FontAction {
+    let mut action = FontAction::None;
+
+    let current_label = current_font_family
+        .as_deref()
+        .unwrap_or("Default");
+
+    egui::ComboBox::from_label("Font")
+        .selected_text(current_label)
+        .show_ui(ui, |ui| {
+            // Default option
+            let is_default = current_font_family.is_none();
+            if ui.selectable_label(is_default, "Default").clicked() && !is_default {
+                action = FontAction::Select(None);
+            }
+
+            // Custom fonts
+            for entry in font_list {
+                let is_selected = current_font_family.as_deref() == Some(&entry.family_name);
+                if ui
+                    .selectable_label(is_selected, &entry.family_name)
+                    .clicked()
+                    && !is_selected
+                {
+                    action = FontAction::Select(Some(entry.family_name.clone()));
+                }
+            }
+        });
 
     action
 }

@@ -13,8 +13,9 @@ pub struct ScoreForgeApp {
 }
 
 impl ScoreForgeApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let state = AppState::new();
+        state.register_fonts(&cc.egui_ctx);
         Self {
             state,
             logo_texture: None,
@@ -455,11 +456,13 @@ impl ScoreForgeApp {
                             match crate::storage::scoreboard::import_sfbz(
                                 &path,
                                 &mut self.state.asset_library,
+                                &mut self.state.font_library,
                             ) {
                                 Ok(file) => {
                                     let project = ProjectState::from_file(file);
                                     self.state.projects.push(project);
                                     self.state.active_index = self.state.projects.len() - 1;
+                                    self.state.fonts_changed = true;
                                     self.state
                                         .push_toast("Scoreboard imported".to_string(), false);
                                 }
@@ -470,6 +473,30 @@ impl ScoreForgeApp {
                             }
                         }
                     }
+
+                    // --- How Multi-Court Works ---
+                    ui.add_space(16.0);
+                    let muted = egui::Color32::from_gray(120);
+                    ui.label(
+                        egui::RichText::new("How Multi-Court Works")
+                            .strong()
+                            .color(egui::Color32::from_gray(160)),
+                    );
+                    ui.add_space(4.0);
+                    for step in [
+                        "1. Create or open a scoreboard for each court",
+                        "2. Connect each tab to a different court",
+                        "3. Launch a display window per tab",
+                        "4. Each display shows its own court's live data",
+                    ] {
+                        ui.label(egui::RichText::new(step).color(muted));
+                    }
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new("Tip: Import custom fonts (.ttf, .otf) in the property panel.")
+                            .small()
+                            .color(muted),
+                    );
 
                     // --- Recent Files ---
                     let recent: Vec<_> = self
@@ -535,7 +562,15 @@ impl ScoreForgeApp {
                     for (i, project) in self.state.projects.iter().enumerate() {
                         let is_active = i == self.state.active_index;
                         let dirty = if project.is_dirty { "*" } else { "" };
-                        let label = format!("{}{}", project.scoreboard.name, dirty);
+                        let display_badge = if project.display_active { " \u{25b6}" } else { "" };
+
+                        let status_color = match &project.connection_step {
+                            ConnectionStep::Live => egui::Color32::GREEN,
+                            ConnectionStep::Disconnected => egui::Color32::from_gray(100),
+                            _ => egui::Color32::YELLOW,
+                        };
+
+                        let tooltip = project.status_summary();
 
                         let bg = if is_active {
                             egui::Color32::from_gray(45)
@@ -554,13 +589,16 @@ impl ScoreForgeApp {
                             })
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    if ui
-                                        .selectable_label(is_active, &label)
-                                        .clicked()
-                                        && !is_active
-                                    {
+                                    ui.colored_label(status_color, "\u{25cf}");
+                                    let tab_label = format!(
+                                        "{}{}{}",
+                                        project.scoreboard.name, dirty, display_badge
+                                    );
+                                    let response = ui.selectable_label(is_active, &tab_label);
+                                    if response.clicked() && !is_active {
                                         switch_to = Some(i);
                                     }
+                                    response.on_hover_text(&tooltip);
                                     if ui.small_button("x").clicked() {
                                         close_idx = Some(i);
                                     }
@@ -603,6 +641,12 @@ impl eframe::App for ScoreForgeApp {
             self.show_start_screen(ctx);
             self.show_toasts(ctx);
             return;
+        }
+
+        // Re-register fonts if the library changed
+        if self.state.fonts_changed {
+            self.state.register_fonts(ctx);
+            self.state.fonts_changed = false;
         }
 
         // Load textures for any components that reference assets

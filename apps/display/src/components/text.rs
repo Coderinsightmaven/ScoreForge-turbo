@@ -2,6 +2,24 @@ use egui::{FontId, Pos2, Rect};
 
 use super::{ComponentStyle, HorizontalAlign};
 
+/// Build a `FontId` respecting the component's font_family selection.
+/// Falls back to the default proportional font if the requested family
+/// is not registered with egui (e.g. font was deleted or not yet loaded).
+fn font_id_for_style(ctx: &egui::Context, style: &ComponentStyle, size: f32) -> FontId {
+    match &style.font_family {
+        Some(name) => {
+            let family = egui::FontFamily::Name(name.clone().into());
+            let is_registered = ctx.fonts(|f| f.families().contains(&family));
+            if is_registered {
+                FontId::new(size, family)
+            } else {
+                FontId::proportional(size)
+            }
+        }
+        None => FontId::proportional(size),
+    }
+}
+
 pub fn render_text(
     painter: &egui::Painter,
     rect: Rect,
@@ -30,7 +48,7 @@ pub fn render_aligned_text(
         style.font_size * zoom
     };
 
-    let font = FontId::proportional(font_size);
+    let font = font_id_for_style(painter.ctx(), style, font_size);
     let galley = painter.layout_no_wrap(content.to_string(), font, style.font_color);
 
     // Horizontal alignment within the component rect
@@ -57,7 +75,7 @@ fn compute_auto_fit_size(
 ) -> f32 {
     // Measure at a reference size, then scale proportionally
     let reference_size = 100.0;
-    let ref_font = FontId::proportional(reference_size);
+    let ref_font = font_id_for_style(painter.ctx(), style, reference_size);
     let ref_galley = painter.layout_no_wrap(content.to_string(), ref_font, style.font_color);
 
     let ref_w = ref_galley.size().x;
