@@ -105,7 +105,7 @@ export const getTournament = query({
       tennisConfig: tournament.tennisConfig,
       courts: tournament.courts,
       createdBy: tournament.createdBy,
-      participantCount: participants.length,
+      participantCount: participants.filter((p) => !p.isPlaceholder).length,
       bracketCount: brackets.length,
       myRole: role,
     };
@@ -476,7 +476,7 @@ export const listMyTournaments = query({
         maxParticipants: tournament.maxParticipants,
         status: tournament.status,
         startDate: tournament.startDate,
-        participantCount: participantCounts[i]!.length,
+        participantCount: participantCounts[i]!.filter((p) => !p.isPlaceholder).length,
         liveMatchCount: liveMatchCounts[i]!.length,
         lastActivityAt: lastMatchActivity || tournament.startDate || tournament._creationTime,
         isOwner,

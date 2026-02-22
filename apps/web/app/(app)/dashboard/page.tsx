@@ -9,12 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { DataTable } from "@/components/ui/data-table";
-
 import { Skeleton } from "@/app/components/Skeleton";
 import { Activity, ArrowUpRight, Plus, Trophy, Users, Zap } from "lucide-react";
 import { FORMAT_LABELS, type TournamentFormat } from "@/app/lib/constants";
-import type { ColumnDef } from "@tanstack/react-table";
 import NumberFlow from "@number-flow/react";
 
 type Filter = "all" | "active" | "draft" | "completed";
@@ -59,69 +56,6 @@ export default function DashboardPage(): React.ReactNode {
   const activeTournaments = tournamentList.filter(
     (tournament) => tournament.status === "active"
   ).length;
-
-  const tableData = useMemo(
-    () =>
-      tournamentList.map((tournament) => ({
-        id: tournament._id,
-        name: tournament.name,
-        status: tournament.status,
-        format: FORMAT_LABELS[tournament.format as TournamentFormat] || tournament.format,
-        liveMatches: tournament.liveMatchCount,
-        participants: `${tournament.participantCount} / ${tournament.maxParticipants}`,
-      })),
-    [tournamentList]
-  );
-
-  const tableColumns = useMemo<ColumnDef<(typeof tableData)[number]>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: "Tournament",
-        cell: ({ row }) => (
-          <div className="space-y-1">
-            <p className="font-semibold text-foreground">{row.original.name}</p>
-            <p className="text-xs text-muted-foreground">{row.original.format}</p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => (
-          <Badge variant={row.original.status === "active" ? "success" : "muted"}>
-            {row.original.status}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "liveMatches",
-        header: "Live",
-        cell: ({ row }) => (
-          <span className="font-semibold text-foreground">
-            <NumberFlow value={row.original.liveMatches} />
-          </span>
-        ),
-      },
-      {
-        accessorKey: "participants",
-        header: "Participants",
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: ({ row }) => (
-          <Link
-            href={`/tournaments/${row.original.id}`}
-            className="text-xs font-semibold uppercase tracking-[0.18em] text-brand hover:text-brand-hover"
-          >
-            Open
-          </Link>
-        ),
-      },
-    ],
-    []
-  );
 
   if (user === undefined || tournaments === undefined) {
     return <DashboardSkeleton />;
@@ -261,21 +195,6 @@ export default function DashboardPage(): React.ReactNode {
           ))}
         </div>
       )}
-
-      <section id="onborda-command-table" className="surface-panel surface-panel-rail p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-caption text-muted-foreground">Command Directory</p>
-            <h2 className="mt-2 text-heading">Tournament operations table</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Search, sort, and jump straight into any active tournament.
-            </p>
-          </div>
-        </div>
-        <div className="mt-6">
-          <DataTable columns={tableColumns} data={tableData} searchKey="name" />
-        </div>
-      </section>
     </div>
   );
 }
@@ -333,9 +252,6 @@ function TournamentCard({
           <div className="space-y-1 text-sm text-muted-foreground">
             <p>{sportLabels[tournament.sport] || tournament.sport}</p>
             <p>{formatLabels[tournament.format as TournamentFormat] || tournament.format}</p>
-            <p>
-              {tournament.participantCount} of {tournament.maxParticipants} participants
-            </p>
           </div>
 
           <div className="flex items-center justify-between border-t border-border/70 pt-3 text-sm">
