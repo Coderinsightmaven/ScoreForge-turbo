@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/app/components/ConfirmDialog";
-import { Skeleton } from "@/app/components/Skeleton";
+import { TabSkeleton } from "@/app/components/TabSkeleton";
 
 // ---------------------------------------------------------------------------
 // Utility functions
@@ -146,8 +146,27 @@ function ScheduleGrid({
 
   if (scheduledMatches.length === 0) {
     return (
-      <div className="surface-panel p-8 text-center text-muted-foreground">
-        No matches scheduled yet. Use Auto-Schedule or drag matches from the sidebar.
+      <div
+        className="surface-panel p-8 text-center border-2 border-dashed border-border/50 rounded-lg"
+        onDragOver={(e) => {
+          if (!canManage) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const matchId = e.dataTransfer.getData("matchId");
+          if (matchId && courts.length > 0) {
+            // Use a reasonable default time — current time rounded up to the next 30 min
+            const now = Date.now();
+            const slotMs = 30 * 60_000;
+            const defaultTime = Math.ceil(now / slotMs) * slotMs;
+            onDrop(matchId, courts[0]!, defaultTime);
+          }
+        }}
+      >
+        <p className="text-muted-foreground">No matches scheduled yet</p>
+        <p className="text-sm text-muted-foreground mt-1">Use Auto-Schedule or drag matches here</p>
       </div>
     );
   }
@@ -301,36 +320,6 @@ function UnscheduledSidebar({
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function TabSkeleton() {
-  return (
-    <div className="animate-fadeIn space-y-4">
-      <div className="surface-panel p-4 space-y-3">
-        <div className="flex gap-4">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-10 w-24" />
-          <Skeleton className="h-10 w-24" />
-        </div>
-        <div className="flex gap-3">
-          <Skeleton className="h-10 w-32 rounded-xl" />
-          <Skeleton className="h-10 w-32 rounded-xl" />
-        </div>
-      </div>
-      <div className="flex gap-4">
-        <div className="flex-1 space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-        <div className="w-56 space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

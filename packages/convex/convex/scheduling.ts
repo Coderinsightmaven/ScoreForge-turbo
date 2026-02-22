@@ -221,15 +221,16 @@ export const getScheduleData = query({
       if (m.participant2Id) participantIds.add(m.participant2Id);
     }
 
-    // Fetch participant names
+    // Fetch participant names in parallel
     const participantNames: Record<string, string> = {};
-    for (const id of participantIds) {
-      const participant = await ctx.db.get(
-        "tournamentParticipants",
-        id as Id<"tournamentParticipants">
-      );
+    const participants = await Promise.all(
+      [...participantIds].map((id) =>
+        ctx.db.get("tournamentParticipants", id as Id<"tournamentParticipants">)
+      )
+    );
+    for (const participant of participants) {
       if (participant) {
-        participantNames[id] = participant.displayName;
+        participantNames[participant._id] = participant.displayName;
       }
     }
 
