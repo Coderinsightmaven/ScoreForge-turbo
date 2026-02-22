@@ -178,6 +178,7 @@ export const getScheduleData = query({
         round: v.number(),
         matchNumber: v.number(),
         bracketType: v.optional(v.string()),
+        bracketName: v.optional(v.string()),
         status: matchStatus,
         scheduledTime: v.optional(v.number()),
         court: v.optional(v.string()),
@@ -214,6 +215,19 @@ export const getScheduleData = query({
 
     const nonByeMatches = allMatches.filter((m) => m.status !== "bye");
 
+    // Collect unique bracket IDs and resolve names
+    const bracketIds = new Set<string>();
+    for (const m of nonByeMatches) {
+      if (m.bracketId) bracketIds.add(m.bracketId);
+    }
+    const bracketNames: Record<string, string> = {};
+    const brackets = await Promise.all(
+      [...bracketIds].map((id) => ctx.db.get("tournamentBrackets", id as Id<"tournamentBrackets">))
+    );
+    for (const bracket of brackets) {
+      if (bracket) bracketNames[bracket._id] = bracket.name;
+    }
+
     // Collect unique participant IDs
     const participantIds = new Set<string>();
     for (const m of nonByeMatches) {
@@ -240,6 +254,7 @@ export const getScheduleData = query({
       round: m.round,
       matchNumber: m.matchNumber,
       bracketType: m.bracketType,
+      bracketName: m.bracketId ? bracketNames[m.bracketId] : undefined,
       status: m.status,
       scheduledTime: m.scheduledTime,
       court: m.court,

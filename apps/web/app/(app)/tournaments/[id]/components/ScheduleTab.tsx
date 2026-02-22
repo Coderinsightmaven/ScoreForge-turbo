@@ -67,6 +67,7 @@ type ScheduleMatch = {
   round: number;
   matchNumber: number;
   bracketType?: string;
+  bracketName?: string;
   status: "pending" | "scheduled" | "live" | "completed" | "bye";
   scheduledTime?: number;
   court?: string;
@@ -130,6 +131,9 @@ function ScheduleMatchCard({
       <div className="truncate text-muted-foreground">
         {match.participant1Name ?? "TBD"} vs {match.participant2Name ?? "TBD"}
       </div>
+      {match.bracketName && (
+        <div className="truncate text-muted-foreground/60 text-[10px]">{match.bracketName}</div>
+      )}
     </div>
   );
 }
@@ -331,6 +335,9 @@ function UnscheduledSidebar({
           <div className="truncate text-muted-foreground">
             {m.participant1Name ?? "TBD"} vs {m.participant2Name ?? "TBD"}
           </div>
+          {m.bracketName && (
+            <div className="truncate text-muted-foreground/60 text-[10px]">{m.bracketName}</div>
+          )}
         </div>
       ))}
     </div>
