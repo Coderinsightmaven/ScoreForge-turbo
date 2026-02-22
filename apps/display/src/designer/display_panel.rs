@@ -71,7 +71,7 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
     // --- Connection section ---
     ui.label(egui::RichText::new("Connection").strong());
 
-    let connection_step = state.active_project().connection_step.clone();
+    let connection_step = state.active_project().connection_step;
 
     let has_url = !state.connect_url.is_empty();
 
@@ -212,6 +212,7 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
                     project.current_file = Some(path.clone());
                     project.is_dirty = false;
                     project.needs_fit_to_view = true;
+                    project.display_needs_sync = true;
                     if let Ok(mut ds) = project.display_state.lock() {
                         ds.needs_resize = true;
                     }
@@ -241,7 +242,9 @@ pub fn show_display_panel(ui: &mut egui::Ui, state: &mut AppState) {
             }
         }
     } else if ui.button("Launch Display").clicked() {
-        state.active_project_mut().display_active = true;
+        let project = state.active_project_mut();
+        project.display_active = true;
+        project.display_needs_sync = true;
     }
 
     let project = state.active_project_mut();

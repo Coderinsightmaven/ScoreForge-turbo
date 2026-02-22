@@ -41,6 +41,7 @@ impl Default for DisplayState {
     }
 }
 
+/// Create and render the display viewport window for a project's scoreboard.
 pub fn show_display_viewport(
     ctx: &egui::Context,
     display_state: &Arc<Mutex<DisplayState>>,
@@ -50,9 +51,8 @@ pub fn show_display_viewport(
     let viewport_id = ViewportId::from_hash_of(&format!("scoreforge_display_{}", project_id));
     let display_state = Arc::clone(display_state);
 
-    #[allow(unused_variables)]
-    let (fullscreen, width, height, offset_x, offset_y, target_scale_factor) = {
-        let state = display_state.lock().unwrap();
+    let (fullscreen, width, height, offset_x, offset_y, _target_scale_factor) = {
+        let state = display_state.lock().unwrap_or_else(|e| e.into_inner());
         (
             state.fullscreen,
             state.scoreboard.width,
@@ -77,8 +77,8 @@ pub fn show_display_viewport(
         // LogicalPosition which gets multiplied by scale factor. Divide to compensate.
         #[cfg(target_os = "windows")]
         let pos = Pos2::new(
-            offset_x as f32 / target_scale_factor,
-            offset_y as f32 / target_scale_factor,
+            offset_x as f32 / _target_scale_factor,
+            offset_y as f32 / _target_scale_factor,
         );
         #[cfg(not(target_os = "windows"))]
         let pos = Pos2::new(offset_x as f32, offset_y as f32);
@@ -98,7 +98,7 @@ pub fn show_display_viewport(
             visuals.panel_fill = egui::Color32::TRANSPARENT;
             ctx.set_visuals(visuals);
 
-            let mut state = display_state.lock().unwrap();
+            let mut state = display_state.lock().unwrap_or_else(|e| e.into_inner());
 
             if state.should_close {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);

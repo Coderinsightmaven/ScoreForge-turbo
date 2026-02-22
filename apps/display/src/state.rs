@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -14,6 +14,7 @@ use crate::storage::assets::AssetLibrary;
 use crate::storage::fonts::FontLibrary;
 use crate::storage::scoreboard::{AppConfig, ScoreboardFile};
 
+/// The dimensions, name, and background color of a scoreboard layout.
 #[derive(Debug, Clone)]
 pub struct Scoreboard {
     pub name: String,
@@ -73,7 +74,7 @@ pub struct ProjectState {
     pub needs_fit_to_view: bool,
 
     // Undo
-    pub undo_stack: Vec<Vec<ScoreboardComponent>>,
+    pub undo_stack: VecDeque<Vec<ScoreboardComponent>>,
 
     // Live data connection (per-project)
     pub convex_manager: Option<ConvexManager>,
@@ -98,6 +99,9 @@ pub struct ProjectState {
     pub selected_monitor: Option<usize>,
     pub display_state: Arc<Mutex<DisplayState>>,
 
+    // Display sync
+    pub display_needs_sync: bool,
+
     // Persistence
     pub current_file: Option<PathBuf>,
     pub is_dirty: bool,
@@ -120,7 +124,7 @@ impl ProjectState {
             canvas_zoom: 0.5,
             canvas_pan: Vec2::new(50.0, 50.0),
             needs_fit_to_view: true,
-            undo_stack: Vec::new(),
+            undo_stack: VecDeque::new(),
             convex_manager: None,
             connection_step: ConnectionStep::Disconnected,
             tournament_list: Vec::new(),
@@ -138,6 +142,7 @@ impl ProjectState {
             display_offset_y: "0".to_string(),
             selected_monitor: None,
             display_state: Arc::new(Mutex::new(DisplayState::default())),
+            display_needs_sync: true,
             current_file: None,
             is_dirty: false,
         }
@@ -159,7 +164,7 @@ impl ProjectState {
             canvas_zoom: 0.5,
             canvas_pan: Vec2::new(50.0, 50.0),
             needs_fit_to_view: true,
-            undo_stack: Vec::new(),
+            undo_stack: VecDeque::new(),
             convex_manager: None,
             connection_step: ConnectionStep::Disconnected,
             tournament_list: Vec::new(),
@@ -177,23 +182,26 @@ impl ProjectState {
             display_offset_y: "0".to_string(),
             selected_monitor: None,
             display_state: Arc::new(Mutex::new(DisplayState::default())),
+            display_needs_sync: true,
             current_file: None,
             is_dirty: false,
         }
     }
 
     pub fn push_undo(&mut self) {
-        self.undo_stack.push(self.components.clone());
+        self.undo_stack.push_back(self.components.clone());
         if self.undo_stack.len() > 50 {
-            self.undo_stack.remove(0);
+            self.undo_stack.pop_front();
         }
+        self.display_needs_sync = true;
     }
 
     pub fn undo(&mut self) {
-        if let Some(prev) = self.undo_stack.pop() {
+        if let Some(prev) = self.undo_stack.pop_back() {
             self.components = prev;
             self.selected_ids.clear();
             self.is_dirty = true;
+            self.display_needs_sync = true;
         }
     }
 
@@ -283,10 +291,12 @@ impl ProjectState {
                 LiveDataMessage::MatchDataUpdated(data) => {
                     self.live_match_data = Some(data);
                     self.connection_step = ConnectionStep::Live;
+                    self.display_needs_sync = true;
                 }
                 LiveDataMessage::CourtNoActiveMatch => {
                     self.live_match_data = None;
                     self.connection_step = ConnectionStep::Live;
+                    self.display_needs_sync = true;
                 }
                 LiveDataMessage::Error(err) => {
                     toasts.push(Toast {
@@ -304,6 +314,7 @@ impl ProjectState {
     }
 }
 
+/// Global application state shared across all open scoreboard tabs.
 pub struct AppState {
     // Open projects (tabs)
     pub projects: Vec<ProjectState>,

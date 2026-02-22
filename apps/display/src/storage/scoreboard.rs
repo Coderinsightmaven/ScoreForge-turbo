@@ -8,25 +8,10 @@ use uuid::Uuid;
 use zip::write::SimpleFileOptions;
 
 use crate::components::{ComponentData, ScoreboardComponent};
+use crate::serde_helpers::serde_color32;
 use crate::storage::assets::AssetLibrary;
+use crate::storage::error::StorageError;
 use crate::storage::fonts::FontLibrary;
-
-mod serde_color32 {
-    use egui::Color32;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    #[derive(Serialize, Deserialize)]
-    struct C(u8, u8, u8, u8);
-
-    pub fn serialize<S: Serializer>(color: &Color32, s: S) -> Result<S::Ok, S::Error> {
-        C(color.r(), color.g(), color.b(), color.a()).serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Color32, D::Error> {
-        let C(r, g, b, a) = C::deserialize(d)?;
-        Ok(Color32::from_rgba_unmultiplied(r, g, b, a))
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreboardFile {
@@ -39,18 +24,17 @@ pub struct ScoreboardFile {
     pub bindings: HashMap<Uuid, String>,
 }
 
-pub fn save_scoreboard(file: &ScoreboardFile, path: &Path) -> Result<(), String> {
-    let json =
-        serde_json::to_string_pretty(file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    fs::write(path, json).map_err(|e| format!("Failed to write file: {e}"))
+pub fn save_scoreboard(file: &ScoreboardFile, path: &Path) -> Result<(), StorageError> {
+    let json = serde_json::to_string_pretty(file)?;
+    fs::write(path, json)?;
+    Ok(())
 }
 
-pub fn load_scoreboard(path: &Path) -> Result<ScoreboardFile, String> {
-    let json = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
-    let file: ScoreboardFile =
-        serde_json::from_str(&json).map_err(|e| format!("Failed to parse file: {e}"))?;
+pub fn load_scoreboard(path: &Path) -> Result<ScoreboardFile, StorageError> {
+    let json = fs::read_to_string(path)?;
+    let file: ScoreboardFile = serde_json::from_str(&json)?;
     if file.version != 1 {
-        return Err(format!("Unsupported file version: {}", file.version));
+        return Err(StorageError::UnsupportedVersion(file.version));
     }
     Ok(file)
 }
@@ -78,30 +62,24 @@ pub fn export_sfbz(
     asset_library: &AssetLibrary,
     font_library: &FontLibrary,
     path: &Path,
-) -> Result<(), String> {
-    let out_file = fs::File::create(path).map_err(|e| format!("Failed to create file: {e}"))?;
+) -> Result<(), StorageError> {
+    let out_file = fs::File::create(path)?;
     let mut zip = zip::ZipWriter::new(out_file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // Write scoreboard.json
-    let json =
-        serde_json::to_string_pretty(file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    zip.start_file("scoreboard.json", options)
-        .map_err(|e| format!("Failed to write zip entry: {e}"))?;
-    zip.write_all(json.as_bytes())
-        .map_err(|e| format!("Failed to write json: {e}"))?;
+    let json = serde_json::to_string_pretty(file)?;
+    zip.start_file("scoreboard.json", options)?;
+    zip.write_all(json.as_bytes())?;
 
     // Write referenced assets
     let asset_ids = collect_asset_ids(&file.components);
     for asset_id in &asset_ids {
         if let Some(asset_path) = asset_library.get_asset_path(asset_id) {
             if let Some(filename) = asset_path.file_name().and_then(|n| n.to_str()) {
-                let data =
-                    fs::read(&asset_path).map_err(|e| format!("Failed to read asset: {e}"))?;
-                zip.start_file(format!("assets/{filename}"), options)
-                    .map_err(|e| format!("Failed to write zip entry: {e}"))?;
-                zip.write_all(&data)
-                    .map_err(|e| format!("Failed to write asset: {e}"))?;
+                let data = fs::read(&asset_path)?;
+                zip.start_file(format!("assets/{filename}"), options)?;
+                zip.write_all(&data)?;
             }
         }
     }
@@ -112,19 +90,15 @@ pub fn export_sfbz(
         if let Some(entry) = font_library.find_by_family_name(family) {
             if let Some(font_path) = font_library.get_font_path(&entry.id) {
                 if let Some(filename) = font_path.file_name().and_then(|n| n.to_str()) {
-                    let data =
-                        fs::read(&font_path).map_err(|e| format!("Failed to read font: {e}"))?;
-                    zip.start_file(format!("fonts/{filename}"), options)
-                        .map_err(|e| format!("Failed to write zip entry: {e}"))?;
-                    zip.write_all(&data)
-                        .map_err(|e| format!("Failed to write font: {e}"))?;
+                    let data = fs::read(&font_path)?;
+                    zip.start_file(format!("fonts/{filename}"), options)?;
+                    zip.write_all(&data)?;
                 }
             }
         }
     }
 
-    zip.finish()
-        .map_err(|e| format!("Failed to finalize zip: {e}"))?;
+    zip.finish()?;
     Ok(())
 }
 
@@ -132,36 +106,28 @@ pub fn import_sfbz(
     path: &Path,
     asset_library: &mut AssetLibrary,
     font_library: &mut FontLibrary,
-) -> Result<ScoreboardFile, String> {
-    let zip_file = fs::File::open(path).map_err(|e| format!("Failed to open file: {e}"))?;
-    let mut archive =
-        zip::ZipArchive::new(zip_file).map_err(|e| format!("Failed to read zip: {e}"))?;
+) -> Result<ScoreboardFile, StorageError> {
+    let zip_file = fs::File::open(path)?;
+    let mut archive = zip::ZipArchive::new(zip_file)?;
 
     // Read scoreboard.json
     let file: ScoreboardFile = {
-        let mut entry = archive
-            .by_name("scoreboard.json")
-            .map_err(|e| format!("Missing scoreboard.json: {e}"))?;
+        let mut entry = archive.by_name("scoreboard.json")?;
         let mut json = String::new();
-        entry
-            .read_to_string(&mut json)
-            .map_err(|e| format!("Failed to read scoreboard.json: {e}"))?;
-        let f: ScoreboardFile =
-            serde_json::from_str(&json).map_err(|e| format!("Failed to parse JSON: {e}"))?;
+        entry.read_to_string(&mut json)?;
+        let f: ScoreboardFile = serde_json::from_str(&json)?;
         if f.version != 1 {
-            return Err(format!("Unsupported file version: {}", f.version));
+            return Err(StorageError::UnsupportedVersion(f.version));
         }
         f
     };
 
     // Import assets and fonts
     let temp_dir = std::env::temp_dir().join(format!("sfbz-import-{}", Uuid::new_v4()));
-    fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {e}"))?;
+    fs::create_dir_all(&temp_dir)?;
 
     for i in 0..archive.len() {
-        let mut entry = archive
-            .by_index(i)
-            .map_err(|e| format!("Failed to read zip entry: {e}"))?;
+        let mut entry = archive.by_index(i)?;
         let name = entry.name().to_string();
 
         if let Some(filename) = name.strip_prefix("assets/") {
@@ -179,10 +145,8 @@ pub fn import_sfbz(
 
             let temp_path = temp_dir.join(filename);
             let mut data = Vec::new();
-            entry
-                .read_to_end(&mut data)
-                .map_err(|e| format!("Failed to read asset: {e}"))?;
-            fs::write(&temp_path, &data).map_err(|e| format!("Failed to write temp asset: {e}"))?;
+            entry.read_to_end(&mut data)?;
+            fs::write(&temp_path, &data)?;
 
             asset_library.import_image_with_id(asset_id, &temp_path)?;
         } else if let Some(filename) = name.strip_prefix("fonts/") {
@@ -200,17 +164,17 @@ pub fn import_sfbz(
 
             let temp_path = temp_dir.join(filename);
             let mut data = Vec::new();
-            entry
-                .read_to_end(&mut data)
-                .map_err(|e| format!("Failed to read font: {e}"))?;
-            fs::write(&temp_path, &data).map_err(|e| format!("Failed to write temp font: {e}"))?;
+            entry.read_to_end(&mut data)?;
+            fs::write(&temp_path, &data)?;
 
             font_library.import_font_with_id(font_id, &temp_path)?;
         }
     }
 
     // Cleanup temp dir
-    fs::remove_dir_all(&temp_dir).ok();
+    if let Err(e) = fs::remove_dir_all(&temp_dir) {
+        tracing::warn!("Failed to remove temp dir {}: {e}", temp_dir.display());
+    }
 
     Ok(file)
 }
@@ -262,10 +226,20 @@ impl AppConfig {
     pub fn save(&self) {
         let path = Self::config_path();
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).ok();
+            if let Err(e) = fs::create_dir_all(parent) {
+                tracing::warn!("Failed to create config directory {}: {e}", parent.display());
+                return;
+            }
         }
-        if let Ok(json) = serde_json::to_string_pretty(self) {
-            fs::write(path, json).ok();
+        match serde_json::to_string_pretty(self) {
+            Ok(json) => {
+                if let Err(e) = fs::write(&path, json) {
+                    tracing::warn!("Failed to write config {}: {e}", path.display());
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to serialize config: {e}");
+            }
         }
     }
 
@@ -379,7 +353,7 @@ mod tests {
 
         let result = load_scoreboard(&path);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Unsupported file version"));
+        assert!(result.unwrap_err().to_string().contains("Unsupported file version"));
     }
 
     #[test]

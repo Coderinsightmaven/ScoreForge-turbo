@@ -16,61 +16,7 @@ use uuid::Uuid;
 use crate::data::live_data::TennisLiveData;
 use crate::flags::FlagCache;
 
-// --- Serde wrappers for egui types ---
-
-mod serde_color32 {
-    use egui::Color32;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    #[derive(Serialize, Deserialize)]
-    struct Color32Serde(u8, u8, u8, u8);
-
-    pub fn serialize<S: Serializer>(color: &Color32, s: S) -> Result<S::Ok, S::Error> {
-        Color32Serde(color.r(), color.g(), color.b(), color.a()).serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Color32, D::Error> {
-        let Color32Serde(r, g, b, a) = Color32Serde::deserialize(d)?;
-        Ok(Color32::from_rgba_unmultiplied(r, g, b, a))
-    }
-}
-
-mod serde_color32_option {
-    use egui::Color32;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    #[derive(Serialize, Deserialize)]
-    struct Color32Serde(u8, u8, u8, u8);
-
-    pub fn serialize<S: Serializer>(color: &Option<Color32>, s: S) -> Result<S::Ok, S::Error> {
-        match color {
-            Some(c) => Some(Color32Serde(c.r(), c.g(), c.b(), c.a())).serialize(s),
-            None => None::<Color32Serde>.serialize(s),
-        }
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Color32>, D::Error> {
-        let opt = Option::<Color32Serde>::deserialize(d)?;
-        Ok(opt.map(|Color32Serde(r, g, b, a)| Color32::from_rgba_unmultiplied(r, g, b, a)))
-    }
-}
-
-mod serde_vec2 {
-    use egui::Vec2;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    #[derive(Serialize, Deserialize)]
-    struct Vec2Serde(f32, f32);
-
-    pub fn serialize<S: Serializer>(v: &Vec2, s: S) -> Result<S::Ok, S::Error> {
-        Vec2Serde(v.x, v.y).serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec2, D::Error> {
-        let Vec2Serde(x, y) = Vec2Serde::deserialize(d)?;
-        Ok(Vec2::new(x, y))
-    }
-}
+use crate::serde_helpers::{serde_color32, serde_color32_option, serde_vec2};
 
 // --- Component Types ---
 
@@ -218,6 +164,7 @@ pub enum ComponentData {
 
 // --- Scoreboard Component ---
 
+/// A single visual element on the scoreboard (text, image, score, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreboardComponent {
     pub id: Uuid,
@@ -281,8 +228,6 @@ impl ScoreboardComponent {
     }
 
     /// Descriptive label including player/set context from the component data.
-    /// E.g. "Game Score P1", "Set 1 Score P2", "Player 1 Name".
-    /// Descriptive label including player/set context from the component data.
     /// E.g. "Game Score Player 1", "Set 1 Score Player 2", "Player 1 Name".
     pub fn display_label(&self) -> String {
         match &self.data {
@@ -331,6 +276,7 @@ pub enum RenderContext {
 
 // --- Rendering ---
 
+/// Draw a single scoreboard component onto the given painter, applying zoom and pan.
 pub fn render_component(
     component: &ScoreboardComponent,
     painter: &egui::Painter,
@@ -456,10 +402,12 @@ pub fn render_component(
     }
 }
 
+/// Convert a canvas-space position to screen-space given current zoom and pan.
 pub fn canvas_to_screen(canvas_pos: Vec2, zoom: f32, pan: Vec2) -> Vec2 {
     canvas_pos * zoom + pan
 }
 
+/// Convert a screen-space position back to canvas-space given current zoom and pan.
 pub fn screen_to_canvas(screen_pos: Vec2, zoom: f32, pan: Vec2) -> Vec2 {
     (screen_pos - pan) / zoom
 }
@@ -470,8 +418,8 @@ pub fn load_texture_from_path(
     ctx: &egui::Context,
     id: Uuid,
     path: &Path,
-) -> Result<egui::TextureHandle, String> {
-    let img = ::image::open(path).map_err(|e| format!("Failed to open image: {e}"))?;
+) -> Result<egui::TextureHandle, crate::storage::error::StorageError> {
+    let img = ::image::open(path)?;
     let rgba = img.into_rgba8();
     let size = [rgba.width() as usize, rgba.height() as usize];
     let pixels = rgba.into_raw();
@@ -482,6 +430,7 @@ pub fn load_texture_from_path(
 
 // --- Texture Cache ---
 
+/// Cache of loaded egui textures keyed by asset UUID.
 pub struct TextureCache {
     textures: std::collections::HashMap<Uuid, egui::TextureHandle>,
 }

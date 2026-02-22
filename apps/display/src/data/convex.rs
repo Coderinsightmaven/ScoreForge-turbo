@@ -43,281 +43,324 @@ impl ConvexManager {
     }
 }
 
+struct ConvexTaskState {
+    client: Option<ConvexClient>,
+    api_key: Option<String>,
+    selected_tournament_id: Option<String>,
+    subscription_task: Option<JoinHandle<()>>,
+    pairing_poll_task: Option<JoinHandle<()>>,
+    message_tx: mpsc::UnboundedSender<LiveDataMessage>,
+}
+
+impl ConvexTaskState {
+    fn new(message_tx: mpsc::UnboundedSender<LiveDataMessage>) -> Self {
+        Self {
+            client: None,
+            api_key: None,
+            selected_tournament_id: None,
+            subscription_task: None,
+            pairing_poll_task: None,
+            message_tx,
+        }
+    }
+
+    async fn handle_start_pairing(&mut self, url: String) {
+        if let Some(task) = self.pairing_poll_task.take() {
+            task.abort();
+        }
+
+        match ConvexClient::new(&url).await {
+            Ok(mut pairing_client) => {
+                let args: BTreeMap<String, Value> = maplit::btreemap! {};
+                match pairing_client
+                    .mutation("devicePairing:startPairing", args)
+                    .await
+                {
+                    Ok(FunctionResult::Value(val)) => {
+                        if let Some((
+                            pairing_id,
+                            pairing_code,
+                            pairing_secret,
+                            expires_at,
+                            poll_interval,
+                        )) = parse_pairing_start(&val)
+                        {
+                            let _ = self.message_tx.send(LiveDataMessage::PairingStarted {
+                                pairing_code,
+                                expires_at,
+                            });
+
+                            let tx = self.message_tx.clone();
+                            self.pairing_poll_task = Some(tokio::spawn(async move {
+                                loop {
+                                    tokio::time::sleep(Duration::from_millis(
+                                        poll_interval.max(500),
+                                    ))
+                                    .await;
+
+                                    let poll_args: BTreeMap<String, Value> = maplit::btreemap! {
+                                        "pairingId".into() => pairing_id.clone().into(),
+                                        "pairingSecret".into() => pairing_secret.clone().into(),
+                                    };
+
+                                    match pairing_client
+                                        .mutation("devicePairing:pollPairing", poll_args)
+                                        .await
+                                    {
+                                        Ok(FunctionResult::Value(poll_val)) => {
+                                            match parse_pairing_poll(&poll_val) {
+                                                PairingPollStatus::Pending => {}
+                                                PairingPollStatus::Paired(api_key) => {
+                                                    let _ = tx.send(
+                                                        LiveDataMessage::PairingCompleted {
+                                                            api_key,
+                                                        },
+                                                    );
+                                                    break;
+                                                }
+                                                PairingPollStatus::Expired => {
+                                                    let _ =
+                                                        tx.send(LiveDataMessage::PairingExpired);
+                                                    break;
+                                                }
+                                                PairingPollStatus::Claimed => {
+                                                    let _ = tx.send(LiveDataMessage::Error(
+                                                        "Pairing was already claimed.".to_string(),
+                                                    ));
+                                                    break;
+                                                }
+                                                PairingPollStatus::Invalid => {
+                                                    let _ = tx.send(LiveDataMessage::Error(
+                                                        "Invalid pairing session.".to_string(),
+                                                    ));
+                                                    break;
+                                                }
+                                                PairingPollStatus::Unknown => {
+                                                    let _ = tx.send(LiveDataMessage::Error(
+                                                        "Unexpected pairing response.".to_string(),
+                                                    ));
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        Ok(FunctionResult::ErrorMessage(e)) => {
+                                            let _ = tx.send(LiveDataMessage::Error(e));
+                                            break;
+                                        }
+                                        Ok(FunctionResult::ConvexError(e)) => {
+                                            let _ = tx
+                                                .send(LiveDataMessage::Error(e.message));
+                                            break;
+                                        }
+                                        Err(e) => {
+                                            let _ = tx.send(LiveDataMessage::Error(format!(
+                                                "Pairing poll failed: {e}"
+                                            )));
+                                            break;
+                                        }
+                                    }
+                                }
+                            }));
+                        } else if let Some(err) = get_error_string(&val) {
+                            let _ = self.message_tx.send(LiveDataMessage::Error(err));
+                        } else {
+                            let _ = self.message_tx.send(LiveDataMessage::Error(
+                                "Unexpected pairing response.".to_string(),
+                            ));
+                        }
+                    }
+                    Ok(FunctionResult::ErrorMessage(e)) => {
+                        let _ = self.message_tx.send(LiveDataMessage::Error(e));
+                    }
+                    Ok(FunctionResult::ConvexError(e)) => {
+                        let _ = self
+                            .message_tx
+                            .send(LiveDataMessage::Error(e.message));
+                    }
+                    Err(e) => {
+                        let _ = self.message_tx.send(LiveDataMessage::Error(format!(
+                            "Failed to start pairing: {e}"
+                        )));
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = self
+                    .message_tx
+                    .send(LiveDataMessage::Error(format!("Failed to connect: {e}")));
+            }
+        }
+    }
+
+    async fn handle_connect(&mut self, url: String, key: String) {
+        if let Some(task) = self.subscription_task.take() {
+            task.abort();
+        }
+
+        tracing::info!("Connecting to Convex: {}", url);
+        match ConvexClient::new(&url).await {
+            Ok(c) => {
+                self.client = Some(c);
+                self.api_key = Some(key.clone());
+                let _ = self.message_tx.send(LiveDataMessage::Connected);
+
+                if let Some(ref mut c) = self.client {
+                    let args: BTreeMap<String, Value> =
+                        maplit::btreemap! { "apiKey".into() => key.into() };
+                    match c.mutation("publicApi:listTournaments", args).await {
+                        Ok(FunctionResult::Value(val)) => {
+                            if let Some(err) = get_error_string(&val) {
+                                let _ = self.message_tx.send(LiveDataMessage::Error(err));
+                            } else {
+                                let tournaments = parse_tournament_list(&val);
+                                let _ = self
+                                    .message_tx
+                                    .send(LiveDataMessage::TournamentList(tournaments));
+                            }
+                        }
+                        Ok(FunctionResult::ErrorMessage(e)) => {
+                            let _ = self.message_tx.send(LiveDataMessage::Error(e));
+                        }
+                        Ok(FunctionResult::ConvexError(e)) => {
+                            let _ = self
+                                .message_tx
+                                .send(LiveDataMessage::Error(e.message));
+                        }
+                        Err(e) => {
+                            let _ = self.message_tx.send(LiveDataMessage::Error(format!(
+                                "Connection error: {e}"
+                            )));
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = self
+                    .message_tx
+                    .send(LiveDataMessage::Error(format!("Failed to connect: {e}")));
+            }
+        }
+    }
+
+    async fn handle_select_tournament(&mut self, tournament_id: String) {
+        tracing::info!("Selected tournament: {}", tournament_id);
+        self.selected_tournament_id = Some(tournament_id.clone());
+        if let (Some(c), Some(key)) = (&mut self.client, &self.api_key) {
+            let args: BTreeMap<String, Value> = maplit::btreemap! {
+                "apiKey".into() => key.clone().into(),
+                "tournamentId".into() => tournament_id.into(),
+            };
+            match c.mutation("publicApi:listMatches", args).await {
+                Ok(FunctionResult::Value(val)) => {
+                    if let Some(err) = get_error_string(&val) {
+                        let _ = self.message_tx.send(LiveDataMessage::Error(err));
+                    } else {
+                        let courts = parse_court_list(&val);
+                        let _ = self.message_tx.send(LiveDataMessage::CourtList(courts));
+                    }
+                }
+                Ok(FunctionResult::ErrorMessage(e)) => {
+                    let _ = self.message_tx.send(LiveDataMessage::Error(e));
+                }
+                Ok(FunctionResult::ConvexError(e)) => {
+                    let _ = self
+                        .message_tx
+                        .send(LiveDataMessage::Error(e.message));
+                }
+                Err(e) => {
+                    let _ = self
+                        .message_tx
+                        .send(LiveDataMessage::Error(format!("Fetch error: {e}")));
+                }
+            }
+        }
+    }
+
+    async fn handle_select_court(&mut self, court: String) {
+        tracing::info!("Subscribing to court: {}", court);
+        if let Some(task) = self.subscription_task.take() {
+            task.abort();
+        }
+
+        if let (Some(c), Some(key), Some(tid)) =
+            (&mut self.client, &self.api_key, &self.selected_tournament_id)
+        {
+            let args: BTreeMap<String, Value> = maplit::btreemap! {
+                "apiKey".into() => key.clone().into(),
+                "tournamentId".into() => tid.clone().into(),
+                "court".into() => court.into(),
+            };
+
+            match c.subscribe("publicApi:watchCourt", args).await {
+                Ok(mut sub) => {
+                    let tx = self.message_tx.clone();
+                    self.subscription_task = Some(tokio::spawn(async move {
+                        while let Some(result) = sub.next().await {
+                            match result {
+                                FunctionResult::Value(val) => {
+                                    if let Some(data) = parse_match_data(&val) {
+                                        let _ =
+                                            tx.send(LiveDataMessage::MatchDataUpdated(data));
+                                    } else if is_waiting_for_court_match(&val) {
+                                        let _ = tx.send(LiveDataMessage::CourtNoActiveMatch);
+                                    } else if let Some(err) = get_error_string(&val) {
+                                        let _ = tx.send(LiveDataMessage::Error(err));
+                                    }
+                                }
+                                FunctionResult::ErrorMessage(e) => {
+                                    let _ = tx.send(LiveDataMessage::Error(e));
+                                    break;
+                                }
+                                FunctionResult::ConvexError(e) => {
+                                    let _ =
+                                        tx.send(LiveDataMessage::Error(e.message));
+                                    break;
+                                }
+                            }
+                        }
+                        let _ = tx.send(LiveDataMessage::Disconnected);
+                    }));
+                }
+                Err(e) => {
+                    let _ = self
+                        .message_tx
+                        .send(LiveDataMessage::Error(format!("Subscribe error: {e}")));
+                }
+            }
+        }
+    }
+
+    fn handle_disconnect(&mut self) {
+        tracing::info!("Disconnecting from Convex");
+        if let Some(task) = self.subscription_task.take() {
+            task.abort();
+        }
+        if let Some(task) = self.pairing_poll_task.take() {
+            task.abort();
+        }
+        self.client = None;
+        self.api_key = None;
+        self.selected_tournament_id = None;
+        let _ = self.message_tx.send(LiveDataMessage::Disconnected);
+    }
+}
+
 async fn convex_task(
     mut command_rx: mpsc::UnboundedReceiver<LiveDataCommand>,
     message_tx: mpsc::UnboundedSender<LiveDataMessage>,
 ) {
     tracing::info!("Convex background task started");
-
-    let mut client: Option<ConvexClient> = None;
-    let mut api_key: Option<String> = None;
-    let mut selected_tournament_id: Option<String> = None;
-    let mut subscription_task: Option<JoinHandle<()>> = None;
-    let mut pairing_poll_task: Option<JoinHandle<()>> = None;
+    let mut state = ConvexTaskState::new(message_tx);
 
     while let Some(cmd) = command_rx.recv().await {
         match cmd {
-            LiveDataCommand::StartPairing { url } => {
-                if let Some(task) = pairing_poll_task.take() {
-                    task.abort();
-                }
-
-                match ConvexClient::new(&url).await {
-                    Ok(mut pairing_client) => {
-                        let args: BTreeMap<String, Value> = maplit::btreemap! {};
-                        match pairing_client.mutation("devicePairing:startPairing", args).await {
-                            Ok(FunctionResult::Value(val)) => {
-                                if let Some((pairing_id, pairing_code, pairing_secret, expires_at, poll_interval)) =
-                                    parse_pairing_start(&val)
-                                {
-                                    let _ = message_tx.send(LiveDataMessage::PairingStarted {
-                                        pairing_code,
-                                        expires_at,
-                                    });
-
-                                    let tx = message_tx.clone();
-                                    pairing_poll_task = Some(tokio::spawn(async move {
-                                        loop {
-                                            tokio::time::sleep(Duration::from_millis(
-                                                poll_interval.max(500),
-                                            ))
-                                            .await;
-
-                                            let poll_args: BTreeMap<String, Value> = maplit::btreemap! {
-                                                "pairingId".into() => pairing_id.clone().into(),
-                                                "pairingSecret".into() => pairing_secret.clone().into(),
-                                            };
-
-                                            match pairing_client
-                                                .mutation("devicePairing:pollPairing", poll_args)
-                                                .await
-                                            {
-                                                Ok(FunctionResult::Value(poll_val)) => {
-                                                    match parse_pairing_poll(&poll_val) {
-                                                        PairingPollStatus::Pending => {}
-                                                        PairingPollStatus::Paired(api_key) => {
-                                                            let _ = tx.send(
-                                                                LiveDataMessage::PairingCompleted {
-                                                                    api_key,
-                                                                },
-                                                            );
-                                                            break;
-                                                        }
-                                                        PairingPollStatus::Expired => {
-                                                            let _ = tx
-                                                                .send(LiveDataMessage::PairingExpired);
-                                                            break;
-                                                        }
-                                                        PairingPollStatus::Claimed => {
-                                                            let _ = tx.send(LiveDataMessage::Error(
-                                                                "Pairing was already claimed."
-                                                                    .to_string(),
-                                                            ));
-                                                            break;
-                                                        }
-                                                        PairingPollStatus::Invalid => {
-                                                            let _ = tx.send(LiveDataMessage::Error(
-                                                                "Invalid pairing session."
-                                                                    .to_string(),
-                                                            ));
-                                                            break;
-                                                        }
-                                                        PairingPollStatus::Unknown => {
-                                                            let _ = tx.send(LiveDataMessage::Error(
-                                                                "Unexpected pairing response."
-                                                                    .to_string(),
-                                                            ));
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                                Ok(FunctionResult::ErrorMessage(e)) => {
-                                                    let _ = tx.send(LiveDataMessage::Error(e));
-                                                    break;
-                                                }
-                                                Ok(FunctionResult::ConvexError(e)) => {
-                                                    let _ = tx.send(LiveDataMessage::Error(
-                                                        e.message.clone(),
-                                                    ));
-                                                    break;
-                                                }
-                                                Err(e) => {
-                                                    let _ = tx.send(LiveDataMessage::Error(format!(
-                                                        "Pairing poll failed: {e}"
-                                                    )));
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }));
-                                } else if let Some(err) = get_error_string(&val) {
-                                    let _ = message_tx.send(LiveDataMessage::Error(err));
-                                } else {
-                                    let _ = message_tx.send(LiveDataMessage::Error(
-                                        "Unexpected pairing response.".to_string(),
-                                    ));
-                                }
-                            }
-                            Ok(FunctionResult::ErrorMessage(e)) => {
-                                let _ = message_tx.send(LiveDataMessage::Error(e));
-                            }
-                            Ok(FunctionResult::ConvexError(e)) => {
-                                let _ = message_tx.send(LiveDataMessage::Error(e.message.clone()));
-                            }
-                            Err(e) => {
-                                let _ = message_tx.send(LiveDataMessage::Error(format!(
-                                    "Failed to start pairing: {e}"
-                                )));
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        let _ = message_tx
-                            .send(LiveDataMessage::Error(format!("Failed to connect: {e}")));
-                    }
-                }
+            LiveDataCommand::StartPairing { url } => state.handle_start_pairing(url).await,
+            LiveDataCommand::Connect { url, api_key } => {
+                state.handle_connect(url, api_key).await;
             }
-            LiveDataCommand::Connect { url, api_key: key } => {
-                if let Some(task) = subscription_task.take() {
-                    task.abort();
-                }
-
-                tracing::info!("Connecting to Convex: {}", url);
-                match ConvexClient::new(&url).await {
-                    Ok(c) => {
-                        client = Some(c);
-                        api_key = Some(key.clone());
-                        let _ = message_tx.send(LiveDataMessage::Connected);
-
-                        if let Some(ref mut c) = client {
-                            let args: BTreeMap<String, Value> =
-                                maplit::btreemap! { "apiKey".into() => key.into() };
-                            match c.mutation("publicApi:listTournaments", args).await {
-                                Ok(FunctionResult::Value(val)) => {
-                                    if let Some(err) = get_error_string(&val) {
-                                        let _ = message_tx.send(LiveDataMessage::Error(err));
-                                    } else {
-                                        let tournaments = parse_tournament_list(&val);
-                                        let _ = message_tx
-                                            .send(LiveDataMessage::TournamentList(tournaments));
-                                    }
-                                }
-                                Ok(FunctionResult::ErrorMessage(e)) => {
-                                    let _ = message_tx.send(LiveDataMessage::Error(e));
-                                }
-                                Ok(FunctionResult::ConvexError(e)) => {
-                                    let _ =
-                                        message_tx.send(LiveDataMessage::Error(e.message.clone()));
-                                }
-                                Err(e) => {
-                                    let _ = message_tx.send(LiveDataMessage::Error(format!(
-                                        "Connection error: {e}"
-                                    )));
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        let _ = message_tx
-                            .send(LiveDataMessage::Error(format!("Failed to connect: {e}")));
-                    }
-                }
-            }
-            LiveDataCommand::SelectTournament(tournament_id) => {
-                tracing::info!("Selected tournament: {}", tournament_id);
-                selected_tournament_id = Some(tournament_id.clone());
-                if let (Some(c), Some(key)) = (&mut client, &api_key) {
-                    let args: BTreeMap<String, Value> = maplit::btreemap! {
-                        "apiKey".into() => key.clone().into(),
-                        "tournamentId".into() => tournament_id.into(),
-                    };
-                    match c.mutation("publicApi:listMatches", args).await {
-                        Ok(FunctionResult::Value(val)) => {
-                            if let Some(err) = get_error_string(&val) {
-                                let _ = message_tx.send(LiveDataMessage::Error(err));
-                            } else {
-                                let courts = parse_court_list(&val);
-                                let _ = message_tx.send(LiveDataMessage::CourtList(courts));
-                            }
-                        }
-                        Ok(FunctionResult::ErrorMessage(e)) => {
-                            let _ = message_tx.send(LiveDataMessage::Error(e));
-                        }
-                        Ok(FunctionResult::ConvexError(e)) => {
-                            let _ = message_tx.send(LiveDataMessage::Error(e.message.clone()));
-                        }
-                        Err(e) => {
-                            let _ = message_tx
-                                .send(LiveDataMessage::Error(format!("Fetch error: {e}")));
-                        }
-                    }
-                }
-            }
-            LiveDataCommand::SelectCourt(court) => {
-                tracing::info!("Subscribing to court: {}", court);
-                if let Some(task) = subscription_task.take() {
-                    task.abort();
-                }
-
-                if let (Some(c), Some(key), Some(tid)) =
-                    (&mut client, &api_key, &selected_tournament_id)
-                {
-                    let args: BTreeMap<String, Value> = maplit::btreemap! {
-                        "apiKey".into() => key.clone().into(),
-                        "tournamentId".into() => tid.clone().into(),
-                        "court".into() => court.into(),
-                    };
-
-                    match c.subscribe("publicApi:watchCourt", args).await {
-                        Ok(mut sub) => {
-                            let tx = message_tx.clone();
-                            subscription_task = Some(tokio::spawn(async move {
-                                while let Some(result) = sub.next().await {
-                                    match result {
-                                        FunctionResult::Value(val) => {
-                                            if let Some(data) = parse_match_data(&val) {
-                                                let _ = tx
-                                                    .send(LiveDataMessage::MatchDataUpdated(data));
-                                            } else if is_waiting_for_court_match(&val) {
-                                                let _ = tx.send(LiveDataMessage::CourtNoActiveMatch);
-                                            } else if let Some(err) = get_error_string(&val) {
-                                                let _ = tx.send(LiveDataMessage::Error(err));
-                                            }
-                                        }
-                                        FunctionResult::ErrorMessage(e) => {
-                                            let _ = tx.send(LiveDataMessage::Error(e));
-                                            break;
-                                        }
-                                        FunctionResult::ConvexError(e) => {
-                                            let _ =
-                                                tx.send(LiveDataMessage::Error(e.message.clone()));
-                                            break;
-                                        }
-                                    }
-                                }
-                                let _ = tx.send(LiveDataMessage::Disconnected);
-                            }));
-                        }
-                        Err(e) => {
-                            let _ = message_tx
-                                .send(LiveDataMessage::Error(format!("Subscribe error: {e}")));
-                        }
-                    }
-                }
-            }
-            LiveDataCommand::Disconnect => {
-                tracing::info!("Disconnecting from Convex");
-                if let Some(task) = subscription_task.take() {
-                    task.abort();
-                }
-                if let Some(task) = pairing_poll_task.take() {
-                    task.abort();
-                }
-                client = None;
-                api_key = None;
-                selected_tournament_id = None;
-                let _ = message_tx.send(LiveDataMessage::Disconnected);
-            }
+            LiveDataCommand::SelectTournament(id) => state.handle_select_tournament(id).await,
+            LiveDataCommand::SelectCourt(court) => state.handle_select_court(court).await,
+            LiveDataCommand::Disconnect => state.handle_disconnect(),
         }
     }
 }

@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::storage::error::StorageError;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FontEntry {
     pub id: Uuid,
@@ -18,6 +20,7 @@ pub struct FontIndex {
     pub fonts: HashMap<Uuid, FontEntry>,
 }
 
+/// Manages imported font files on disk with an index for lookup by UUID or family name.
 pub struct FontLibrary {
     base_dir: PathBuf,
     index: FontIndex,
@@ -26,7 +29,9 @@ pub struct FontLibrary {
 impl FontLibrary {
     pub fn new() -> Self {
         let base_dir = Self::app_data_dir().join("fonts");
-        fs::create_dir_all(&base_dir).ok();
+        if let Err(e) = fs::create_dir_all(&base_dir) {
+            tracing::warn!("Failed to create fonts directory {}: {e}", base_dir.display());
+        }
 
         let index = Self::load_index(&base_dir);
 
@@ -57,8 +62,15 @@ impl FontLibrary {
 
     fn save_index(&self) {
         let path = Self::index_path(&self.base_dir);
-        if let Ok(json) = serde_json::to_string_pretty(&self.index) {
-            fs::write(path, json).ok();
+        match serde_json::to_string_pretty(&self.index) {
+            Ok(json) => {
+                if let Err(e) = fs::write(&path, json) {
+                    tracing::warn!("Failed to write font index {}: {e}", path.display());
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to serialize font index: {e}");
+            }
         }
     }
 
@@ -184,7 +196,7 @@ impl FontLibrary {
         best
     }
 
-    pub fn import_font(&mut self, source_path: &Path) -> Result<Uuid, String> {
+    pub fn import_font(&mut self, source_path: &Path) -> Result<Uuid, StorageError> {
         let id = Uuid::new_v4();
         let ext = source_path
             .extension()
@@ -193,7 +205,7 @@ impl FontLibrary {
         let filename = format!("{id}.{ext}");
         let dest = self.base_dir.join(&filename);
 
-        fs::copy(source_path, &dest).map_err(|e| format!("Failed to copy font: {e}"))?;
+        fs::copy(source_path, &dest)?;
 
         let original_name = source_path
             .file_name()
@@ -217,7 +229,7 @@ impl FontLibrary {
         Ok(id)
     }
 
-    pub fn import_font_with_id(&mut self, id: Uuid, source_path: &Path) -> Result<(), String> {
+    pub fn import_font_with_id(&mut self, id: Uuid, source_path: &Path) -> Result<(), StorageError> {
         if self.index.fonts.contains_key(&id) {
             return Ok(());
         }
@@ -229,7 +241,7 @@ impl FontLibrary {
         let filename = format!("{id}.{ext}");
         let dest = self.base_dir.join(&filename);
 
-        fs::copy(source_path, &dest).map_err(|e| format!("Failed to copy font: {e}"))?;
+        fs::copy(source_path, &dest)?;
 
         let original_name = source_path
             .file_name()
@@ -253,14 +265,16 @@ impl FontLibrary {
         Ok(())
     }
 
-    pub fn delete_font(&mut self, id: &Uuid) -> Result<(), String> {
+    pub fn delete_font(&mut self, id: &Uuid) -> Result<(), StorageError> {
         if let Some(entry) = self.index.fonts.remove(id) {
             let path = self.base_dir.join(&entry.filename);
-            fs::remove_file(&path).ok();
+            if let Err(e) = fs::remove_file(&path) {
+                tracing::warn!("Failed to remove font file {}: {e}", path.display());
+            }
             self.save_index();
             Ok(())
         } else {
-            Err("Font not found".to_string())
+            Err(StorageError::NotFound("Font not found".to_string()))
         }
     }
 

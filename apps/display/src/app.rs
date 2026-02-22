@@ -145,7 +145,7 @@ impl ScoreForgeApp {
         }
 
         // Snapshot data before egui closure to avoid borrow issues
-        let connection_step = self.state.active_project().connection_step.clone();
+        let connection_step = self.state.active_project().connection_step;
         let tournament_list = self.state.active_project().tournament_list.clone();
         let court_list = self.state.active_project().court_list.clone();
         let pairing_code = self.state.active_project().pairing_code.clone();
@@ -344,10 +344,10 @@ impl ScoreForgeApp {
         }
     }
 
-    /// Sync display state for all projects that have an active display.
-    fn sync_all_display_states(&self) {
-        for project in &self.state.projects {
-            if project.display_active {
+    /// Sync display state for all projects that have an active display and need syncing.
+    fn sync_all_display_states(&mut self) {
+        for project in &mut self.state.projects {
+            if project.display_active && project.display_needs_sync {
                 if let Ok(mut ds) = project.display_state.lock() {
                     ds.scoreboard = project.scoreboard.clone();
                     ds.components = project.components.clone();
@@ -359,6 +359,7 @@ impl ScoreForgeApp {
                     ds.offset_x = project.display_offset_x.parse().unwrap_or(0);
                     ds.offset_y = project.display_offset_y.parse().unwrap_or(0);
                 }
+                project.display_needs_sync = false;
             }
         }
     }

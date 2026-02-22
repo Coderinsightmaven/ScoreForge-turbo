@@ -4,6 +4,7 @@ mod data;
 mod designer;
 mod display;
 pub mod flags;
+mod serde_helpers;
 mod state;
 mod storage;
 
